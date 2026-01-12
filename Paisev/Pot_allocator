@@ -1,0 +1,771 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Paisev - Allocate Money</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: 'Noto Sans', sans-serif;
+            background: transparent;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 0;
+            margin: 0;
+        }
+
+        .phone-frame {
+            width: 375px;
+            height: 812px;
+            background: #F8FAFC;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            position: relative;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Responsive for mobile/Framer embeds - maintains aspect ratio */
+        @media (max-width: 768px) {
+            body {
+                padding: 0;
+                align-items: flex-start;
+            }
+            
+            .phone-frame {
+                width: 100%;
+                height: auto;
+                min-height: 100vh;
+                border-radius: 0;
+                box-shadow: none;
+            }
+        }
+
+        /* For very narrow viewports (mobile portrait) */
+        @media (max-width: 375px) {
+            .phone-frame {
+                width: 100vw;
+                min-height: 100vh;
+            }
+        }
+
+        .status-bar {
+            flex-shrink: 0;
+        }
+
+        .nav-header {
+            background: white;
+            padding: 16px 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            border-bottom: 1px solid #E2E8F0;
+            flex-shrink: 0;
+        }
+
+        .back-button {
+            width: 24px;
+            height: 24px;
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+
+        .nav-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #1E293B;
+        }
+
+        .content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 0;
+        }
+
+        .sticky-header {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            background: #FFFFFF;
+            padding: 20px 20px 16px 20px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+        }
+
+        .pots-container {
+            padding: 0 20px 20px 20px;
+        }
+
+        .income-card {
+            background: #11887F;
+            border: 1px solid #9AACCB;
+            border-radius: 12px;
+            padding: 24px;
+            text-align: center;
+            margin-bottom: 16px;
+        }
+
+        .income-card .label {
+            color: #FFFFFF;
+            font-size: 16px;
+            line-height: 20px;
+            margin-bottom: 8px;
+        }
+
+        .income-card .amount {
+            color: #FFFFFF;
+            font-size: 40px;
+            line-height: 48px;
+            font-weight: 700;
+            margin-bottom: 4px;
+            transition: color 0.3s ease;
+        }
+
+        .income-card .sublabel {
+            color: #FFFFFF;
+            font-size: 12px;
+            line-height: 16px;
+        }
+
+        .instructions {
+            font-size: 14px;
+            line-height: 20px;
+            color: #64748B;
+            margin-bottom: 16px;
+        }
+
+        .pot-card {
+            background: #FFFFFF;
+            border: 1px solid #9AACCB;
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 12px;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        .pot-card.highlight {
+            border-color: #11887F;
+            box-shadow: 0 2px 8px rgba(17, 136, 127, 0.1);
+        }
+
+        .pot-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .pot-name {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .pot-icon {
+            width: 32px;
+            height: 32px;
+            flex-shrink: 0;
+        }
+
+        .pot-name span {
+            font-size: 16px;
+            line-height: 24px;
+            color: #1E293B;
+            font-weight: 500;
+        }
+
+        .pot-value {
+            display: flex;
+            align-items: baseline;
+            gap: 2px;
+        }
+
+        .rupee {
+            font-size: 16px;
+            line-height: 20px;
+            color: #1E293B;
+        }
+
+        .amount-input {
+            font-size: 20px;
+            line-height: 24px;
+            color: #1E293B;
+            font-weight: 600;
+            border: 2px solid transparent;
+            background: transparent;
+            text-align: right;
+            width: 80px;
+            padding: 2px 4px;
+            border-radius: 4px;
+            font-family: 'Noto Sans', sans-serif;
+            transition: border-color 0.2s;
+            -moz-appearance: textfield;
+        }
+
+        .amount-input::-webkit-outer-spin-button,
+        .amount-input::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+
+        .amount-input:hover {
+            border-color: #E2E8F0;
+            background: #F8FAFC;
+        }
+
+        .amount-input:focus {
+            outline: none;
+            border-color: #11887F;
+            background: #F8FAFC;
+        }
+
+        .percentage {
+            font-size: 12px;
+            line-height: 16px;
+            color: #64748B;
+            margin-left: 8px;
+        }
+
+        .slider-container {
+            position: relative;
+            width: 100%;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+        }
+
+        .slider-track {
+            position: absolute;
+            width: 100%;
+            height: 8px;
+            background: #EEF1F6;
+            border: 1px solid #9AACCB;
+            border-radius: 999px;
+        }
+
+        .slider-fill {
+            position: absolute;
+            height: 8px;
+            background: #7B2CBF;
+            border-radius: 999px;
+            pointer-events: none;
+        }
+
+        .slider-thumb {
+            position: absolute;
+            width: 24px;
+            height: 24px;
+            background: #7B2CBF;
+            border: 3px solid white;
+            border-radius: 50%;
+            cursor: grab;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.15);
+            margin-left: -12px;
+            z-index: 10;
+            transition: transform 0.1s, box-shadow 0.1s;
+        }
+
+        .slider-thumb:active {
+            cursor: grabbing;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.25);
+            transform: scale(1.1);
+        }
+
+        .warning-card {
+            background: #FEF2F2;
+            border: 1px solid #9F0712;
+            border-radius: 12px;
+            padding: 16px;
+            margin-top: 16px;
+            margin-bottom: 16px;
+        }
+
+        .warning-header {
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+
+        .warning-icon {
+            width: 20px;
+            height: 20px;
+            flex-shrink: 0;
+            color: #9F0712;
+        }
+
+        .warning-header h4 {
+            font-size: 16px;
+            line-height: 20px;
+            color: #9F0712;
+            font-weight: 600;
+        }
+
+        .warning-body {
+            font-size: 14px;
+            line-height: 20px;
+            color: #9F0712;
+            margin-bottom: 12px;
+            margin-left: 28px;
+        }
+
+        .warning-button {
+            background: #9F0712;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 10px 16px;
+            font-size: 12px;
+            line-height: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            font-family: 'Noto Sans', sans-serif;
+            margin-left: 28px;
+            transition: background 0.2s;
+        }
+
+        .warning-button:hover {
+            background: #8A0610;
+        }
+
+        .warning-button:active {
+            transform: scale(0.98);
+        }
+
+        .button-group {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-top: 20px;
+            padding-bottom: 20px;
+        }
+
+        .btn {
+            width: 100%;
+            height: 40px;
+            border-radius: 8px;
+            font-size: 16px;
+            line-height: 20px;
+            font-weight: 600;
+            font-family: 'Noto Sans', sans-serif;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .btn-primary {
+            background: #0F766E;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #0D655E;
+        }
+
+        .btn-primary:active {
+            transform: scale(0.98);
+        }
+
+        .btn-secondary {
+            background: white;
+            color: #1E293B;
+            border: 1px solid #9AACCB;
+        }
+
+        .btn-secondary:hover {
+            background: #F8FAFC;
+        }
+
+        .btn-secondary:active {
+            transform: scale(0.98);
+        }
+
+        /* Success Screen - INSIDE PHONE FRAME */
+        .success-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.75);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 40px;
+            z-index: 1000;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .success-screen.show {
+            display: flex;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+            to {
+                opacity: 1;
+            }
+        }
+
+        .success-icon {
+            width: 100px;
+            height: 100px;
+            margin-bottom: 32px;
+            animation: scaleIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        @keyframes scaleIn {
+            from {
+                transform: scale(0);
+            }
+            to {
+                transform: scale(1);
+            }
+        }
+
+        .success-title {
+            margin-bottom: 16px;
+        }
+
+        .success-subtitle {
+            text-align: center;
+            color: #45556C;
+        }
+
+        /* Scrollbar styling */
+        .content::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .content::-webkit-scrollbar-track {
+            background: #F1F5F9;
+        }
+
+        .content::-webkit-scrollbar-thumb {
+            background: #CBD5E1;
+            border-radius: 3px;
+        }
+
+        .content::-webkit-scrollbar-thumb:hover {
+            background: #94A3B8;
+        }
+
+        /* Smooth transitions */
+        .pot-card, .slider-fill, .amount-input, .percentage {
+            transition: all 0.15s ease-out;
+        }
+    </style>
+</head>
+<body>
+    <div class="phone-frame">
+        <!-- Status Bar -->
+        <svg class="status-bar" width="375" height="44" viewBox="0 0 375 44" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect width="375" height="44" fill="#00786F"/>
+            <path d="M24.6335 17.1516V27.3334H23.4006V18.4442H23.3409L20.8551 20.0947V18.8419L23.4006 17.1516H24.6335ZM27.5618 27.3334V26.4385L30.9226 22.7595C31.317 22.3286 31.6418 21.9541 31.897 21.6359C32.1522 21.3144 32.3411 21.0128 32.4638 20.7311C32.5897 20.4461 32.6527 20.1478 32.6527 19.8362C32.6527 19.4783 32.5665 19.1684 32.3942 18.9065C32.2251 18.6447 31.9931 18.4425 31.6982 18.3C31.4032 18.1575 31.0717 18.0862 30.7038 18.0862C30.3127 18.0862 29.9714 18.1674 29.6797 18.3298C29.3913 18.4889 29.1676 18.7126 29.0085 19.001C28.8527 19.2893 28.7749 19.6274 28.7749 20.0152H27.6016C27.6016 19.4186 27.7391 18.8949 28.0142 18.4442C28.2893 17.9934 28.6638 17.6421 29.1378 17.3902C29.6151 17.1383 30.1503 17.0124 30.7436 17.0124C31.3402 17.0124 31.8688 17.1383 32.3295 17.3902C32.7902 17.6421 33.1515 17.9818 33.4134 18.4094C33.6752 18.8369 33.8061 19.3125 33.8061 19.8362C33.8061 20.2107 33.7382 20.577 33.6023 20.9349C33.4697 21.2896 33.2377 21.6856 32.9062 22.1231C32.5781 22.5573 32.1224 23.0876 31.5391 23.7141L29.2521 26.1601V26.2396H33.9851V27.3334H27.5618ZM36.9134 26.0308C36.6681 26.0308 36.4576 25.943 36.282 25.7673C36.1063 25.5917 36.0185 25.3812 36.0185 25.1359C36.0185 24.8907 36.1063 24.6802 36.282 24.5045C36.4576 24.3289 36.6681 24.241 36.9134 24.241C37.1586 24.241 37.3691 24.3289 37.5447 24.5045C37.7204 24.6802 37.8082 24.8907 37.8082 25.1359C37.8082 25.2983 37.7668 25.4475 37.6839 25.5834C37.6044 25.7193 37.4967 25.8286 37.3608 25.9115C37.2282 25.991 37.0791 26.0308 36.9134 26.0308ZM36.9134 20.8802C36.6681 20.8802 36.4576 20.7924 36.282 20.6168C36.1063 20.4411 36.0185 20.2306 36.0185 19.9854C36.0185 19.7401 36.1063 19.5296 36.282 19.354C36.4576 19.1783 36.6681 19.0905 36.9134 19.0905C37.1586 19.0905 37.3691 19.1783 37.5447 19.354C37.7204 19.5296 37.8082 19.7401 37.8082 19.9854C37.8082 20.1478 37.7668 20.2969 37.6839 20.4328C37.6044 20.5687 37.4967 20.6781 37.3608 20.7609C37.2282 20.8405 37.0791 20.8802 36.9134 20.8802ZM39.6552 25.2453V24.2311L44.1296 17.1516H44.8654V18.7226H44.3683L40.9876 24.072V24.1516H47.0131V25.2453H39.6552ZM44.4478 27.3334V24.9371V24.4648V17.1516H45.6211V27.3334H44.4478ZM52.3166 27.4726C51.6603 27.4726 51.0753 27.3599 50.5616 27.1345C50.0512 26.9091 49.6452 26.5959 49.3436 26.1949C49.0453 25.7905 48.8829 25.3215 48.8564 24.7879H50.1092C50.1357 25.116 50.2484 25.3994 50.4473 25.6381C50.6461 25.8734 50.9063 26.0557 51.2278 26.1849C51.5493 26.3142 51.9056 26.3788 52.2967 26.3788C52.7342 26.3788 53.122 26.3026 53.46 26.1501C53.7981 25.9977 54.0633 25.7856 54.2555 25.5138C54.4477 25.242 54.5439 24.9271 54.5439 24.5692C54.5439 24.1946 54.4511 23.8649 54.2654 23.5798C54.0798 23.2915 53.8081 23.0661 53.4501 22.9037C53.0922 22.7413 52.6547 22.6601 52.1376 22.6601H51.3223V21.5663H52.1376C52.542 21.5663 52.8966 21.4934 53.2015 21.3476C53.5098 21.2017 53.7501 20.9963 53.9224 20.7311C54.0981 20.4659 54.1859 20.1544 54.1859 19.7964C54.1859 19.4517 54.1097 19.1518 53.9572 18.8966C53.8047 18.6414 53.5893 18.4425 53.3109 18.3C53.0358 18.1575 52.711 18.0862 52.3365 18.0862C51.9851 18.0862 51.6537 18.1508 51.3422 18.2801C51.0339 18.4061 50.782 18.59 50.5865 18.832C50.3909 19.0706 50.2849 19.3589 50.2683 19.697H49.0751C49.095 19.1634 49.2557 18.6961 49.5574 18.295C49.859 17.8907 50.2534 17.5758 50.7406 17.3504C51.2311 17.125 51.7697 17.0124 52.3564 17.0124C52.9861 17.0124 53.5263 17.14 53.9771 17.3952C54.4279 17.6471 54.7742 17.9802 55.0162 18.3945C55.2581 18.8088 55.3791 19.2562 55.3791 19.7368C55.3791 20.3102 55.2283 20.799 54.9267 21.2034C54.6284 21.6078 54.2224 21.8878 53.7086 22.0436V22.1231C54.3516 22.2292 54.8538 22.5026 55.215 22.9435C55.5763 23.381 55.7569 23.9229 55.7569 24.5692C55.7569 25.1227 55.6061 25.6198 55.3045 26.0606C55.0062 26.4981 54.5985 26.8428 54.0815 27.0947C53.5645 27.3466 52.9761 27.4726 52.3166 27.4726Z" fill="white"/>
+            <path d="M316.333 27.3334H316.34" stroke="white" stroke-width="1.33333" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M319.667 27.3333V24.6666" stroke="white" stroke-width="1.33333" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M323 27.3333V22" stroke="white" stroke-width="1.33333" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M326.333 27.3334V19.3334" stroke="white" stroke-width="1.33333" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M329.667 16.6666V27.3333" stroke="white" stroke-width="1.33333" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M349.667 18.6666H341.667C340.93 18.6666 340.333 19.2636 340.333 20V24C340.333 24.7363 340.93 25.3333 341.667 25.3333H349.667C350.403 25.3333 351 24.7363 351 24V20C351 19.2636 350.403 18.6666 349.667 18.6666Z" stroke="white" stroke-width="1.33333" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M353.667 21.3334V22.6667" stroke="white" stroke-width="1.33333" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+
+        <!-- Success Screen (Inside Phone Frame, 75% Transparent) -->
+        <div class="success-screen" id="successScreen">
+            <svg class="success-icon" width="100" height="100" viewBox="0 0 100 100" fill="none">
+                <path d="M0 50C0 22.3858 22.3858 0 50 0C77.6142 0 100 22.3858 100 50C100 77.6142 77.6142 100 50 100C22.3858 100 0 77.6142 0 50Z" fill="#6AF9C9"/>
+                <path d="M70 35L42.5 62.5L30 50" stroke="#0F766E" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            
+            <svg class="success-title" width="277" height="40" viewBox="0 0 277 40" fill="none">
+                <text x="138.5" y="28" text-anchor="middle" fill="#1E293B" font-size="32" font-weight="700" font-family="Noto Sans">Money Allocated!</text>
+            </svg>
+            
+            <svg class="success-subtitle" width="240" height="24" viewBox="0 0 240 24" fill="none">
+                <text x="120" y="16" text-anchor="middle" fill="#45556C" font-size="14" font-family="Noto Sans">₹4500 protected across 4 pots</text>
+            </svg>
+        </div>
+
+        <!-- Navigation Header -->
+        <div class="nav-header">
+            <svg class="back-button" width="24" height="24" viewBox="0 0 24 24" fill="none">
+                <path d="M15 18L9 12L15 6" stroke="#1E293B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <span class="nav-title">Allocate Manually</span>
+        </div>
+
+        <!-- Content -->
+        <div class="content">
+            <div class="sticky-header">
+                <div class="income-card">
+                    <div class="label">New income from Swiggy</div>
+                    <div class="amount" id="remainingAmount">₹4,500</div>
+                    <div class="sublabel">to allocate</div>
+                </div>
+                <div class="instructions">
+                    Adjust amounts for each pot. Remaining will go to spending money.
+                </div>
+            </div>
+
+            <div class="pots-container">
+                <div id="potContainer"></div>
+
+                <div class="warning-card" id="warningCard" style="display: none;">
+                    <div class="warning-header">
+                        <svg class="warning-icon" viewBox="0 0 20 20" fill="none">
+                            <path d="M10 0L0 17.32H20L10 0Z" fill="currentColor" stroke="currentColor" stroke-linejoin="round"/>
+                            <path d="M10 7V11" stroke="white" stroke-width="1.5" stroke-linecap="round"/>
+                            <circle cx="10" cy="14" r="0.75" fill="white"/>
+                        </svg>
+                        <h4>Rent pot is behind</h4>
+                    </div>
+                    <div class="warning-body">Consider boosting rent to ₹2,200 to stay on track for Feb 1st</div>
+                    <button class="warning-button" onclick="applySuggestion()">Use this suggestion</button>
+                </div>
+
+                <div class="button-group">
+                    <button class="btn btn-primary" onclick="saveAllocation()">Save Allocation</button>
+                    <button class="btn btn-secondary" onclick="backToSmartSuggestion()">Back to Smart Suggestion</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const TOTAL_AMOUNT = 4500;
+        const ICONS = {
+            rent: '<svg width="32" height="32" viewBox="0 0 32 32" fill="none"><rect width="32" height="32" fill="white"/><path d="M16 3L2 14H5V29H27V14H30L16 3Z" fill="#D6EEFF" stroke="#1E293B" stroke-linecap="round" stroke-linejoin="round"/><path d="M16 25.25C16 25.25 21 22.25 21 19C21 17.25 19.75 16 18.25 16C17.25 16 16.5 16.5 16 17.25C15.5 16.5 14.75 16 13.75 16C12.25 16 11 17.25 11 19C11 22.25 16 25.25 16 25.25Z" stroke="#1E293B" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+            bills: '<svg width="32" height="32" viewBox="0 0 32 32" fill="none"><path d="M24.5556 2.99994H7.44444C6.09441 2.99994 5 3.82649 5 4.84609V25.1538C5 26.1734 6.09441 26.9999 7.44444 26.9999H24.5556C25.9056 26.9999 27 26.1734 27 25.1538V4.84609C27 3.82649 25.9056 2.99994 24.5556 2.99994Z" fill="#FFFBEB" stroke="#1E293B" stroke-linecap="round" stroke-linejoin="round"/><path d="M9.75 10H23.25" stroke="#1E293B"/><path d="M9.75 14H20.75" stroke="#1E293B"/><path d="M9.75 18H17.75" stroke="#1E293B"/></svg>',
+            emergency: '<svg width="33" height="32" viewBox="0 0 33 32" fill="none"><path d="M16.5 29C10.8281 29 5.15625 22.5 5.15625 13V7C5.15625 5.89545 6.07968 5 7.21875 5H25.7812C26.9203 5 27.8438 5.89545 27.8438 7V13C27.8438 22.5 22.1719 29 16.5 29Z" fill="#FEF2F2" stroke="#1E293B" stroke-linecap="round" stroke-linejoin="round"/><path d="M16.5 11.5L17.8922 15.25H21.9141L18.8203 17.75L19.8516 21.5L16.5 19.5L13.1484 21.5L14.1797 17.75L11.0859 15.25H15.1078L16.5 11.5Z" stroke="#1E293B" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+            phone: '<svg width="32" height="32" viewBox="0 0 32 32" fill="none"><path d="M23 23.7H9C7.67392 23.7 6.40215 23.1732 5.46447 22.2355C4.52678 21.2978 4 20.0261 4 18.7C4 17.3739 4.52678 16.1021 5.46447 15.1645C6.40215 14.2268 7.67392 13.7 9 13.7C9 11.8435 9.7375 10.063 11.0503 8.75025C12.363 7.4375 14.1435 6.7 16 6.7C17.8565 6.7 19.637 7.4375 20.9497 8.75025C22.2625 10.063 23 11.8435 23 13.7C24.3261 13.7 25.5979 14.2268 26.5355 15.1645C27.4732 16.1021 28 17.3739 28 18.7C28 20.0261 27.4732 21.2978 26.5355 22.2355C25.5979 23.1732 24.3261 23.7 23 23.7Z" fill="#F1E3FF" stroke="#1E293B" stroke-linecap="round" stroke-linejoin="round"/><path d="M16 11.2C16 13.8667 14.6667 15.2 12 15.2C14.6667 15.2 16 16.5333 16 19.2C16 16.5333 17.3333 15.2 20 15.2C17.3333 15.2 16 13.8667 16 11.2Z" stroke="#1E293B" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+            spending: '<svg width="22" height="25" viewBox="0 0 22 25" fill="none"><path d="M9.10518 7.69472C10.3938 4.6375 9.32764 0.5 9.32764 0.5C9.32764 0.5 7.08943 2.89352 7.16708 5.20939C5.2678 3.88199 3.44617 4.87045 3.44617 4.87045C3.44617 4.87045 2.61301 7.68056 4.55111 10.1659" fill="#D2F9F6"/><path d="M9.10518 7.69472C10.3938 4.6375 9.32764 0.5 9.32764 0.5C9.32764 0.5 7.08943 2.89352 7.16708 5.20939C5.2678 3.88199 3.44617 4.87045 3.44617 4.87045C3.44617 4.87045 2.61301 7.68056 4.55111 10.1659" stroke="#1E293B" stroke-linecap="round" stroke-linejoin="round"/><path d="M14.8271 16.557C18.1107 17.0314 21.1042 20.0801 21.1042 20.0801C21.1042 20.0801 17.8989 20.7617 15.9554 19.4998C16.112 21.8117 14.3252 22.8617 14.3252 22.8617C14.3252 22.8617 11.4883 22.1249 10.36 19.1821" fill="#D2F9F6"/><path d="M14.8271 16.557C18.1107 17.0314 21.1042 20.0801 21.1042 20.0801C21.1042 20.0801 17.8989 20.7617 15.9554 19.4998C16.112 21.8117 14.3252 22.8617 14.3252 22.8617C14.3252 22.8617 11.4883 22.1249 10.36 19.1821" stroke="#1E293B" stroke-linecap="round" stroke-linejoin="round"/><path d="M12.1153 5.82817L2.24358 11.5277C1.00449 12.2431 0.57994 13.8275 1.29533 15.0666L3.886 19.5538C4.60139 20.7929 6.18581 21.2174 7.42491 20.502L17.2967 14.8025C18.5358 14.0871 18.9603 12.5027 18.2449 11.2636L15.6543 6.77643C14.9389 5.53732 13.3544 5.11278 12.1153 5.82817Z" fill="#D2F9F6" stroke="#1E293B" stroke-linecap="round" stroke-linejoin="round"/><path d="M10.8061 14.96C11.7974 14.3877 12.137 13.1201 11.5647 12.1288C10.9924 11.1375 9.72486 10.7979 8.73359 11.3702C7.74231 11.9425 7.40267 13.2101 7.97499 14.2014C8.5473 15.1926 9.81484 15.5323 10.8061 14.96Z" fill="#D2F9F6" stroke="#1E293B" stroke-linecap="round" stroke-linejoin="round"/><path d="M4.24683 13.9609L6.31936 17.5507ZM13.2212 8.77958L15.2937 12.3693Z" fill="#D2F9F6"/><path d="M4.24683 13.9609L6.31936 17.5507M13.2212 8.77958L15.2937 12.3693" stroke="#1E293B" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+        };
+
+        let pots = [
+            { id: 'rent', name: 'Rent', amount: 1800, icon: ICONS.rent },
+            { id: 'bills', name: 'Bills', amount: 600, icon: ICONS.bills },
+            { id: 'emergency', name: 'Emergency', amount: 450, icon: ICONS.emergency },
+            { id: 'phone', name: 'New Phone', amount: 750, icon: ICONS.phone },
+            { id: 'spending', name: 'Spending Money', amount: 900, icon: ICONS.spending }
+        ];
+
+        let draggedPot = null;
+        let sliderWidth = 0;
+
+        function init() {
+            renderPots();
+            updateRemaining();
+            checkWarning();
+        }
+
+        function renderPots() {
+            const container = document.getElementById('potContainer');
+            container.innerHTML = pots.map(pot => `
+                <div class="pot-card" id="pot-${pot.id}">
+                    <div class="pot-header">
+                        <div class="pot-name">
+                            <div class="pot-icon">${pot.icon}</div>
+                            <span>${pot.name}</span>
+                        </div>
+                        <div class="pot-value">
+                            <span class="rupee">₹</span>
+                            <input type="number" 
+                                   class="amount-input" 
+                                   id="amount-${pot.id}" 
+                                   value="${pot.amount}"
+                                   min="0"
+                                   max="${TOTAL_AMOUNT}"
+                                   onchange="handleAmountInput('${pot.id}', this.value)"
+                                   onkeydown="handleAmountKeydown(event, '${pot.id}')"
+                            />
+                            <span class="percentage" id="percent-${pot.id}">${Math.round((pot.amount / TOTAL_AMOUNT) * 100)}%</span>
+                        </div>
+                    </div>
+                    <div class="slider-container" data-pot="${pot.id}">
+                        <div class="slider-track"></div>
+                        <div class="slider-fill" id="fill-${pot.id}" style="width: ${(pot.amount / TOTAL_AMOUNT) * 100}%"></div>
+                        <div class="slider-thumb" id="thumb-${pot.id}" style="left: ${(pot.amount / TOTAL_AMOUNT) * 100}%"></div>
+                    </div>
+                </div>
+            `).join('');
+
+            pots.forEach(pot => {
+                const thumb = document.getElementById(`thumb-${pot.id}`);
+                const container = document.querySelector(`[data-pot="${pot.id}"]`);
+                
+                thumb.addEventListener('mousedown', (e) => startDrag(e, pot.id));
+                thumb.addEventListener('touchstart', (e) => startDrag(e, pot.id), { passive: false });
+                container.addEventListener('click', (e) => {
+                    if (e.target === container || e.target.classList.contains('slider-track')) {
+                        handleSliderClick(e, pot.id);
+                    }
+                });
+            });
+
+            document.addEventListener('mousemove', drag);
+            document.addEventListener('mouseup', stopDrag);
+            document.addEventListener('touchmove', drag, { passive: false });
+            document.addEventListener('touchend', stopDrag);
+        }
+
+        function handleAmountInput(potId, value) {
+            let newAmount = parseInt(value) || 0;
+            const otherPotsTotal = pots.filter(p => p.id !== potId).reduce((sum, p) => sum + p.amount, 0);
+            const maxAllowed = TOTAL_AMOUNT - otherPotsTotal;
+            newAmount = Math.max(0, Math.min(newAmount, maxAllowed));
+            updatePotAmount(potId, newAmount);
+        }
+
+        function handleAmountKeydown(event, potId) {
+            if ([46, 8, 9, 27, 13].indexOf(event.keyCode) !== -1 ||
+                (event.keyCode === 65 && event.ctrlKey === true) ||
+                (event.keyCode === 67 && event.ctrlKey === true) ||
+                (event.keyCode === 86 && event.ctrlKey === true) ||
+                (event.keyCode === 88 && event.ctrlKey === true) ||
+                (event.keyCode >= 35 && event.keyCode <= 39)) {
+                return;
+            }
+            if ((event.shiftKey || (event.keyCode < 48 || event.keyCode > 57)) && 
+                (event.keyCode < 96 || event.keyCode > 105)) {
+                event.preventDefault();
+            }
+        }
+
+        function startDrag(e, potId) {
+            e.preventDefault();
+            draggedPot = potId;
+            const container = document.querySelector(`[data-pot="${potId}"]`);
+            sliderWidth = container.getBoundingClientRect().width;
+            document.getElementById(`pot-${potId}`).classList.add('highlight');
+        }
+
+        function drag(e) {
+            if (!draggedPot) return;
+            e.preventDefault();
+
+            const container = document.querySelector(`[data-pot="${draggedPot}"]`);
+            const rect = container.getBoundingClientRect();
+            const clientX = e.type === 'touchmove' ? e.touches[0].clientX : e.clientX;
+            const x = clientX - rect.left;
+            
+            const percentage = Math.max(0, Math.min(100, (x / sliderWidth) * 100));
+            let newAmount = Math.round((percentage / 100) * TOTAL_AMOUNT);
+            
+            const otherPotsTotal = pots.filter(p => p.id !== draggedPot).reduce((sum, p) => sum + p.amount, 0);
+            const maxAllowed = TOTAL_AMOUNT - otherPotsTotal;
+            newAmount = Math.min(newAmount, maxAllowed);
+            
+            updatePotAmount(draggedPot, newAmount);
+        }
+
+        function stopDrag() {
+            if (draggedPot) {
+                document.getElementById(`pot-${draggedPot}`).classList.remove('highlight');
+                draggedPot = null;
+            }
+        }
+
+        function handleSliderClick(e, potId) {
+            const container = document.querySelector(`[data-pot="${potId}"]`);
+            const rect = container.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const percentage = Math.max(0, Math.min(100, (x / rect.width) * 100));
+            let newAmount = Math.round((percentage / 100) * TOTAL_AMOUNT);
+            
+            const otherPotsTotal = pots.filter(p => p.id !== potId).reduce((sum, p) => sum + p.amount, 0);
+            const maxAllowed = TOTAL_AMOUNT - otherPotsTotal;
+            newAmount = Math.min(newAmount, maxAllowed);
+            
+            updatePotAmount(potId, newAmount);
+        }
+
+        function updatePotAmount(potId, newAmount) {
+            const pot = pots.find(p => p.id === potId);
+            pot.amount = newAmount;
+            
+            const percentage = (newAmount / TOTAL_AMOUNT) * 100;
+            const input = document.getElementById(`amount-${potId}`);
+            if (input) input.value = newAmount;
+            
+            document.getElementById(`percent-${potId}`).textContent = `${Math.round(percentage)}%`;
+            document.getElementById(`fill-${potId}`).style.width = `${percentage}%`;
+            document.getElementById(`thumb-${potId}`).style.left = `${percentage}%`;
+            
+            updateRemaining();
+            checkWarning();
+        }
+
+        function updateRemaining() {
+            const allocated = pots.reduce((sum, pot) => sum + pot.amount, 0);
+            const remaining = TOTAL_AMOUNT - allocated;
+            document.getElementById('remainingAmount').textContent = `₹${remaining.toLocaleString('en-IN')}`;
+        }
+
+        function checkWarning() {
+            const rentPot = pots.find(p => p.id === 'rent');
+            const warningCard = document.getElementById('warningCard');
+            warningCard.style.display = rentPot.amount < 2200 ? 'block' : 'none';
+        }
+
+        function applySuggestion() {
+            const suggestedRent = 2200;
+            const remainingBudget = TOTAL_AMOUNT - suggestedRent;
+            const otherPots = pots.filter(p => p.id !== 'rent');
+            const currentOtherTotal = otherPots.reduce((sum, p) => sum + p.amount, 0);
+            const scaleFactor = currentOtherTotal > 0 ? remainingBudget / currentOtherTotal : 0.25;
+            
+            updatePotAmount('rent', suggestedRent);
+            otherPots.forEach(pot => {
+                const newAmount = Math.round(pot.amount * scaleFactor);
+                updatePotAmount(pot.id, Math.max(0, newAmount));
+            });
+            
+            const rentCard = document.getElementById('pot-rent');
+            rentCard.classList.add('highlight');
+            setTimeout(() => rentCard.classList.remove('highlight'), 1000);
+        }
+
+        function saveAllocation() {
+            document.getElementById('successScreen').classList.add('show');
+            setTimeout(() => {
+                document.getElementById('successScreen').classList.remove('show');
+            }, 3000);
+        }
+
+        function backToSmartSuggestion() {
+            pots = [
+                { id: 'rent', name: 'Rent', amount: 1800, icon: ICONS.rent },
+                { id: 'bills', name: 'Bills', amount: 600, icon: ICONS.bills },
+                { id: 'emergency', name: 'Emergency', amount: 450, icon: ICONS.emergency },
+                { id: 'phone', name: 'New Phone', amount: 750, icon: ICONS.phone },
+                { id: 'spending', name: 'Spending Money', amount: 900, icon: ICONS.spending }
+            ];
+            pots.forEach(pot => updatePotAmount(pot.id, pot.amount));
+        }
+
+        window.addEventListener('load', init);
+    </script>
+</body>
+</html>

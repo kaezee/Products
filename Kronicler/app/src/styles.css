@@ -1,0 +1,63 @@
+/* Phase 3 is deliberately raw — legible, not designed. The real design system
+   (the prototype's tokens) lands in Phase 5. Just enough here to read clearly. */
+:root {
+  --paper: #f5f3ec;
+  --surface: #ffffff;
+  --ink: #1f1d18;
+  --sub: #6c6656;
+  --muted: #a29b85;
+  --line: #e7e3d6;
+  --bond: #3a5488;
+  --hostile: #a63a2e;
+  --obligation: #93630e;
+  --neutral: #6c6656;
+  --serif: "Newsreader", Georgia, serif;
+  --sans: "Inter", system-ui, sans-serif;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  font-family: var(--sans);
+  background: var(--paper);
+  color: var(--ink);
+  font-size: 14px;
+  line-height: 1.5;
+}
+a { color: var(--bond); }
+button {
+  font-family: var(--sans);
+  font-size: 13px;
+  padding: 7px 13px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--surface);
+  color: var(--ink);
+  cursor: pointer;
+}
+button.primary { background: var(--ink); color: var(--paper); border: none; }
+button:disabled { opacity: 0.5; cursor: default; }
+input {
+  font-family: var(--sans);
+  font-size: 14px;
+  padding: 9px 11px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--surface);
+  color: var(--ink);
+}
+.app { max-width: 900px; margin: 0 auto; padding: 24px 20px; }
+.nav { display: flex; gap: 6px; align-items: center; margin-bottom: 20px; }
+.nav .tab { padding: 6px 12px; border-radius: 7px; cursor: pointer; color: var(--sub); }
+.nav .tab.on { background: #edf1f8; color: var(--bond); font-weight: 600; }
+.spacer { flex: 1; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+.row { display: flex; gap: 10px; align-items: center; padding: 10px 14px; border-bottom: 1px solid var(--line); }
+.row:last-child { border-bottom: none; }
+.title-serif { font-family: var(--serif); font-size: 15px; font-weight: 500; }
+.label { font-size: 10.5px; font-weight: 650; letter-spacing: 0.09em; text-transform: uppercase; color: var(--muted); margin: 22px 0 8px; }
+.dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.muted { color: var(--muted); font-size: 12px; }
+.note { color: var(--muted); font-family: var(--serif); font-style: italic; font-size: 12.5px; }
+.center { min-height: 70vh; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; }
+.authcard { width: 320px; display: flex; flex-direction: column; gap: 10px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 22px; }
+.err { color: var(--hostile); font-size: 12.5px; }

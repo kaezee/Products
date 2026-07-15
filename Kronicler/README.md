@@ -7,20 +7,27 @@ inside the tool.
 Source of truth: [`docs/PRD-v2.md`](docs/PRD-v2.md). `docs/PRD-v1.md` is kept for
 historical context only — v2 supersedes it in full.
 
-## Status: Phase 0 — schema
+## Status: engine proven — next is the first touchable UI
 
 Build order (PRD v2 §14), current position marked:
 
-1. **Schema** ✅ — `supabase/migrations/0001_phase0_schema.sql`
-2. Core CRUD + soft-delete + starter vocabulary seeding
-3. The signature query (Relationships Stream)
-4. The editor + in-prose write path + mention scan
+1. **Schema** ✅ — `migrations/0001`, refined by `migrations/0003`
+   (obligation valence family + `is_terminal`, from the prototype study)
+2. **Soft-delete + starter vocabulary seeding** ✅ (auto-seeds on world create)
+3. **The signature query (Relationships Stream)** ✅ — `migrations/0002`,
+   proven against synthetic data; Core CRUD comes free via Supabase/PostgREST
+4. The editor + in-prose write path + mention scan ← **next; design ratified
+   in `prototype/interaction-prototype-v2.jsx`**
 5. Doc view + chapter Brief
 6. Shell IA, Overview, search + ⌘/Ctrl+K
 7. Graph lens
 8. Thread view, saved views, export
 9. Migrate the Zoonya slice, then outside writers
 10. Everything in PRD §6 (non-goals) — only after validation
+
+The live schema is deployed to the dedicated **Kronicler** Supabase project.
+`prototype/` holds the ratified interaction design (write path + IA); its
+design tokens are the emerging design language for the real UI.
 
 ## What's in the schema
 

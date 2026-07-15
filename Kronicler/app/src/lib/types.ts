@@ -38,6 +38,19 @@ export interface Chapter {
   body: string;
 }
 
+export interface ChapterVersion {
+  id: string;
+  chapter_id: string;
+  body: string;
+  created_at: string;
+}
+
+export interface ChapterEntity {
+  chapter_id: string;
+  entity_id: string;
+  role: string;
+}
+
 export interface StreamParticipant {
   entity_id: string;
   title: string;

@@ -6,12 +6,13 @@ import type { World } from "./lib/types";
 import { AuthGate } from "./auth/AuthGate";
 import { Library } from "./views/Library";
 import { Stream } from "./views/Stream";
+import { Manuscript } from "./views/Manuscript";
 
 export function App() {
   return <AuthGate>{(session) => <Workspace session={session} />}</AuthGate>;
 }
 
-type Tab = "library" | "stream";
+type Tab = "library" | "stream" | "manuscript";
 
 function Workspace({ session }: { session: Session }) {
   const [worlds, setWorlds] = useState<World[] | null>(null);
@@ -70,9 +71,12 @@ function Workspace({ session }: { session: Session }) {
         <>
           <div className="nav">
             <span className={"tab" + (tab === "stream" ? " on" : "")} onClick={() => setTab("stream")}>Relationships</span>
+            <span className={"tab" + (tab === "manuscript" ? " on" : "")} onClick={() => setTab("manuscript")}>Manuscript</span>
             <span className={"tab" + (tab === "library" ? " on" : "")} onClick={() => setTab("library")}>Library</span>
           </div>
-          {tab === "stream" ? <Stream worldId={worldId} /> : <Library worldId={worldId} />}
+          {tab === "stream" ? <Stream worldId={worldId} />
+            : tab === "manuscript" ? <Manuscript worldId={worldId} />
+            : <Library worldId={worldId} />}
         </>
       )}
     </div>

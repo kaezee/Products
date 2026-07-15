@@ -61,3 +61,15 @@ input {
 .center { min-height: 70vh; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; }
 .authcard { width: 320px; display: flex; flex-direction: column; gap: 10px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 22px; }
 .err { color: var(--hostile); font-size: 12.5px; }
+
+/* editor + composer */
+textarea { font-family: var(--serif); border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--ink); }
+.sel { padding: 6px 8px; border: 1px solid var(--line); border-radius: 7px; background: var(--surface); font-family: var(--serif); font-size: 14px; }
+.chip { font-size: 11.5px; padding: 4px 10px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); color: var(--sub); cursor: pointer; user-select: none; }
+.chip.on { border-color: var(--bond); background: #edf1f8; color: var(--bond); font-weight: 600; }
+.overlay { position: fixed; inset: 0; background: rgba(31,29,24,.35); display: flex; align-items: flex-start; justify-content: center; padding-top: 90px; z-index: 50; }
+.composer { width: 440px; max-width: calc(100vw - 32px); background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 18px 20px; box-shadow: 0 12px 40px rgba(31,29,24,.18); }
+.typeahead { position: absolute; top: 110%; left: 0; width: 240px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 12px 40px rgba(31,29,24,.18); z-index: 5; overflow: hidden; }
+.ta-row { display: flex; align-items: center; gap: 8px; padding: 8px 12px; font-size: 13px; cursor: pointer; border-bottom: 1px solid var(--line); }
+.ta-row:last-child { border-bottom: none; }
+.ta-row:hover { background: var(--inset, #faf9f4); }

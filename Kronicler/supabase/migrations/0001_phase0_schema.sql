@@ -8,6 +8,7 @@ create extension if not exists pgcrypto;
 create or replace function set_updated_at()
 returns trigger
 language plpgsql
+set search_path = public, pg_temp
 as $$
 begin
   new.updated_at = now();
@@ -133,6 +134,7 @@ create index relationship_types_world_id_idx on relationship_types(world_id) whe
 create or replace function seed_starter_relationship_types()
 returns trigger
 language plpgsql
+set search_path = public, pg_temp
 as $$
 begin
   insert into relationship_types (world_id, label, valence, is_ambient) values

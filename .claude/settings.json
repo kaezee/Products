@@ -5,9 +5,16 @@
         "source": "github",
         "repo": "obra/superpowers"
       }
+    },
+    "karpathy-skills": {
+      "source": {
+        "source": "github",
+        "repo": "forrestchang/andrej-karpathy-skills"
+      }
     }
   },
   "enabledPlugins": {
-    "superpowers@superpowers-dev": true
+    "superpowers@superpowers-dev": true,
+    "andrej-karpathy-skills@karpathy-skills": true
   }
 }

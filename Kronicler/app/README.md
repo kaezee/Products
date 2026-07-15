@@ -2,10 +2,16 @@
 
 Vite + React + TypeScript frontend on the live Supabase engine.
 
-**Phase 3 status:** foundation in place — auth (email + password), world
-switcher, and the read-side (Relationships **Stream** = the signature query,
-and **Library**) wired to live data. The editor, in-prose write path, mention
-scan, and version history are the remaining Phase 3 work.
+**Phase 3 status: complete.** Auth (email + password), world switcher, the
+read-side (Relationships **Stream** = the signature query, and **Library**),
+and the full write path:
+
+- **Manuscript** — list/create chapters, open the editor
+- **Editor** — draft prose with autosave + version history; your cast lights up
+  live in the side panel as you type; select a sentence to record a state
+- **Composer** — sentence-shaped state capture (A / type / B), type-ahead over
+  your dictionary with inline mint, exception-only concealment, the selected
+  prose captured as the note
 
 Styling is deliberately raw here; the real design system (the prototype's
 tokens) is applied in Phase 5, not before.

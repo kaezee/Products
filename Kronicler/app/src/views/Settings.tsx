@@ -34,9 +34,9 @@ export function Settings({ worldName, userEmail, onDeleteWorld }: {
           <button
             style={{ color: "var(--hostile)", borderColor: "var(--hostile)" }}
             onClick={() => {
-              const typed = prompt(`Type the world's name to confirm deletion:\n\n${worldName}`);
-              if (typed != null && typed.trim() === worldName) onDeleteWorld();
-              else if (typed != null) alert("Name didn't match — nothing was deleted.");
+              if (confirm(`Delete the world “${worldName}”?\n\nEverything in it is hidden and recoverable — nothing is truly erased. You'll be switched to another world.`)) {
+                onDeleteWorld();
+              }
             }}
           >Delete world</button>
         </div>

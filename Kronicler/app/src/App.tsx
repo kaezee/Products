@@ -5,7 +5,7 @@ import { getMyWorlds, createWorld } from "./lib/api";
 import type { World } from "./lib/types";
 import { AuthGate } from "./auth/AuthGate";
 import { Library } from "./views/Library";
-import { Stream } from "./views/Stream";
+import { Relationships } from "./views/Relationships";
 import { Manuscript } from "./views/Manuscript";
 import { Overview } from "./views/Overview";
 import { Settings } from "./views/Settings";
@@ -134,7 +134,7 @@ function Workspace({ session }: { session: Session }) {
               ) : nav.scope === "settings" ? (
                 <Settings worldId={worldId} />
               ) : (
-                <Stream worldId={worldId} />
+                <Relationships worldId={worldId} go={go} />
               )}
             </div>
           </div>

@@ -67,9 +67,13 @@ export function Relationships({ worldId, go }: { worldId: string; go: (n: Nav) =
         <div className="seg">
           <span className={lens === "stream" ? "on" : ""} onClick={() => setLens("stream")}>Stream</span>
           <span className={lens === "graph" ? "on" : ""} onClick={() => setLens("graph")}>Graph</span>
-          <span className={lens === "types" ? "on" : ""} onClick={() => setLens("types")}>Types</span>
         </div>
         {lens !== "types" && <span className="faint" style={{ fontSize: 11 }}>filters persist across lenses</span>}
+        <span className="spacer" />
+        <button className={lens === "types" ? "primary" : ""}
+          onClick={() => setLens(lens === "types" ? "stream" : "types")}>
+          {lens === "types" ? "← Back to lenses" : "Manage types"}
+        </button>
       </div>
 
       {lens === "types" ? (

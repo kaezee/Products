@@ -68,11 +68,9 @@ function Workspace({ session }: { session: Session }) {
   async function deleteWorld(id: string) {
     try {
       await softDeleteWorld(id);
-      setWorlds((prev) => {
-        const next = (prev ?? []).filter((w) => w.id !== id);
-        setWorldId((cur) => (cur === id ? next[0]?.id ?? null : cur));
-        return next;
-      });
+      const remaining = (worlds ?? []).filter((w) => w.id !== id);
+      setWorlds(remaining);
+      if (worldId === id) setWorldId(remaining[0]?.id ?? null);
       go({ scope: "overview" });
     } catch (x) { setErr(String(x)); }
   }

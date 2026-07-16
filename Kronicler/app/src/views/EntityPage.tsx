@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   getEntityStream, getEntityChapters, getEntities, getRelationshipTypes,
   createRelationshipType, appendPairwiseState, updateEntity, softDeleteEntity,
+  updateStateType, softDeleteRelationship,
 } from "../lib/api";
 import type { Entity, StreamRow, RelationshipType, Valence } from "../lib/types";
 import type { EntityChapter } from "../lib/api";
@@ -30,6 +31,7 @@ export function EntityPage({ entity, onBack, onChanged, startEditing }: {
   const [err, setErr] = useState<string | null>(null);
   const [open, setOpen] = useState<string | null>(null);
   const [addingConn, setAddingConn] = useState(false);
+  const [editingRel, setEditingRel] = useState<string | null>(null);
 
   // edit state
   const [editing, setEditing] = useState(!!startEditing);
@@ -88,6 +90,16 @@ export function EntityPage({ entity, onBack, onChanged, startEditing }: {
   async function del() {
     if (!confirm(`Delete "${ent.title}"? It's soft-deleted — recoverable, nothing is truly lost.`)) return;
     try { await softDeleteEntity(ent.id); onChanged?.(); onBack(); } catch (x) { setErr(String(x)); }
+  }
+
+  async function changeType(stateId: string, typeId: string) {
+    setEditingRel(null);
+    try { await updateStateType(stateId, typeId); loadConnections(); } catch (x) { setErr(String(x)); }
+  }
+
+  async function removeConnection(relId: string, label: string) {
+    if (!confirm(`Remove the "${label}" connection? It's soft-deleted — recoverable, nothing is truly lost.`)) return;
+    try { await softDeleteRelationship(relId); loadConnections(); } catch (x) { setErr(String(x)); }
   }
 
   return (
@@ -174,14 +186,28 @@ export function EntityPage({ entity, onBack, onChanged, startEditing }: {
         )}
         {groups.map(({ relId, history, latest, others: otherNames }) => {
           const isOpen = open === relId;
+          const isEditing = editingRel === relId;
           return (
             <div key={relId} style={{ borderBottom: "1px solid var(--line)" }}>
-              <div className="row" style={{ cursor: "pointer", borderBottom: "none" }} onClick={() => setOpen(isOpen ? null : relId)}>
-                <span className="muted" style={{ width: 10 }}>{isOpen ? "▾" : "▸"}</span>
+              <div className="row" style={{ borderBottom: "none" }}>
+                <span className="muted" style={{ width: 10, cursor: "pointer" }} onClick={() => setOpen(isOpen ? null : relId)}>{isOpen ? "▾" : "▸"}</span>
                 <span className="dot" style={{ background: VALENCE_COLOR[latest.valence] }} />
-                <span style={{ color: VALENCE_COLOR[latest.valence], fontWeight: 600, fontSize: 12.5 }}>{latest.type_label}</span>
-                <span className="title-serif" style={{ flex: 1 }}>{otherNames}</span>
+                {isEditing ? (
+                  <select className="sel" autoFocus defaultValue={latest.type_id} style={{ padding: "4px 8px", fontSize: 12.5 }}
+                    onChange={(e) => changeType(latest.state_id, e.target.value)}
+                    onBlur={() => setEditingRel(null)}>
+                    {types.map((t) => <option key={t.id} value={t.id}>{t.label}</option>)}
+                  </select>
+                ) : (
+                  <span style={{ color: VALENCE_COLOR[latest.valence], fontWeight: 600, fontSize: 12.5, cursor: "pointer" }}
+                    onClick={() => setOpen(isOpen ? null : relId)}>{latest.type_label}</span>
+                )}
+                <span className="title-serif" style={{ flex: 1, cursor: "pointer" }} onClick={() => setOpen(isOpen ? null : relId)}>{otherNames}</span>
                 <span className="muted">{latest.manuscript_order != null ? `ch. ${latest.manuscript_order}` : "standing"}</span>
+                <span className="rowact" title="Change type" onClick={() => setEditingRel(isEditing ? null : relId)}
+                  style={{ cursor: "pointer", color: "var(--muted)", fontSize: 12, padding: "0 2px" }}>edit</span>
+                <span className="rowact" title="Remove connection" onClick={() => removeConnection(relId, latest.type_label)}
+                  style={{ cursor: "pointer", color: "var(--faint)", fontSize: 13, padding: "0 2px" }}>✕</span>
               </div>
               {isOpen && (
                 <div style={{ margin: "0 0 10px 42px", borderLeft: "2px solid var(--line)", paddingLeft: 14 }}>

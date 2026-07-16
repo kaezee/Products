@@ -234,6 +234,26 @@ export async function appendPairwiseState(args: {
   return data as string;
 }
 
+// Fix a mistake in a connection: repoint a state to a different relationship
+// type (and optionally its note). Append-only history is for story changes —
+// a data-entry slip should just be correctable.
+export async function updateStateType(stateId: string, typeId: string, note?: string | null): Promise<void> {
+  const patch: { type_id: string; note?: string | null } = { type_id: typeId };
+  if (note !== undefined) patch.note = note;
+  const { error } = await supabase.from("relationship_states").update(patch).eq("id", stateId);
+  if (error) throw error;
+}
+
+// Remove a whole connection (soft-delete the relationship; its states go with
+// it via the stream's deleted_at filter). Recoverable, nothing truly lost.
+export async function softDeleteRelationship(relationshipId: string): Promise<void> {
+  const { error } = await supabase
+    .from("relationships")
+    .update({ deleted_at: new Date().toISOString() })
+    .eq("id", relationshipId);
+  if (error) throw error;
+}
+
 // ── Doc view (Phase 4) ───────────────────────────────────────────────────
 
 // The stream rows for every relationship a given entity participates in —

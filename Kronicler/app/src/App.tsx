@@ -145,8 +145,8 @@ function Workspace({ session }: { session: Session }) {
                 <Manuscript key={worldId + (nav.chapterId ?? "")} worldId={worldId} focusChapterId={nav.chapterId} />
               ) : nav.scope === "settings" ? (
                 <Settings
-                  worldId={worldId}
                   worldName={worlds.find((w) => w.id === worldId)?.name ?? "this world"}
+                  userEmail={session.user.email ?? ""}
                   onDeleteWorld={() => deleteWorld(worldId)}
                 />
               ) : (

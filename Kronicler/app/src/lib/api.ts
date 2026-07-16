@@ -41,6 +41,36 @@ export async function getEntities(worldId: string): Promise<Entity[]> {
   return data ?? [];
 }
 
+export async function createEntity(
+  worldId: string,
+  type: string,
+  title: string,
+): Promise<Entity> {
+  const { data, error } = await supabase
+    .from("entities")
+    .insert({ world_id: worldId, type, title })
+    .select("id, world_id, type, title, aliases, body, tags")
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+export async function updateEntity(
+  id: string,
+  patch: Partial<Pick<Entity, "title" | "type" | "aliases" | "body">>,
+): Promise<void> {
+  const { error } = await supabase.from("entities").update(patch).eq("id", id);
+  if (error) throw error;
+}
+
+export async function softDeleteEntity(id: string): Promise<void> {
+  const { error } = await supabase
+    .from("entities")
+    .update({ deleted_at: new Date().toISOString() })
+    .eq("id", id);
+  if (error) throw error;
+}
+
 export async function getChapters(worldId: string): Promise<Chapter[]> {
   const { data, error } = await supabase
     .from("chapters")

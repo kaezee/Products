@@ -14,7 +14,8 @@ export function Relationships({ worldId, go }: { worldId: string; go: (n: Nav) =
   const [types, setTypes] = useState<RelationshipType[]>([]);
   const [err, setErr] = useState<string | null>(null);
 
-  const [lens, setLens] = useState<"stream" | "graph" | "types">("stream");
+  const [lens, setLens] = useState<"stream" | "graph">("stream");
+  const [typesOpen, setTypesOpen] = useState(false);
   const [typeId, setTypeId] = useState("all");
   const [viewer, setViewer] = useState("all"); // knowledge lens: 'all' (writer) or an entity id
   const [asOf, setAsOf] = useState<number | null>(null);
@@ -27,6 +28,13 @@ export function Relationships({ worldId, go }: { worldId: string; go: (n: Nav) =
       .catch((x) => alive && setErr(String(x)));
     return () => { alive = false; };
   }, [worldId]);
+
+  useEffect(() => {
+    if (!typesOpen) return;
+    const h = (e: KeyboardEvent) => { if (e.key === "Escape") setTypesOpen(false); };
+    window.addEventListener("keydown", h);
+    return () => window.removeEventListener("keydown", h);
+  }, [typesOpen]);
 
   const maxCh = useMemo(() => (rows ?? []).reduce((m, r) => Math.max(m, r.manuscript_order ?? 0), 0), [rows]);
   const asOfVal = asOf ?? maxCh;
@@ -68,18 +76,11 @@ export function Relationships({ worldId, go }: { worldId: string; go: (n: Nav) =
           <span className={lens === "stream" ? "on" : ""} onClick={() => setLens("stream")}>Stream</span>
           <span className={lens === "graph" ? "on" : ""} onClick={() => setLens("graph")}>Graph</span>
         </div>
-        {lens !== "types" && <span className="faint" style={{ fontSize: 11 }}>filters persist across lenses</span>}
+        <span className="faint" style={{ fontSize: 11 }}>filters persist across lenses</span>
         <span className="spacer" />
-        <button className={lens === "types" ? "primary" : ""}
-          onClick={() => setLens(lens === "types" ? "stream" : "types")}>
-          {lens === "types" ? "← Back to lenses" : "Manage types"}
-        </button>
+        <button onClick={() => setTypesOpen(true)}>Manage types</button>
       </div>
 
-      {lens === "types" ? (
-        <TypeDictionary worldId={worldId} />
-      ) : (
-      <>
       {/* shared filter bar */}
       <div style={{ display: "flex", gap: 8, marginBottom: 12, flexWrap: "wrap", alignItems: "center" }}>
         <select value={typeId} onChange={(e) => setTypeId(e.target.value)}
@@ -129,7 +130,20 @@ export function Relationships({ worldId, go }: { worldId: string; go: (n: Nav) =
           <span className="faint" style={{ whiteSpace: "nowrap" }}>scrub the world back to any chapter</span>
         </div>
       )}
-      </>
+
+      {typesOpen && (
+        <div className="overlay" onClick={() => setTypesOpen(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <div className="row" style={{ borderBottom: "none", padding: 0, marginBottom: 6 }}>
+              <h3 style={{ fontFamily: "var(--serif)", fontWeight: 500, margin: 0, fontSize: 19 }}>Manage types</h3>
+              <span className="muted" style={{ marginLeft: 10 }}>the relationship dictionary for this world</span>
+              <span className="spacer" />
+              <span onClick={() => setTypesOpen(false)} title="Close (Esc)"
+                style={{ cursor: "pointer", color: "var(--muted)", fontSize: 16 }}>✕</span>
+            </div>
+            <TypeDictionary worldId={worldId} />
+          </div>
+        </div>
       )}
     </div>
   );

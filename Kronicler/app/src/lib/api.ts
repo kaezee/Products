@@ -27,6 +27,11 @@ export async function softDeleteWorld(id: string): Promise<void> {
   if (error) throw error;
 }
 
+export async function renameWorld(id: string, name: string): Promise<void> {
+  const { error } = await supabase.from("worlds").update({ name }).eq("id", id);
+  if (error) throw error;
+}
+
 export async function createWorld(name: string): Promise<World> {
   const { data: userData, error: userErr } = await supabase.auth.getUser();
   if (userErr) throw userErr;
@@ -157,16 +162,17 @@ export async function updateChapterTitle(chapterId: string, title: string): Prom
   if (error) throw error;
 }
 
-// Reorder: swap two chapters' manuscript_order. There's no unique constraint on
-// the column, so the two updates can't collide. Callers pass adjacent chapters.
-export async function swapChapterOrder(
-  a: { id: string; manuscript_order: number },
-  b: { id: string; manuscript_order: number },
-): Promise<void> {
-  const e1 = await supabase.from("chapters").update({ manuscript_order: b.manuscript_order }).eq("id", a.id);
-  if (e1.error) throw e1.error;
-  const e2 = await supabase.from("chapters").update({ manuscript_order: a.manuscript_order }).eq("id", b.id);
-  if (e2.error) throw e2.error;
+// Persist a full drag-and-drop reorder: write each chapter's new 1-based
+// position. No unique constraint on manuscript_order, so intermediate states
+// can't collide. Only the ids whose position actually changed are written.
+export async function reorderChapters(orderedIds: string[]): Promise<void> {
+  await Promise.all(
+    orderedIds.map((id, i) =>
+      supabase.from("chapters").update({ manuscript_order: i + 1 }).eq("id", id).then(({ error }) => {
+        if (error) throw error;
+      }),
+    ),
+  );
 }
 
 // Trustworthy autosave + bounded version trail — see save_chapter_body().

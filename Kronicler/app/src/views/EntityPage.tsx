@@ -189,7 +189,8 @@ export function EntityPage({ entity, onBack, onChanged, startEditing }: {
           const isEditing = editingRel === relId;
           return (
             <div key={relId} style={{ borderBottom: "1px solid var(--line)" }}>
-              <div className="row" style={{ borderBottom: "none" }}>
+              <div className="row" style={{ borderBottom: "none" }} title="Double-click to change the type"
+                onDoubleClick={() => setEditingRel(relId)}>
                 <span className="muted" style={{ width: 10, cursor: "pointer" }} onClick={() => setOpen(isOpen ? null : relId)}>{isOpen ? "▾" : "▸"}</span>
                 <span className="dot" style={{ background: VALENCE_COLOR[latest.valence] }} />
                 {isEditing ? (

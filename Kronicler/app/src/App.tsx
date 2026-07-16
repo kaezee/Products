@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { supabase } from "./lib/supabase";
-import { getMyWorlds, createWorld, softDeleteWorld } from "./lib/api";
+import { getMyWorlds, createWorld, softDeleteWorld, renameWorld } from "./lib/api";
 import type { World } from "./lib/types";
 import { AuthGate } from "./auth/AuthGate";
 import { Library } from "./views/Library";
@@ -65,6 +65,17 @@ function Workspace({ session }: { session: Session }) {
     } catch (x) { setErr(String(x)); }
   }
 
+  async function renameCurrentWorld() {
+    if (!worldId) return;
+    const cur = worlds?.find((w) => w.id === worldId);
+    const name = prompt("Rename this world", cur?.name ?? "")?.trim();
+    if (!name || name === cur?.name) return;
+    try {
+      await renameWorld(worldId, name);
+      setWorlds((prev) => (prev ?? []).map((w) => (w.id === worldId ? { ...w, name } : w)));
+    } catch (x) { setErr(String(x)); }
+  }
+
   async function deleteWorld(id: string) {
     try {
       await softDeleteWorld(id);
@@ -87,14 +98,20 @@ function Workspace({ session }: { session: Session }) {
         <div className="shellcard">
           {/* chrome */}
           <div className="chrome">
-            <div className="worldchip" onClick={makeWorld} title="Worlds">
+            <div className="worldchip" title="Worlds">
               <span className="k">K</span>
               {worlds.length > 0 ? (
-                <select value={worldId ?? ""} onClick={(e) => e.stopPropagation()} onChange={(e) => setWorldId(e.target.value)}
-                  style={{ border: "none", background: "transparent", fontWeight: 600, padding: 0 }}>
+                <select value={worldId ?? ""} onChange={(e) => setWorldId(e.target.value)}
+                  style={{ border: "none", background: "transparent", fontWeight: 600, padding: 0, cursor: "pointer" }}>
                   {worlds.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
                 </select>
-              ) : "Kronicler"}
+              ) : <span style={{ fontWeight: 600 }}>Kronicler</span>}
+              {worldId && (
+                <span title="Rename this world" onClick={renameCurrentWorld}
+                  style={{ cursor: "pointer", color: "var(--muted)", fontSize: 12.5, padding: "0 2px" }}>✎</span>
+              )}
+              <span title="New world" onClick={makeWorld}
+                style={{ cursor: "pointer", color: "var(--muted)", fontSize: 15, padding: "0 2px" }}>＋</span>
             </div>
             <div className="searchwrap">
               <span className="ic">⌕</span>

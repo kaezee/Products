@@ -1,12 +1,18 @@
 import { useEffect, useMemo, useState } from "react";
-import { getEntityStream, getEntityChapters, updateEntity, softDeleteEntity } from "../lib/api";
-import type { Entity, StreamRow } from "../lib/types";
+import {
+  getEntityStream, getEntityChapters, getEntities, getRelationshipTypes,
+  createRelationshipType, appendPairwiseState, updateEntity, softDeleteEntity,
+} from "../lib/api";
+import type { Entity, StreamRow, RelationshipType, Valence } from "../lib/types";
 import type { EntityChapter } from "../lib/api";
 import { VALENCE_COLOR } from "../lib/valence";
 
+const VALENCES: Valence[] = ["bond", "hostile", "obligation", "neutral"];
+
 // Entity Document view (PRD §9.2): the body, with typed connections woven in —
 // grouped by relationship, latest state shown, full history expandable. Also
-// editable: title, type, aliases, body.
+// editable: title, type, aliases, body. Connections can be declared directly
+// here (a standing fact like "wife/father"), not only from chapter prose.
 export function EntityPage({ entity, onBack, onChanged, startEditing }: {
   entity: Entity;
   onBack: () => void;
@@ -16,8 +22,11 @@ export function EntityPage({ entity, onBack, onChanged, startEditing }: {
   const [ent, setEnt] = useState<Entity>(entity);
   const [rows, setRows] = useState<StreamRow[] | null>(null);
   const [appears, setAppears] = useState<EntityChapter[]>([]);
+  const [others, setOthers] = useState<Entity[]>([]);
+  const [types, setTypes] = useState<RelationshipType[]>([]);
   const [err, setErr] = useState<string | null>(null);
   const [open, setOpen] = useState<string | null>(null);
+  const [addingConn, setAddingConn] = useState(false);
 
   // edit state
   const [editing, setEditing] = useState(!!startEditing);
@@ -27,12 +36,20 @@ export function EntityPage({ entity, onBack, onChanged, startEditing }: {
   const [body, setBody] = useState(entity.body);
   const [busy, setBusy] = useState(false);
 
+  function loadConnections() {
+    getEntityStream(ent.id).then(setRows).catch((x) => setErr(String(x)));
+  }
+
   useEffect(() => {
     let alive = true;
     getEntityStream(ent.id).then((r) => alive && setRows(r)).catch((x) => alive && setErr(String(x)));
     getEntityChapters(ent.id).then((c) => alive && setAppears(c)).catch((x) => alive && setErr(String(x)));
+    getRelationshipTypes(ent.world_id).then((t) => alive && setTypes(t)).catch((x) => alive && setErr(String(x)));
+    getEntities(ent.world_id)
+      .then((es) => alive && setOthers(es.filter((e) => e.id !== ent.id)))
+      .catch((x) => alive && setErr(String(x)));
     return () => { alive = false; };
-  }, [ent.id]);
+  }, [ent.id, ent.world_id]);
 
   const groups = useMemo(() => {
     const m = new Map<string, StreamRow[]>();
@@ -117,13 +134,35 @@ export function EntityPage({ entity, onBack, onChanged, startEditing }: {
         </>
       )}
 
-      <div className="label">Connections</div>
+      <div className="row" style={{ borderBottom: "none", padding: 0, marginTop: 18, marginBottom: 6, alignItems: "baseline" }}>
+        <div className="label" style={{ margin: 0 }}>Connections</div>
+        <span className="spacer" />
+        {!addingConn && others.length > 0 &&
+          <button style={{ padding: "3px 10px", fontSize: 12 }} onClick={() => setAddingConn(true)}>+ Connection</button>}
+      </div>
+
+      {addingConn && (
+        <AddConnection
+          worldId={ent.world_id}
+          selfId={ent.id}
+          selfTitle={ent.title}
+          others={others}
+          types={types}
+          onCancel={() => setAddingConn(false)}
+          onDone={() => {
+            setAddingConn(false);
+            getRelationshipTypes(ent.world_id).then(setTypes).catch(() => {});
+            loadConnections();
+          }}
+        />
+      )}
+
       <div className="card" style={{ maxWidth: 720 }}>
         {!rows && <div className="row"><span className="muted">Loading connections…</span></div>}
         {rows && groups.length === 0 && (
-          <div className="row"><span className="muted">No typed relationships yet — record the first from a chapter draft.</span></div>
+          <div className="row"><span className="muted">No connections yet — add one above, or record one from a chapter draft.</span></div>
         )}
-        {groups.map(({ relId, history, latest, others }) => {
+        {groups.map(({ relId, history, latest, others: otherNames }) => {
           const isOpen = open === relId;
           return (
             <div key={relId} style={{ borderBottom: "1px solid var(--line)" }}>
@@ -131,8 +170,8 @@ export function EntityPage({ entity, onBack, onChanged, startEditing }: {
                 <span className="muted" style={{ width: 10 }}>{isOpen ? "▾" : "▸"}</span>
                 <span className="dot" style={{ background: VALENCE_COLOR[latest.valence] }} />
                 <span style={{ color: VALENCE_COLOR[latest.valence], fontWeight: 600, fontSize: 12.5 }}>{latest.type_label}</span>
-                <span className="title-serif" style={{ flex: 1 }}>{others}</span>
-                <span className="muted">ch. {latest.manuscript_order ?? "—"}</span>
+                <span className="title-serif" style={{ flex: 1 }}>{otherNames}</span>
+                <span className="muted">{latest.manuscript_order != null ? `ch. ${latest.manuscript_order}` : "standing"}</span>
               </div>
               {isOpen && (
                 <div style={{ margin: "0 0 10px 42px", borderLeft: "2px solid var(--line)", paddingLeft: 14 }}>
@@ -141,7 +180,7 @@ export function EntityPage({ entity, onBack, onChanged, startEditing }: {
                     return (
                       <div key={h.state_id} style={{ marginBottom: 6, fontSize: 12.5 }}>
                         <span style={{ color: VALENCE_COLOR[h.valence], fontWeight: 600 }}>{h.type_label}</span>
-                        <span className="muted"> · ch. {h.manuscript_order ?? "—"}</span>
+                        <span className="muted"> · {h.manuscript_order != null ? `ch. ${h.manuscript_order}` : "standing"}</span>
                         {concealed > 0 && <span style={{ color: "var(--hostile)", fontSize: 11 }}> · concealed ×{concealed}</span>}
                         {h.note && <span className="note"> — {h.note}</span>}
                       </div>
@@ -161,6 +200,93 @@ export function EntityPage({ entity, onBack, onChanged, startEditing }: {
           <span className="chip" key={c.chapter_id}>ch. {c.manuscript_order} · {c.role}</span>
         ))}
       </div>
+    </div>
+  );
+}
+
+// Declare a standing connection from this character to another — no chapter.
+// Reuses the composer's type pattern: pick an existing relationship type, or
+// name a new one and choose its valence family.
+function AddConnection({ worldId, selfId, selfTitle, others, types, onDone, onCancel }: {
+  worldId: string;
+  selfId: string;
+  selfTitle: string;
+  others: Entity[];
+  types: RelationshipType[];
+  onDone: () => void;
+  onCancel: () => void;
+}) {
+  const [other, setOther] = useState(others[0]?.id ?? "");
+  const [tq, setTq] = useState("");
+  const [typeId, setTypeId] = useState<string | null>(null);
+  const [valence, setValence] = useState<Valence>("bond");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  const q = tq.trim().toLowerCase();
+  const matches = types.filter((t) => t.label.toLowerCase().includes(q)).slice(0, 5);
+  const exact = types.find((t) => t.label.toLowerCase() === q);
+  const chosen = typeId ? types.find((t) => t.id === typeId) ?? null : exact ?? null;
+  const canMint = !chosen && q.length > 0;
+
+  async function commit() {
+    if (!other) { setErr("Pick who this connects to."); return; }
+    setBusy(true);
+    setErr(null);
+    try {
+      let tid = chosen?.id ?? null;
+      if (!tid && canMint) {
+        const t = await createRelationshipType(worldId, tq.trim(), valence);
+        tid = t.id;
+      }
+      if (!tid) { setErr("Choose or name a relationship type."); setBusy(false); return; }
+      await appendPairwiseState({ worldId, entityA: selfId, entityB: other, typeId: tid });
+      onDone();
+    } catch (x) { setErr(String(x)); setBusy(false); }
+  }
+
+  return (
+    <div className="card" style={{ padding: 12, marginBottom: 10, maxWidth: 720, display: "flex", flexDirection: "column", gap: 8 }}>
+      <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+        <span className="title-serif">{selfTitle}</span>
+        <div style={{ position: "relative" }}>
+          <input
+            autoFocus
+            value={chosen ? chosen.label : tq}
+            onChange={(e) => { setTq(e.target.value); setTypeId(null); }}
+            placeholder="is / has…"
+            style={{ width: 150, borderColor: chosen ? VALENCE_COLOR[chosen.valence] : undefined }}
+          />
+          {q.length > 0 && !typeId && (
+            <div className="typeahead">
+              {matches.map((t) => (
+                <div key={t.id} className="ta-row" onClick={() => { setTypeId(t.id); setTq(""); }}>
+                  <span className="dot" style={{ background: VALENCE_COLOR[t.valence] }} />{t.label}
+                </div>
+              ))}
+              {canMint && (
+                <div className="ta-row" style={{ flexDirection: "column", alignItems: "flex-start", gap: 6 }}>
+                  <span className="muted">mint "{tq.trim()}" as a new type — pick a family:</span>
+                  <span style={{ display: "flex", gap: 6 }}>
+                    {VALENCES.map((v) => (
+                      <span key={v} title={v} onClick={() => setValence(v)}
+                        style={{ width: 16, height: 16, borderRadius: "50%", background: VALENCE_COLOR[v], cursor: "pointer",
+                          outline: valence === v ? "2px solid var(--ink)" : "none", outlineOffset: 1 }} />
+                    ))}
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+        <select value={other} onChange={(e) => setOther(e.target.value)} className="sel">
+          {others.map((e) => <option key={e.id} value={e.id}>{e.title}</option>)}
+        </select>
+        <button className="primary" onClick={commit} disabled={busy}>{busy ? "…" : "Add"}</button>
+        <button onClick={onCancel}>Cancel</button>
+      </div>
+      {err && <span className="err">{err}</span>}
+      <span className="muted">e.g. "wife" · "father" · "ally" — a standing connection, no chapter needed</span>
     </div>
   );
 }

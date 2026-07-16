@@ -185,15 +185,17 @@ export async function linkChapterEntity(
   if (error) throw error;
 }
 
-// The in-prose composer's commit — atomic find-or-create relationship + append
-// a state. Returns the new state id.
+// Atomic find-or-create relationship + append a state. Returns the new state id.
+// manuscriptRef is optional: the in-prose composer passes the chapter it was
+// opened from; a standing connection declared on a character page passes none,
+// and the state carries no story-time/chapter anchor.
 export async function appendPairwiseState(args: {
   worldId: string;
   entityA: string;
   entityB: string;
   typeId: string;
-  manuscriptRef: string;
-  note: string;
+  manuscriptRef?: string | null;
+  note?: string;
   concealedFrom?: string[];
 }): Promise<string> {
   const { data, error } = await supabase.rpc("append_pairwise_state", {
@@ -201,8 +203,8 @@ export async function appendPairwiseState(args: {
     p_entity_a: args.entityA,
     p_entity_b: args.entityB,
     p_type_id: args.typeId,
-    p_manuscript_ref: args.manuscriptRef,
-    p_note: args.note,
+    p_manuscript_ref: args.manuscriptRef ?? null,
+    p_note: args.note ?? null,
     p_concealed_from: args.concealedFrom && args.concealedFrom.length > 0 ? args.concealedFrom : null,
   });
   if (error) throw error;

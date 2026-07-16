@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { supabase } from "./lib/supabase";
-import { getMyWorlds, createWorld } from "./lib/api";
+import { getMyWorlds, createWorld, softDeleteWorld } from "./lib/api";
 import type { World } from "./lib/types";
 import { AuthGate } from "./auth/AuthGate";
 import { Library } from "./views/Library";
@@ -62,6 +62,18 @@ function Workspace({ session }: { session: Session }) {
       const w = await createWorld(name);
       setWorlds((prev) => [...(prev ?? []), w]);
       setWorldId(w.id);
+    } catch (x) { setErr(String(x)); }
+  }
+
+  async function deleteWorld(id: string) {
+    try {
+      await softDeleteWorld(id);
+      setWorlds((prev) => {
+        const next = (prev ?? []).filter((w) => w.id !== id);
+        setWorldId((cur) => (cur === id ? next[0]?.id ?? null : cur));
+        return next;
+      });
+      go({ scope: "overview" });
     } catch (x) { setErr(String(x)); }
   }
 
@@ -132,7 +144,11 @@ function Workspace({ session }: { session: Session }) {
               ) : nav.scope === "manuscript" ? (
                 <Manuscript key={worldId + (nav.chapterId ?? "")} worldId={worldId} focusChapterId={nav.chapterId} />
               ) : nav.scope === "settings" ? (
-                <Settings worldId={worldId} />
+                <Settings
+                  worldId={worldId}
+                  worldName={worlds.find((w) => w.id === worldId)?.name ?? "this world"}
+                  onDeleteWorld={() => deleteWorld(worldId)}
+                />
               ) : (
                 <Relationships worldId={worldId} go={go} />
               )}

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { getStream, getEntities, getRelationshipTypes } from "../lib/api";
+import { getStream, getEntities, getRelationshipTypes, softDeleteEntity } from "../lib/api";
 import type { StreamRow, Entity, RelationshipType } from "../lib/types";
 import type { Nav } from "../App";
 import { VALENCE_COLOR } from "../lib/valence";
@@ -50,6 +50,15 @@ export function Overview({ worldId, go }: { worldId: string; go: (n: Nav) => voi
     });
   }, [stream, typesById]);
 
+  async function delOrphan(e: Entity, ev: React.MouseEvent) {
+    ev.stopPropagation();
+    if (!confirm(`Delete "${e.title}"? It's soft-deleted — recoverable, nothing is truly lost.`)) return;
+    try {
+      await softDeleteEntity(e.id);
+      setEntities((prev) => prev.filter((x) => x.id !== e.id));
+    } catch (x) { setErr(String(x)); }
+  }
+
   if (err) return <p className="err">{err}</p>;
   if (!stream) return <p className="muted">Loading…</p>;
 
@@ -96,6 +105,8 @@ export function Overview({ worldId, go }: { worldId: string; go: (n: Nav) => voi
                 <span style={{ fontSize: 12.5 }}>{e.title}</span>
                 <span className="spacer" />
                 <span className="muted">no relationships yet</span>
+                <span title={`Delete ${e.title}`} onClick={(ev) => delOrphan(e, ev)}
+                  style={{ color: "var(--faint)", cursor: "pointer", padding: "0 4px", fontSize: 13 }}>✕</span>
               </div>
             ))}
           </div>

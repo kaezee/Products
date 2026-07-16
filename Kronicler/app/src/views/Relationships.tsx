@@ -4,6 +4,7 @@ import type { StreamRow, Entity, RelationshipType } from "../lib/types";
 import type { Nav } from "../App";
 import { VALENCE_COLOR } from "../lib/valence";
 import { Graph } from "./Graph";
+import { TypeDictionary } from "./TypeDictionary";
 
 // Relationships (§9.2): two lenses — Stream + Graph — over one persistent filter
 // set (type, knowledge viewer, as-of scrub). Filters survive lens switches.
@@ -13,7 +14,7 @@ export function Relationships({ worldId, go }: { worldId: string; go: (n: Nav) =
   const [types, setTypes] = useState<RelationshipType[]>([]);
   const [err, setErr] = useState<string | null>(null);
 
-  const [lens, setLens] = useState<"stream" | "graph">("stream");
+  const [lens, setLens] = useState<"stream" | "graph" | "types">("stream");
   const [typeId, setTypeId] = useState("all");
   const [viewer, setViewer] = useState("all"); // knowledge lens: 'all' (writer) or an entity id
   const [asOf, setAsOf] = useState<number | null>(null);
@@ -66,10 +67,15 @@ export function Relationships({ worldId, go }: { worldId: string; go: (n: Nav) =
         <div className="seg">
           <span className={lens === "stream" ? "on" : ""} onClick={() => setLens("stream")}>Stream</span>
           <span className={lens === "graph" ? "on" : ""} onClick={() => setLens("graph")}>Graph</span>
+          <span className={lens === "types" ? "on" : ""} onClick={() => setLens("types")}>Types</span>
         </div>
-        <span className="faint" style={{ fontSize: 11 }}>filters persist across lenses</span>
+        {lens !== "types" && <span className="faint" style={{ fontSize: 11 }}>filters persist across lenses</span>}
       </div>
 
+      {lens === "types" ? (
+        <TypeDictionary worldId={worldId} />
+      ) : (
+      <>
       {/* shared filter bar */}
       <div style={{ display: "flex", gap: 8, marginBottom: 12, flexWrap: "wrap", alignItems: "center" }}>
         <select value={typeId} onChange={(e) => setTypeId(e.target.value)}
@@ -118,6 +124,8 @@ export function Relationships({ worldId, go }: { worldId: string; go: (n: Nav) =
           <span style={{ fontWeight: 650, color: "var(--ink)", whiteSpace: "nowrap" }}>ch. {asOfVal}</span>
           <span className="faint" style={{ whiteSpace: "nowrap" }}>scrub the world back to any chapter</span>
         </div>
+      )}
+      </>
       )}
     </div>
   );

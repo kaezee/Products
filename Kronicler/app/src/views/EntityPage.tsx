@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   getEntityStream, getEntityChapters, getEntities, getRelationshipTypes,
   createRelationshipType, appendPairwiseState, updateEntity, softDeleteEntity,
-  updateStateType, softDeleteRelationship,
+  updateStateType, softDeleteRelationship, swapParticipant,
 } from "../lib/api";
 import type { Entity, StreamRow, RelationshipType, Valence } from "../lib/types";
 import type { EntityChapter } from "../lib/api";
@@ -65,8 +65,10 @@ export function EntityPage({ entity, onBack, onChanged, startEditing }: {
     }
     return [...m.entries()].map(([relId, history]) => {
       const latest = history[history.length - 1];
-      const others = latest.participants.filter((p) => p.entity_id !== ent.id).map((p) => p.title).join(" · ");
-      return { relId, history, latest, others };
+      const otherParts = latest.participants.filter((p) => p.entity_id !== ent.id);
+      const others = otherParts.map((p) => p.title).join(" · ");
+      const otherId = otherParts[0]?.entity_id ?? null;
+      return { relId, history, latest, others, otherId };
     });
   }, [rows, ent.id]);
 
@@ -93,8 +95,12 @@ export function EntityPage({ entity, onBack, onChanged, startEditing }: {
   }
 
   async function changeType(stateId: string, typeId: string) {
-    setEditingRel(null);
     try { await updateStateType(stateId, typeId); loadConnections(); } catch (x) { setErr(String(x)); }
+  }
+
+  async function swapPerson(relId: string, oldId: string | null, newId: string) {
+    if (!oldId || oldId === newId) return;
+    try { await swapParticipant(relId, oldId, newId); loadConnections(); } catch (x) { setErr(String(x)); }
   }
 
   async function removeConnection(relId: string, label: string) {
@@ -184,32 +190,41 @@ export function EntityPage({ entity, onBack, onChanged, startEditing }: {
         {rows && groups.length === 0 && (
           <div className="row"><span className="muted">No connections yet — add one above, or record one from a chapter draft.</span></div>
         )}
-        {groups.map(({ relId, history, latest, others: otherNames }) => {
+        {groups.map(({ relId, history, latest, others: otherNames, otherId }) => {
           const isOpen = open === relId;
           const isEditing = editingRel === relId;
           return (
             <div key={relId} style={{ borderBottom: "1px solid var(--line)" }}>
-              <div className="row" style={{ borderBottom: "none" }} title="Double-click to change the type"
+              <div className="row" style={{ borderBottom: "none" }} title="Double-click to edit"
                 onDoubleClick={() => setEditingRel(relId)}>
                 <span className="muted" style={{ width: 10, cursor: "pointer" }} onClick={() => setOpen(isOpen ? null : relId)}>{isOpen ? "▾" : "▸"}</span>
                 <span className="dot" style={{ background: VALENCE_COLOR[latest.valence] }} />
-                {isEditing ? (
-                  <select className="sel" autoFocus defaultValue={latest.type_id} style={{ padding: "4px 8px", fontSize: 12.5 }}
-                    onChange={(e) => changeType(latest.state_id, e.target.value)}
-                    onBlur={() => setEditingRel(null)}>
-                    {types.map((t) => <option key={t.id} value={t.id}>{t.label}</option>)}
-                  </select>
-                ) : (
-                  <span style={{ color: VALENCE_COLOR[latest.valence], fontWeight: 600, fontSize: 12.5, cursor: "pointer" }}
-                    onClick={() => setOpen(isOpen ? null : relId)}>{latest.type_label}</span>
-                )}
+                <span style={{ color: VALENCE_COLOR[latest.valence], fontWeight: 600, fontSize: 12.5, cursor: "pointer" }}
+                  onClick={() => setOpen(isOpen ? null : relId)}>{latest.type_label}</span>
                 <span className="title-serif" style={{ flex: 1, cursor: "pointer" }} onClick={() => setOpen(isOpen ? null : relId)}>{otherNames}</span>
                 <span className="muted">{latest.manuscript_order != null ? `ch. ${latest.manuscript_order}` : "standing"}</span>
-                <span className="rowact" title="Change type" onClick={() => setEditingRel(isEditing ? null : relId)}
-                  style={{ cursor: "pointer", color: "var(--muted)", fontSize: 12, padding: "0 2px" }}>edit</span>
+                <span className="rowact" title="Edit this connection" onClick={() => setEditingRel(isEditing ? null : relId)}
+                  style={{ cursor: "pointer", color: isEditing ? "var(--bond)" : "var(--muted)", fontSize: 12, padding: "0 2px" }}>edit</span>
                 <span className="rowact" title="Remove connection" onClick={() => removeConnection(relId, latest.type_label)}
                   style={{ cursor: "pointer", color: "var(--faint)", fontSize: 13, padding: "0 2px" }}>✕</span>
               </div>
+
+              {isEditing && (
+                <div style={{ margin: "0 0 10px 24px", display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", padding: "8px 10px", background: "var(--inset)", borderRadius: 8 }}>
+                  <select className="sel" value={latest.type_id} style={{ padding: "4px 8px", fontSize: 12.5 }}
+                    onChange={(e) => changeType(latest.state_id, e.target.value)}>
+                    {types.map((t) => <option key={t.id} value={t.id}>{t.label}</option>)}
+                  </select>
+                  <span className="muted">with</span>
+                  <select className="sel" value={otherId ?? ""} style={{ padding: "4px 8px", fontSize: 12.5 }}
+                    onChange={(e) => swapPerson(relId, otherId, e.target.value)}>
+                    {others.map((o) => <option key={o.id} value={o.id}>{o.title}</option>)}
+                  </select>
+                  <button style={{ padding: "3px 10px", fontSize: 12 }} onClick={() => setEditingRel(null)}>Done</button>
+                  <span className="faint" style={{ fontSize: 11 }}>changing the type or who it links to updates this connection in place</span>
+                </div>
+              )}
+
               {isOpen && (
                 <div style={{ margin: "0 0 10px 42px", borderLeft: "2px solid var(--line)", paddingLeft: 14 }}>
                   {history.map((h) => {

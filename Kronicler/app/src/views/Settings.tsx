@@ -1,11 +1,14 @@
 import { supabase } from "../lib/supabase";
+import { Trash } from "./Trash";
 
 // Settings is app/world level only. The relationship dictionary lives under
 // Relationships → Types now (it's relationship vocabulary, not an app setting).
-export function Settings({ worldName, userEmail, onDeleteWorld }: {
+export function Settings({ worldId, worldName, userEmail, onDeleteWorld, onWorldsChanged }: {
+  worldId: string;
   worldName: string;
   userEmail: string;
   onDeleteWorld: () => void;
+  onWorldsChanged: () => void;
 }) {
   return (
     <div className="fi">
@@ -21,6 +24,9 @@ export function Settings({ worldName, userEmail, onDeleteWorld }: {
           <button onClick={() => supabase.auth.signOut()}>Sign out</button>
         </div>
       </div>
+
+      <div className="label" style={{ marginTop: 28 }}>Trash · recently deleted</div>
+      <Trash worldId={worldId} onWorldsChanged={onWorldsChanged} />
 
       <div className="label" style={{ marginTop: 28, color: "var(--hostile)" }}>Danger zone</div>
       <div className="card" style={{ maxWidth: 680, borderColor: "var(--hostile)" }}>

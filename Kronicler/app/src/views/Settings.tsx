@@ -6,7 +6,11 @@ import { VALENCE_COLOR } from "../lib/valence";
 const VALENCES: Valence[] = ["bond", "hostile", "obligation", "neutral"];
 
 // Settings (§9.2): the relationship dictionary. Destructive ops live here only.
-export function Settings({ worldId }: { worldId: string }) {
+export function Settings({ worldId, worldName, onDeleteWorld }: {
+  worldId: string;
+  worldName: string;
+  onDeleteWorld: () => void;
+}) {
   const [types, setTypes] = useState<RelationshipType[]>([]);
   const [stream, setStream] = useState<StreamRow[]>([]);
   const [err, setErr] = useState<string | null>(null);
@@ -82,6 +86,26 @@ export function Settings({ worldId }: { worldId: string }) {
         Rename inline. Click a dot to change valence — stream, threads, and graph recolour instantly.
         Types in use can't be deleted here yet (that needs merge-with-reassignment). New types are minted where you write.
       </p>
+
+      <div className="label" style={{ marginTop: 28, color: "var(--hostile)" }}>Danger zone</div>
+      <div className="card" style={{ maxWidth: 680, borderColor: "var(--hostile)" }}>
+        <div className="row" style={{ borderBottom: "none" }}>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontWeight: 500 }}>Delete “{worldName}”</div>
+            <span className="muted" style={{ fontSize: 12.5 }}>
+              Removes this whole world from your list. Soft-deleted — recoverable by support, not truly erased.
+            </span>
+          </div>
+          <button
+            style={{ color: "var(--hostile)", borderColor: "var(--hostile)" }}
+            onClick={() => {
+              const typed = prompt(`Type the world's name to confirm deletion:\n\n${worldName}`);
+              if (typed != null && typed.trim() === worldName) onDeleteWorld();
+              else if (typed != null) alert("Name didn't match — nothing was deleted.");
+            }}
+          >Delete world</button>
+        </div>
+      </div>
     </div>
   );
 }

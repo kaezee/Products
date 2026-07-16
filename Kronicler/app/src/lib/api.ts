@@ -16,6 +16,17 @@ export async function getMyWorlds(): Promise<World[]> {
   return data ?? [];
 }
 
+// Soft-delete a whole world. RLS ensures only the owner can. Everything under
+// it (entities, chapters, relationships) stays in the row but is filtered out
+// by the `deleted_at is null` reads, so it's recoverable, never truly gone.
+export async function softDeleteWorld(id: string): Promise<void> {
+  const { error } = await supabase
+    .from("worlds")
+    .update({ deleted_at: new Date().toISOString() })
+    .eq("id", id);
+  if (error) throw error;
+}
+
 export async function createWorld(name: string): Promise<World> {
   const { data: userData, error: userErr } = await supabase.auth.getUser();
   if (userErr) throw userErr;
@@ -144,6 +155,18 @@ export async function createChapter(
 export async function updateChapterTitle(chapterId: string, title: string): Promise<void> {
   const { error } = await supabase.from("chapters").update({ title }).eq("id", chapterId);
   if (error) throw error;
+}
+
+// Reorder: swap two chapters' manuscript_order. There's no unique constraint on
+// the column, so the two updates can't collide. Callers pass adjacent chapters.
+export async function swapChapterOrder(
+  a: { id: string; manuscript_order: number },
+  b: { id: string; manuscript_order: number },
+): Promise<void> {
+  const e1 = await supabase.from("chapters").update({ manuscript_order: b.manuscript_order }).eq("id", a.id);
+  if (e1.error) throw e1.error;
+  const e2 = await supabase.from("chapters").update({ manuscript_order: a.manuscript_order }).eq("id", b.id);
+  if (e2.error) throw e2.error;
 }
 
 // Trustworthy autosave + bounded version trail — see save_chapter_body().

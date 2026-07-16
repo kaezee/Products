@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { getChapters, getEntities, createChapter } from "../lib/api";
+import { getChapters, getEntities, createChapter, swapChapterOrder } from "../lib/api";
 import type { Chapter, Entity } from "../lib/types";
 import { ChapterEditor } from "./ChapterEditor";
 
@@ -34,6 +34,17 @@ export function Manuscript({ worldId, focusChapterId }: { worldId: string; focus
     }
   }
 
+  async function move(i: number, dir: -1 | 1, ev: React.MouseEvent) {
+    ev.stopPropagation();
+    const list = chapters ?? [];
+    const j = i + dir;
+    if (j < 0 || j >= list.length) return;
+    try {
+      await swapChapterOrder(list[i], list[j]);
+      await reload();
+    } catch (x) { setErr(String(x)); }
+  }
+
   if (err) return <p className="err">{err}</p>;
   if (!chapters) return <p className="muted">Loading manuscript…</p>;
 
@@ -60,8 +71,14 @@ export function Manuscript({ worldId, focusChapterId }: { worldId: string; focus
         {chapters.length === 0 && (
           <div className="row"><span className="muted">No chapters yet. Create one to start drafting.</span></div>
         )}
-        {chapters.map((c) => (
+        {chapters.map((c, i) => (
           <div className="row click" key={c.id} onClick={() => setOpenId(c.id)}>
+            <span style={{ display: "flex", flexDirection: "column", lineHeight: 0.9, marginRight: 2 }}>
+              <span title="Move up" onClick={(ev) => move(i, -1, ev)}
+                style={{ cursor: i === 0 ? "default" : "pointer", color: i === 0 ? "var(--faint)" : "var(--muted)", fontSize: 10 }}>▲</span>
+              <span title="Move down" onClick={(ev) => move(i, 1, ev)}
+                style={{ cursor: i === chapters.length - 1 ? "default" : "pointer", color: i === chapters.length - 1 ? "var(--faint)" : "var(--muted)", fontSize: 10 }}>▼</span>
+            </span>
             <span className="muted" style={{ width: 44 }}>ch. {c.manuscript_order}</span>
             <span className="title-serif" style={{ flex: 1 }}>{c.title}</span>
             <span className="faint">{c.body.trim() ? `${c.body.trim().split(/\s+/).length} words` : "empty"}</span>

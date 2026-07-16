@@ -6,6 +6,9 @@ import {
 import type { Entity, StreamRow, RelationshipType, Valence } from "../lib/types";
 import type { EntityChapter } from "../lib/api";
 import { VALENCE_COLOR } from "../lib/valence";
+import { CANONICAL_ENTITY_TYPES, CUSTOM_TYPE } from "../lib/entityTypes";
+
+const isCanonical = (t: string) => (CANONICAL_ENTITY_TYPES as readonly string[]).includes(t);
 
 const VALENCES: Valence[] = ["bond", "hostile", "obligation", "neutral"];
 
@@ -114,7 +117,14 @@ export function EntityPage({ entity, onBack, onChanged, startEditing }: {
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Name"
               style={{ fontFamily: "var(--serif)", fontSize: 18, flex: 1, minWidth: 200 }} />
-            <input value={type} onChange={(e) => setType(e.target.value)} placeholder="Type" style={{ width: 140 }} />
+            <select className="sel" value={isCanonical(type) ? type : CUSTOM_TYPE} style={{ width: 140 }}
+              onChange={(e) => setType(e.target.value === CUSTOM_TYPE ? (isCanonical(type) ? "" : type) : e.target.value)}>
+              {CANONICAL_ENTITY_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+              <option value={CUSTOM_TYPE}>＋ Custom type…</option>
+            </select>
+            {!isCanonical(type) && (
+              <input value={type} onChange={(e) => setType(e.target.value)} placeholder="Custom type" style={{ width: 130 }} />
+            )}
           </div>
           <input value={aliases} onChange={(e) => setAliases(e.target.value)} placeholder="Aliases, comma separated (e.g. The Warden, Warden)" />
           <textarea value={body} onChange={(e) => setBody(e.target.value)} placeholder="Describe this entity…"

@@ -35,9 +35,15 @@ function SignIn() {
     setErr(null);
     setBusy(true);
     try {
-      const fn = mode === "in" ? supabase.auth.signInWithPassword : supabase.auth.signUp;
-      const { error } = await fn({ email, password });
+      // Call the methods directly — pulling them into a variable would detach
+      // `this` from the GoTrue client and throw.
+      const creds = { email: email.trim(), password };
+      const { error } = mode === "in"
+        ? await supabase.auth.signInWithPassword(creds)
+        : await supabase.auth.signUp(creds);
       if (error) setErr(error.message);
+    } catch (x) {
+      setErr(x instanceof Error ? x.message : String(x));
     } finally {
       setBusy(false);
     }

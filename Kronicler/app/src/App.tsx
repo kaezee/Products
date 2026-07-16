@@ -33,6 +33,8 @@ function Workspace({ session }: { session: Session }) {
   const [query, setQuery] = useState("");
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [renamingWorld, setRenamingWorld] = useState(false);
+  const [worldNameDraft, setWorldNameDraft] = useState("");
 
   useEffect(() => {
     let alive = true;
@@ -55,6 +57,14 @@ function Workspace({ session }: { session: Session }) {
     return () => window.removeEventListener("keydown", h);
   }, []);
 
+  async function reloadWorlds() {
+    try {
+      const w = await getMyWorlds();
+      setWorlds(w);
+      setWorldId((cur) => cur ?? w[0]?.id ?? null);
+    } catch (x) { setErr(String(x)); }
+  }
+
   async function makeWorld() {
     const name = prompt("Name your world");
     if (!name) return;
@@ -65,10 +75,16 @@ function Workspace({ session }: { session: Session }) {
     } catch (x) { setErr(String(x)); }
   }
 
-  async function renameCurrentWorld() {
-    if (!worldId) return;
+  function startRename() {
     const cur = worlds?.find((w) => w.id === worldId);
-    const name = prompt("Rename this world", cur?.name ?? "")?.trim();
+    setWorldNameDraft(cur?.name ?? "");
+    setRenamingWorld(true);
+  }
+  async function commitRename() {
+    if (!renamingWorld || !worldId) return;
+    setRenamingWorld(false);
+    const name = worldNameDraft.trim();
+    const cur = worlds?.find((w) => w.id === worldId);
     if (!name || name === cur?.name) return;
     try {
       await renameWorld(worldId, name);
@@ -100,18 +116,26 @@ function Workspace({ session }: { session: Session }) {
           <div className="chrome">
             <div className="worldchip" title="Worlds">
               <span className="k">K</span>
-              {worlds.length > 0 ? (
+              {renamingWorld && worldId ? (
+                <input autoFocus value={worldNameDraft}
+                  onChange={(e) => setWorldNameDraft(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter") commitRename(); if (e.key === "Escape") setRenamingWorld(false); }}
+                  onBlur={commitRename}
+                  style={{ border: "none", background: "transparent", fontWeight: 600, padding: 0, width: 130, fontSize: 13 }} />
+              ) : worlds.length > 0 ? (
                 <select value={worldId ?? ""} onChange={(e) => setWorldId(e.target.value)}
                   style={{ border: "none", background: "transparent", fontWeight: 600, padding: 0, cursor: "pointer" }}>
                   {worlds.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
                 </select>
               ) : <span style={{ fontWeight: 600 }}>Kronicler</span>}
-              {worldId && (
-                <span title="Rename this world" onClick={renameCurrentWorld}
+              {worldId && !renamingWorld && (
+                <span title="Rename this world" onClick={startRename}
                   style={{ cursor: "pointer", color: "var(--muted)", fontSize: 12.5, padding: "0 2px" }}>✎</span>
               )}
-              <span title="New world" onClick={makeWorld}
-                style={{ cursor: "pointer", color: "var(--muted)", fontSize: 15, padding: "0 2px" }}>＋</span>
+              {!renamingWorld && (
+                <span title="New world" onClick={makeWorld}
+                  style={{ cursor: "pointer", color: "var(--muted)", fontSize: 15, padding: "0 2px" }}>＋</span>
+              )}
             </div>
             <div className="searchwrap">
               <span className="ic">⌕</span>
@@ -160,9 +184,11 @@ function Workspace({ session }: { session: Session }) {
                 <Manuscript key={worldId + (nav.chapterId ?? "")} worldId={worldId} focusChapterId={nav.chapterId} />
               ) : nav.scope === "settings" ? (
                 <Settings
+                  worldId={worldId}
                   worldName={worlds.find((w) => w.id === worldId)?.name ?? "this world"}
                   userEmail={session.user.email ?? ""}
                   onDeleteWorld={() => deleteWorld(worldId)}
+                  onWorldsChanged={reloadWorlds}
                 />
               ) : (
                 <Relationships worldId={worldId} go={go} />

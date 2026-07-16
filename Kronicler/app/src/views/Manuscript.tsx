@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { getChapters, getEntities, createChapter, reorderChapters } from "../lib/api";
+import { getChapters, getEntities, createChapter, reorderChapters, updateChapterTitle } from "../lib/api";
 import type { Chapter, Entity } from "../lib/types";
 import { ChapterEditor } from "./ChapterEditor";
 
@@ -14,6 +14,8 @@ export function Manuscript({ worldId, focusChapterId }: { worldId: string; focus
   const [newTitle, setNewTitle] = useState("");
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [overIndex, setOverIndex] = useState<number | null>(null);
+  const [renameId, setRenameId] = useState<string | null>(null);
+  const [renameDraft, setRenameDraft] = useState("");
 
   async function reload() {
     try {
@@ -40,6 +42,15 @@ export function Manuscript({ worldId, focusChapterId }: { worldId: string; focus
     } catch (x) {
       setErr(String(x));
     }
+  }
+
+  async function commitRename(id: string) {
+    const title = renameDraft.trim();
+    setRenameId(null);
+    const cur = (chapters ?? []).find((c) => c.id === id);
+    if (!title || title === cur?.title) return;
+    setChapters((prev) => (prev ?? []).map((c) => (c.id === id ? { ...c, title } : c)));
+    try { await updateChapterTitle(id, title); } catch (x) { setErr(String(x)); await reload(); }
   }
 
   async function drop(target: number) {
@@ -109,8 +120,19 @@ export function Manuscript({ worldId, focusChapterId }: { worldId: string; focus
               onDragEnd={() => { setDragIndex(null); setOverIndex(null); }}
               style={{ cursor: "grab", color: "var(--faint)", padding: "0 6px 0 0", fontSize: 15, userSelect: "none" }}>⠿</span>
             <span className="muted" style={{ width: 44 }}>ch. {c.manuscript_order}</span>
-            <span className="title-serif" style={{ flex: 1 }}>{c.title}</span>
+            {renameId === c.id ? (
+              <input autoFocus value={renameDraft} style={{ flex: 1, fontFamily: "var(--serif)", fontSize: 15, padding: "4px 8px" }}
+                onClick={(e) => e.stopPropagation()}
+                onChange={(e) => setRenameDraft(e.target.value)}
+                onKeyDown={(e) => { e.stopPropagation(); if (e.key === "Enter") commitRename(c.id); if (e.key === "Escape") setRenameId(null); }}
+                onBlur={() => commitRename(c.id)} />
+            ) : (
+              <span className="title-serif" style={{ flex: 1 }}>{c.title}</span>
+            )}
             <span className="faint">{c.body.trim() ? `${c.body.trim().split(/\s+/).length} words` : "empty"}</span>
+            <span className="rowact" title="Rename chapter"
+              onClick={(e) => { e.stopPropagation(); setRenameId(c.id); setRenameDraft(c.title); }}
+              style={{ cursor: "pointer", color: "var(--muted)", fontSize: 12, padding: "0 2px" }}>✎</span>
           </div>
         ))}
       </div>

@@ -260,6 +260,70 @@ export async function softDeleteRelationship(relationshipId: string): Promise<vo
   if (error) throw error;
 }
 
+// Swap who a connection joins: replace one participant with another (keeps the
+// other side and all history). For fixing "I connected the wrong person".
+export async function swapParticipant(
+  relationshipId: string,
+  oldEntityId: string,
+  newEntityId: string,
+): Promise<void> {
+  const del = await supabase.from("relationship_participants")
+    .delete().eq("relationship_id", relationshipId).eq("entity_id", oldEntityId);
+  if (del.error) throw del.error;
+  const ins = await supabase.from("relationship_participants")
+    .insert({ relationship_id: relationshipId, entity_id: newEntityId });
+  if (ins.error) throw ins.error;
+}
+
+// ── Trash / restore (soft-deleted rows are recoverable) ──────────────────
+
+export async function getDeletedEntities(worldId: string): Promise<Entity[]> {
+  const { data, error } = await supabase
+    .from("entities")
+    .select("id, world_id, type, title, aliases, body, tags, deleted_at")
+    .eq("world_id", worldId)
+    .not("deleted_at", "is", null)
+    .order("deleted_at", { ascending: false });
+  if (error) throw error;
+  return (data ?? []) as Entity[];
+}
+
+export async function restoreEntity(id: string): Promise<void> {
+  const { error } = await supabase.from("entities").update({ deleted_at: null }).eq("id", id);
+  if (error) throw error;
+}
+
+export async function getDeletedChapters(worldId: string): Promise<Chapter[]> {
+  const { data, error } = await supabase
+    .from("chapters")
+    .select("id, world_id, title, manuscript_order, story_time_ref, body, deleted_at")
+    .eq("world_id", worldId)
+    .not("deleted_at", "is", null)
+    .order("deleted_at", { ascending: false });
+  if (error) throw error;
+  return (data ?? []) as Chapter[];
+}
+
+export async function restoreChapter(id: string): Promise<void> {
+  const { error } = await supabase.from("chapters").update({ deleted_at: null }).eq("id", id);
+  if (error) throw error;
+}
+
+export async function getDeletedWorlds(): Promise<World[]> {
+  const { data, error } = await supabase
+    .from("worlds")
+    .select("id, owner_id, name, deleted_at")
+    .not("deleted_at", "is", null)
+    .order("deleted_at", { ascending: false });
+  if (error) throw error;
+  return (data ?? []) as World[];
+}
+
+export async function restoreWorld(id: string): Promise<void> {
+  const { error } = await supabase.from("worlds").update({ deleted_at: null }).eq("id", id);
+  if (error) throw error;
+}
+
 // ── Doc view (Phase 4) ───────────────────────────────────────────────────
 
 // The stream rows for every relationship a given entity participates in —

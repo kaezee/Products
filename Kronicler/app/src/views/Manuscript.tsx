@@ -3,10 +3,10 @@ import { getChapters, getEntities, createChapter } from "../lib/api";
 import type { Chapter, Entity } from "../lib/types";
 import { ChapterEditor } from "./ChapterEditor";
 
-export function Manuscript({ worldId }: { worldId: string }) {
+export function Manuscript({ worldId, focusChapterId }: { worldId: string; focusChapterId?: string }) {
   const [chapters, setChapters] = useState<Chapter[] | null>(null);
   const [entities, setEntities] = useState<Entity[]>([]);
-  const [openId, setOpenId] = useState<string | null>(null);
+  const [openId, setOpenId] = useState<string | null>(focusChapterId ?? null);
   const [err, setErr] = useState<string | null>(null);
 
   async function reload() {
@@ -50,8 +50,9 @@ export function Manuscript({ worldId }: { worldId: string }) {
   }
 
   return (
-    <div>
+    <div className="fi">
       <div className="row" style={{ borderBottom: "none", padding: 0, marginBottom: 12 }}>
+        <h2 className="scope-title">Manuscript</h2>
         <span className="spacer" />
         <button onClick={addChapter}>+ New chapter</button>
       </div>
@@ -60,10 +61,10 @@ export function Manuscript({ worldId }: { worldId: string }) {
           <div className="row"><span className="muted">No chapters yet. Create one to start drafting.</span></div>
         )}
         {chapters.map((c) => (
-          <div className="row" key={c.id} style={{ cursor: "pointer" }} onClick={() => setOpenId(c.id)}>
+          <div className="row click" key={c.id} onClick={() => setOpenId(c.id)}>
             <span className="muted" style={{ width: 44 }}>ch. {c.manuscript_order}</span>
             <span className="title-serif" style={{ flex: 1 }}>{c.title}</span>
-            <span className="muted">{c.body.trim() ? `${c.body.trim().split(/\s+/).length} words` : "empty"}</span>
+            <span className="faint">{c.body.trim() ? `${c.body.trim().split(/\s+/).length} words` : "empty"}</span>
           </div>
         ))}
       </div>

@@ -18,11 +18,17 @@ export function Stream({ worldId }: { worldId: string }) {
   }, [worldId]);
 
   if (err) return <p className="err">{err}</p>;
-  if (!rows) return <p className="muted">Loading the stream…</p>;
-  if (rows.length === 0) return <p className="muted">No relationship states recorded yet.</p>;
 
   return (
-    <div className="card">
+    <div className="fi">
+      <div className="row" style={{ borderBottom: "none", padding: 0, marginBottom: 4 }}>
+        <h2 className="scope-title">Relationships</h2>
+      </div>
+      <p className="scope-sub">The signature query — every state, in manuscript order. Why Kronicler over a spreadsheet.</p>
+      {!rows ? <p className="muted">Loading the stream…</p>
+        : rows.length === 0 ? <div className="card"><div className="row"><span className="muted">No relationship states recorded yet — record the first from a chapter draft.</span></div></div>
+        : (
+      <div className="card">
       {rows.map((s) => {
         const who = s.participants.map((p) => p.title).join(" · ");
         const concealed = s.known_by?.concealed_from?.length ?? 0;
@@ -45,6 +51,8 @@ export function Stream({ worldId }: { worldId: string }) {
           </div>
         );
       })}
+      </div>
+      )}
     </div>
   );
 }

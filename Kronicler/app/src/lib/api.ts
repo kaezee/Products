@@ -77,6 +77,24 @@ export async function createRelationshipType(
   return data;
 }
 
+export async function updateRelationshipType(
+  id: string,
+  patch: Partial<Pick<RelationshipType, "label" | "valence" | "is_ambient" | "is_terminal" | "color">>,
+): Promise<void> {
+  const { error } = await supabase.from("relationship_types").update(patch).eq("id", id);
+  if (error) throw error;
+}
+
+// Soft-delete a type. Callers should only offer this for unused types
+// (destructive reassignment is a later feature).
+export async function softDeleteRelationshipType(id: string): Promise<void> {
+  const { error } = await supabase
+    .from("relationship_types")
+    .update({ deleted_at: new Date().toISOString() })
+    .eq("id", id);
+  if (error) throw error;
+}
+
 // ── Chapters (the manuscript) ────────────────────────────────────────────
 
 export async function createChapter(

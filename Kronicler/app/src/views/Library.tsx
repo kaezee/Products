@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { getEntities } from "../lib/api";
 import type { Entity } from "../lib/types";
+import { EntityPage } from "./EntityPage";
 
 export function Library({ worldId }: { worldId: string }) {
   const [entities, setEntities] = useState<Entity[] | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [activeType, setActiveType] = useState<string | null>(null);
+  const [openId, setOpenId] = useState<string | null>(null);
 
   useEffect(() => {
     let alive = true;
@@ -23,6 +25,9 @@ export function Library({ worldId }: { worldId: string }) {
   if (err) return <p className="err">{err}</p>;
   if (!entities) return <p className="muted">Loading entities…</p>;
   if (entities.length === 0) return <p className="muted">No entities yet.</p>;
+
+  const openEntity = openId ? entities.find((e) => e.id === openId) : null;
+  if (openEntity) return <EntityPage entity={openEntity} onBack={() => setOpenId(null)} />;
 
   const currentType = activeType ?? types[0];
   const list = entities.filter((e) => e.type === currentType);
@@ -42,11 +47,12 @@ export function Library({ worldId }: { worldId: string }) {
       </div>
       <div className="card">
         {list.map((e) => (
-          <div className="row" key={e.id}>
+          <div className="row" key={e.id} style={{ cursor: "pointer" }} onClick={() => setOpenId(e.id)}>
             <span className="title-serif" style={{ flex: 1 }}>{e.title}</span>
             {e.aliases.length > 0 && (
               <span className="note">"{e.aliases.join('", "')}"</span>
             )}
+            <span className="muted">→</span>
           </div>
         ))}
       </div>

@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   getRelationshipTypes, getChapterVersions, getChapterEntities,
-  linkChapterEntity, saveChapterBody,
+  linkChapterEntity, saveChapterBody, getStream,
 } from "../lib/api";
-import type { Chapter, Entity, RelationshipType, ChapterVersion, ChapterEntity } from "../lib/types";
+import type { Chapter, Entity, RelationshipType, ChapterVersion, ChapterEntity, StreamRow } from "../lib/types";
 import { detectMentions } from "../lib/mentions";
+import { computeBrief } from "../lib/brief";
 import { Composer } from "./Composer";
+import { BriefPanel } from "./BriefPanel";
 
 type SaveState = "saved" | "saving" | "dirty";
 
@@ -26,6 +28,8 @@ export function ChapterEditor(props: {
   const [versions, setVersions] = useState<ChapterVersion[]>([]);
   const [cast, setCast] = useState<ChapterEntity[]>([]);
   const [showVersions, setShowVersions] = useState(false);
+  const [showBrief, setShowBrief] = useState(false);
+  const [stream, setStream] = useState<StreamRow[] | null>(null);
   const [err, setErr] = useState<string | null>(null);
 
   const saveTimer = useRef<number | undefined>(undefined);
@@ -63,6 +67,23 @@ export function ChapterEditor(props: {
   const mentioned = useMemo(() => detectMentions(body, entities), [body, entities]);
   const castIds = useMemo(() => cast.map((c) => c.entity_id), [cast]);
 
+  // Brief: computed from the world stream once, when first opened.
+  useEffect(() => {
+    if (showBrief && stream === null) {
+      getStream(worldId).then(setStream).catch((x) => setErr(String(x)));
+    }
+  }, [showBrief, stream, worldId]);
+
+  const typesById = useMemo(() => new Map(types.map((t) => [t.id, t])), [types]);
+  const nameOf = useMemo(() => {
+    const m = new Map(entities.map((e) => [e.id, e.title]));
+    return (id: string) => m.get(id) ?? "someone";
+  }, [entities]);
+  const brief = useMemo(
+    () => (stream ? computeBrief(stream, castIds, chapter.manuscript_order, typesById) : null),
+    [stream, castIds, chapter.manuscript_order, typesById],
+  );
+
   async function link(entityId: string) {
     try {
       await linkChapterEntity(chapter.id, entityId, "mentioned");
@@ -90,6 +111,7 @@ export function ChapterEditor(props: {
         <span className="tab" onClick={onBack} style={{ paddingLeft: 0 }}>← Manuscript</span>
         <span className="spacer" />
         <span className="muted">{saveState === "saved" ? "saved" : saveState === "saving" ? "saving…" : "unsaved changes"}</span>
+        <span className={"tab" + (showBrief ? " on" : "")} onClick={() => setShowBrief((v) => !v)}>Brief</span>
         <span className="tab" onClick={() => setShowVersions((v) => !v)}>History ({versions.length})</span>
       </div>
 
@@ -127,7 +149,13 @@ export function ChapterEditor(props: {
         </div>
 
         <div style={{ width: 230, flexShrink: 0 }}>
-          <div className="label" style={{ marginTop: 0 }}>Cast detected · {mentioned.length}</div>
+          {showBrief && (
+            <div style={{ marginBottom: 4 }}>
+              {!brief ? <p className="muted">Computing brief…</p>
+                : <BriefPanel brief={brief} chapterOrder={chapter.manuscript_order} nameOf={nameOf} compact />}
+            </div>
+          )}
+          <div className="label" style={{ marginTop: showBrief ? 22 : 0 }}>Cast detected · {mentioned.length}</div>
           <div className="card">
             {mentioned.length === 0 && <div className="row"><span className="muted">No known entities mentioned yet.</span></div>}
             {mentioned.map((e) => {

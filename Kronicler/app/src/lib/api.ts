@@ -161,6 +161,54 @@ export async function appendPairwiseState(args: {
   return data as string;
 }
 
+// ── Doc view (Phase 4) ───────────────────────────────────────────────────
+
+// The stream rows for every relationship a given entity participates in —
+// powers the "connections woven in" section of the entity page.
+export async function getEntityStream(entityId: string): Promise<StreamRow[]> {
+  const { data: parts, error: pe } = await supabase
+    .from("relationship_participants")
+    .select("relationship_id")
+    .eq("entity_id", entityId);
+  if (pe) throw pe;
+  const relIds = [...new Set((parts ?? []).map((p) => p.relationship_id))];
+  if (relIds.length === 0) return [];
+  const { data, error } = await supabase
+    .from("relationship_state_stream")
+    .select("*")
+    .in("relationship_id", relIds)
+    .eq("is_correction", false)
+    .order("manuscript_order", { ascending: true, nullsFirst: false })
+    .order("created_at", { ascending: true });
+  if (error) throw error;
+  return (data ?? []) as StreamRow[];
+}
+
+export interface EntityChapter {
+  chapter_id: string;
+  role: string;
+  title: string;
+  manuscript_order: number;
+}
+
+// Which chapters an entity appears in (from chapter_entities), with role.
+export async function getEntityChapters(entityId: string): Promise<EntityChapter[]> {
+  const { data, error } = await supabase
+    .from("chapter_entities")
+    .select("chapter_id, role, chapters(title, manuscript_order)")
+    .eq("entity_id", entityId);
+  if (error) throw error;
+  type Row = { chapter_id: string; role: string; chapters: { title: string; manuscript_order: number } | null };
+  return ((data ?? []) as unknown as Row[])
+    .map((r) => ({
+      chapter_id: r.chapter_id,
+      role: r.role,
+      title: r.chapters?.title ?? "",
+      manuscript_order: r.chapters?.manuscript_order ?? 0,
+    }))
+    .sort((a, b) => a.manuscript_order - b.manuscript_order);
+}
+
 // The signature query. Canonical timeline-of-record read: corrections excluded,
 // ordered by manuscript position (nulls last).
 export async function getStream(worldId: string): Promise<StreamRow[]> {

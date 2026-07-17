@@ -34,6 +34,7 @@ export function ChapterEditor(props: {
   }, [worldId]);
 
   // select → act: promote a selected word to a new entity, or an alias.
+  const [dismissed, setDismissed] = useState<Set<string>>(new Set());
   const [entMode, setEntMode] = useState<null | "new" | "alias">(null);
   const [selWord, setSelWord] = useState("");
   const [newType, setNewType] = useState("Character");
@@ -256,21 +257,30 @@ export function ChapterEditor(props: {
                 : <BriefPanel brief={brief} chapterOrder={chapter.manuscript_order} nameOf={nameOf} compact />}
             </div>
           )}
-          <div className="label" style={{ marginTop: showBrief ? 22 : 0 }}>Cast detected · {mentioned.length}</div>
-          <div className="card">
-            {mentioned.length === 0 && <div className="row"><span className="muted">No known entities mentioned yet.</span></div>}
-            {mentioned.map((e) => {
-              const linked = castIds.includes(e.id);
-              return (
-                <div className="row" key={e.id} style={{ padding: "8px 12px" }}>
-                  <span style={{ flex: 1, fontSize: 13 }}>{e.title}</span>
-                  {linked
-                    ? <span className="muted" style={{ fontSize: 11 }}>linked</span>
-                    : <button style={{ padding: "3px 8px", fontSize: 11 }} onClick={() => link(e.id)}>link</button>}
+          {(() => {
+            const visible = mentioned.filter((e) => !dismissed.has(e.id));
+            return (
+              <>
+                <div className="label" style={{ marginTop: showBrief ? 22 : 0 }}>Cast detected · {visible.length}</div>
+                <div className="card">
+                  {visible.length === 0 && <div className="row"><span className="muted">No known entities mentioned yet.</span></div>}
+                  {visible.map((e) => {
+                    const linked = castIds.includes(e.id);
+                    return (
+                      <div className="row" key={e.id} style={{ padding: "8px 10px", gap: 6 }}>
+                        <span style={{ flex: 1, fontSize: 13 }}>{e.title}</span>
+                        {linked
+                          ? <span className="muted" style={{ fontSize: 11 }}>linked</span>
+                          : <button style={{ padding: "3px 8px", fontSize: 11 }} onClick={() => link(e.id)} title="Confirm — add to this chapter's cast">link</button>}
+                        <span title="Not this — hide the suggestion" onClick={() => setDismissed((d) => new Set(d).add(e.id))}
+                          style={{ cursor: "pointer", color: "var(--faint)", fontSize: 13 }}>✕</span>
+                      </div>
+                    );
+                  })}
                 </div>
-              );
-            })}
-          </div>
+              </>
+            );
+          })()}
 
           {showVersions && (
             <>

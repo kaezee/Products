@@ -19,8 +19,9 @@ export function ChapterEditor(props: {
   chapter: Chapter;
   entities: Entity[];
   onBack: () => void;
+  onOpenEntity?: (id: string) => void;
 }) {
-  const { worldId, chapter, entities, onBack } = props;
+  const { worldId, chapter, entities, onBack, onOpenEntity } = props;
 
   const [body, setBody] = useState(chapter.body);
   const [saveState, setSaveState] = useState<SaveState>("saved");
@@ -260,6 +261,7 @@ export function ChapterEditor(props: {
             entities={ents}
             onChange={(v) => { setBody(v); scheduleSave(v); }}
             onSelectText={(t) => setSelText(t)}
+            onOpenEntity={onOpenEntity}
             placeholder="Write the chapter here. Known names light up as you type — click one to peek. Select a sentence to record a state."
           />
         </div>

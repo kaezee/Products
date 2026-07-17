@@ -122,6 +122,13 @@ textarea { font-family: var(--serif); }
   background: var(--bondBg); color: transparent; border-radius: 3px;
   box-shadow: inset 0 -1.5px 0 var(--bondLine);
 }
+/* highlight tint by entity type, so the prose reads as a colour-keyed map */
+.prose-back mark.ment-Character { background: #e7edf8; box-shadow: inset 0 -1.5px 0 #b9c6de; }
+.prose-back mark.ment-Place     { background: #e7f1ea; box-shadow: inset 0 -1.5px 0 #a9c9b6; }
+.prose-back mark.ment-Faction   { background: #f7efdb; box-shadow: inset 0 -1.5px 0 #ddc48f; }
+.prose-back mark.ment-Item      { background: #efeee6; box-shadow: inset 0 -1.5px 0 #cfc9b6; }
+.prose-back mark.ment-Event     { background: #f9ece9; box-shadow: inset 0 -1.5px 0 #e0b6ad; }
+.prose-back mark.ment-Creature  { background: #efe7f5; box-shadow: inset 0 -1.5px 0 #cdb9de; }
 
 /* Notes board (canvas-lite) */
 .notes-board { position: relative; height: 68vh; overflow: auto; border: 1px solid var(--line); border-radius: 12px; background: #fbfaf5 repeating-linear-gradient(0deg, transparent, transparent 23px, rgba(31,29,24,.03) 24px), repeating-linear-gradient(90deg, transparent, transparent 23px, rgba(31,29,24,.03) 24px); }

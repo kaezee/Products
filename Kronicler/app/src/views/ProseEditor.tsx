@@ -8,11 +8,14 @@ const escapeHtml = (s: string) => s.replace(/[&<>]/g, (c) => (c === "&" ? "&amp;
 // selection, autosave — all untouched) with a perfectly-aligned layer *behind*
 // it that paints entity mentions. Clicking a highlighted name opens a peek card.
 // Body stays plain text; no rich-text framework.
-export function ProseEditor({ value, entities, onChange, onSelectText, placeholder }: {
+const CANON = new Set(["Character", "Place", "Faction", "Item", "Event", "Creature"]);
+
+export function ProseEditor({ value, entities, onChange, onSelectText, onOpenEntity, placeholder }: {
   value: string;
   entities: Entity[];
   onChange: (v: string) => void;
   onSelectText: (t: string) => void;
+  onOpenEntity?: (id: string) => void;
   placeholder?: string;
 }) {
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -20,19 +23,22 @@ export function ProseEditor({ value, entities, onChange, onSelectText, placehold
   const backRef = useRef<HTMLDivElement>(null);
   const [peek, setPeek] = useState<{ x: number; y: number; entity: Entity } | null>(null);
 
+  const typeById = useMemo(() => new Map(entities.map((e) => [e.id, e.type])), [entities]);
   const spans = useMemo(() => scanMentions(value, entities), [value, entities]);
   const backHtml = useMemo(() => {
     let out = "";
     let i = 0;
     for (const s of spans) {
+      const t = typeById.get(s.entityId);
+      const cls = t && CANON.has(t) ? `ment ment-${t}` : "ment";
       out += escapeHtml(value.slice(i, s.start));
-      out += `<mark class="ment">${escapeHtml(value.slice(s.start, s.end))}</mark>`;
+      out += `<mark class="${cls}">${escapeHtml(value.slice(s.start, s.end))}</mark>`;
       i = s.end;
     }
     out += escapeHtml(value.slice(i));
     if (value.endsWith("\n")) out += " "; // keep trailing blank line heights equal
     return out;
-  }, [value, spans]);
+  }, [value, spans, typeById]);
 
   function syncScroll() {
     if (backRef.current && taRef.current) {
@@ -82,7 +88,12 @@ export function ProseEditor({ value, entities, onChange, onSelectText, placehold
           <div style={{ fontSize: 12.5, color: "var(--sub)", lineHeight: 1.5 }}>
             {peek.entity.body ? peek.entity.body.slice(0, 160) + (peek.entity.body.length > 160 ? "…" : "") : <span className="muted">No description yet.</span>}
           </div>
-          <div style={{ textAlign: "right", marginTop: 8 }}>
+          <div className="row" style={{ borderBottom: "none", padding: 0, marginTop: 10, gap: 10 }}>
+            {onOpenEntity && (
+              <button style={{ padding: "4px 10px", fontSize: 12 }}
+                onClick={() => { const id = peek.entity.id; setPeek(null); onOpenEntity(id); }}>Open page →</button>
+            )}
+            <span className="spacer" />
             <span className="muted" style={{ cursor: "pointer", fontSize: 12 }} onClick={() => setPeek(null)}>close</span>
           </div>
         </div>

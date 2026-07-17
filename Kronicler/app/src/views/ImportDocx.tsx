@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 import { createChapter, createEntity } from "../lib/api";
-import { parseDocxHtml, type ParsedItem } from "../lib/docimport";
+import { parseDocxHtml, suggestEntityStrategy, type ParsedItem } from "../lib/docimport";
 import { CANONICAL_ENTITY_TYPES } from "../lib/entityTypes";
 
 // Bulk-import a .docx: a manuscript into chapters, or a lore doc into entities.
@@ -16,7 +16,7 @@ export function ImportDocx({ worldId, mode, startOrder, onClose, onDone }: {
   const [stage, setStage] = useState<"pick" | "preview" | "importing" | "done">("pick");
   const [fileName, setFileName] = useState("");
   const [rawHtml, setRawHtml] = useState("");
-  const [strategy, setStrategy] = useState<"smart" | "headings">("smart");
+  const [strategy, setStrategy] = useState<string>(mode === "chapters" ? "smart" : "headings");
   const [items, setItems] = useState<ParsedItem[]>([]);
   const [types, setTypes] = useState<string[]>([]); // parallel to items (entities)
   const [keep, setKeep] = useState<boolean[]>([]);
@@ -24,12 +24,13 @@ export function ImportDocx({ worldId, mode, startOrder, onClose, onDone }: {
   const [err, setErr] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  function applyParse(html: string, name: string, strat: "smart" | "headings") {
+  function applyParse(html: string, name: string, strat: string) {
     const parsed = parseDocxHtml(html, mode, {
       fileTitle: name.replace(/\.docx$/i, ""),
       defaultType: "Character",
       canonicalTypes: [...CANONICAL_ENTITY_TYPES],
-      chapterStrategy: strat,
+      chapterStrategy: mode === "chapters" ? (strat as "smart" | "headings") : undefined,
+      entityStrategy: mode === "entities" ? (strat as "list" | "headings") : undefined,
     });
     setItems(parsed);
     setTypes(parsed.map((p) => p.type ?? "Character"));
@@ -44,14 +45,17 @@ export function ImportDocx({ worldId, mode, startOrder, onClose, onDone }: {
       // Lazy-load mammoth so its ~700KB only downloads when someone imports.
       const mammoth = (await import("mammoth/mammoth.browser")).default;
       const { value: html } = await mammoth.convertToHtml({ arrayBuffer });
-      if (applyParse(html, file.name, strategy) === 0) { setErr("Couldn't find any content in that file."); return; }
+      // Entities: auto-pick list vs headings from the doc's shape.
+      const strat = mode === "entities" ? suggestEntityStrategy(html) : strategy;
+      setStrategy(strat);
+      if (applyParse(html, file.name, strat) === 0) { setErr("Couldn't find any content in that file."); return; }
       setRawHtml(html);
       setFileName(file.name);
       setStage("preview");
     } catch (x) { setErr("Couldn't read that file — is it a .docx? (" + String(x) + ")"); }
   }
 
-  function switchStrategy(strat: "smart" | "headings") {
+  function switchStrategy(strat: string) {
     setStrategy(strat);
     applyParse(rawHtml, fileName, strat);
   }
@@ -109,7 +113,7 @@ export function ImportDocx({ worldId, mode, startOrder, onClose, onDone }: {
               <span className="tab" onClick={() => setKeep(items.map(() => true))}>all</span>
               <span className="tab" onClick={() => setKeep(items.map(() => false))}>none</span>
             </div>
-            {mode === "chapters" && (
+            {mode === "chapters" ? (
               <div className="row" style={{ borderBottom: "none", padding: 0, marginBottom: 10, gap: 6 }}>
                 <span className="faint" style={{ fontSize: 11 }}>Split by</span>
                 <div className="seg" style={{ fontSize: 11 }}>
@@ -119,6 +123,21 @@ export function ImportDocx({ worldId, mode, startOrder, onClose, onDone }: {
                 <span className="faint" style={{ fontSize: 11 }}>
                   {strategy === "smart" ? "cuts at “Chapter N”/“Prologue” — best when headings are used loosely" : "cuts at every Word heading — best for cleanly styled docs"}
                 </span>
+              </div>
+            ) : (
+              <div className="row" style={{ borderBottom: "none", padding: 0, marginBottom: 10, gap: 6 }}>
+                <span className="faint" style={{ fontSize: 11 }}>Entities from</span>
+                <div className="seg" style={{ fontSize: 11 }}>
+                  <span className={strategy === "list" ? "on" : ""} onClick={() => switchStrategy("list")}>List items</span>
+                  <span className={strategy === "headings" ? "on" : ""} onClick={() => switchStrategy("headings")}>Headings</span>
+                </div>
+                <span className="spacer" />
+                <span className="faint" style={{ fontSize: 11 }}>set all to</span>
+                <select className="sel" style={{ padding: "3px 8px", fontSize: 12 }} defaultValue=""
+                  onChange={(e) => { if (e.target.value) setTypes(items.map(() => e.target.value)); }}>
+                  <option value="">type…</option>
+                  {CANONICAL_ENTITY_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+                </select>
               </div>
             )}
             <div className="card" style={{ maxHeight: "48vh", overflowY: "auto" }}>

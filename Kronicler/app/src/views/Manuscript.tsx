@@ -139,7 +139,7 @@ export function Manuscript({ worldId, focusChapterId }: { worldId: string; focus
               onDragStart={(e) => { setDragIndex(i); e.dataTransfer.effectAllowed = "move"; }}
               onDragEnd={() => { setDragIndex(null); setOverIndex(null); }}
               style={{ cursor: "grab", color: "var(--faint)", padding: "0 6px 0 0", fontSize: 15, userSelect: "none" }}>⠿</span>
-            <span className="muted" style={{ width: 44 }}>ch. {c.manuscript_order}</span>
+            <span className="muted" style={{ width: 30, fontVariantNumeric: "tabular-nums" }}>{String(c.manuscript_order).padStart(2, "0")}</span>
             {renameId === c.id ? (
               <input autoFocus value={renameDraft} style={{ flex: 1, fontFamily: "var(--serif)", fontSize: 15, padding: "4px 8px" }}
                 onClick={(e) => e.stopPropagation()}

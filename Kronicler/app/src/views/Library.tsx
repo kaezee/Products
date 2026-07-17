@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { getEntities, createEntity, softDeleteEntity, renameEntityType } from "../lib/api";
+import { getEntities, createEntity, softDeleteEntity, renameEntityType, updateEntity } from "../lib/api";
 import type { Entity } from "../lib/types";
 import { CANONICAL_ENTITY_TYPES, CUSTOM_TYPE, plural } from "../lib/entityTypes";
 import { EntityPage } from "./EntityPage";
@@ -16,6 +16,8 @@ export function Library({ worldId, focusEntityId }: { worldId: string; focusEnti
   const [sortBy, setSortBy] = useState<"az" | "recent">("az");
   const [renamingType, setRenamingType] = useState<string | null>(null);
   const [typeDraft, setTypeDraft] = useState("");
+  const [renameId, setRenameId] = useState<string | null>(null);
+  const [nameDraft, setNameDraft] = useState("");
 
   // Two ways to add. "full" (top-right) lets you choose the type. "quick"
   // (under a section) is name-only and locked to that section's type.
@@ -68,6 +70,14 @@ export function Library({ worldId, focusEntityId }: { worldId: string; focusEnti
     try { await softDeleteEntity(e.id); await reload(); } catch (x) { setErr(String(x)); }
   }
 
+  async function commitEntityRename(id: string) {
+    const to = nameDraft.trim();
+    setRenameId(null);
+    const cur = (entities ?? []).find((e) => e.id === id);
+    if (!to || to === cur?.title) return;
+    try { await updateEntity(id, { title: to }); await reload(); } catch (x) { setErr(String(x)); }
+  }
+
   async function commitRenameType() {
     const from = renamingType;
     const to = typeDraft.trim();
@@ -107,10 +117,21 @@ export function Library({ worldId, focusEntityId }: { worldId: string; focusEnti
   })();
 
   const row = (e: Entity, showType: boolean) => (
-    <div className="row click" key={e.id} onClick={() => { setOpenNew(false); setOpenId(e.id); }}>
+    <div className="row click" key={e.id} onClick={() => { if (renameId !== e.id) { setOpenNew(false); setOpenId(e.id); } }}>
       {showType && <span className="chip">{e.type}</span>}
-      <span className="title-serif" style={{ flex: 1 }}>{e.title}</span>
-      {e.aliases.length > 0 && <span className="note">"{e.aliases.join('", "')}"</span>}
+      {renameId === e.id ? (
+        <input autoFocus value={nameDraft} onClick={(ev) => ev.stopPropagation()}
+          onChange={(ev) => setNameDraft(ev.target.value)}
+          onKeyDown={(ev) => { ev.stopPropagation(); if (ev.key === "Enter") commitEntityRename(e.id); if (ev.key === "Escape") setRenameId(null); }}
+          onBlur={() => commitEntityRename(e.id)}
+          style={{ flex: 1, fontFamily: "var(--serif)", fontSize: 15, padding: "4px 8px" }} />
+      ) : (
+        <span className="title-serif" style={{ flex: 1 }}>{e.title}</span>
+      )}
+      {renameId !== e.id && e.aliases.length > 0 && <span className="note">"{e.aliases.join('", "')}"</span>}
+      <span className="rowact" title={`Rename ${e.title}`}
+        onClick={(ev) => { ev.stopPropagation(); setRenameId(e.id); setNameDraft(e.title); }}
+        style={{ color: "var(--muted)", cursor: "pointer", padding: "0 2px", fontSize: 12 }}>✎</span>
       <span title={`Delete ${e.title}`} onClick={(ev) => del(e, ev)}
         style={{ color: "var(--faint)", cursor: "pointer", padding: "0 4px", fontSize: 13 }}>✕</span>
     </div>

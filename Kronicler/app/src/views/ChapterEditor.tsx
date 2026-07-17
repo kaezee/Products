@@ -10,6 +10,7 @@ import { computeBrief } from "../lib/brief";
 import { CANONICAL_ENTITY_TYPES, CUSTOM_TYPE } from "../lib/entityTypes";
 import { Composer } from "./Composer";
 import { BriefPanel } from "./BriefPanel";
+import { ProseEditor } from "./ProseEditor";
 
 type SaveState = "saved" | "saving" | "dirty";
 
@@ -254,18 +255,12 @@ export function ChapterEditor(props: {
               </div>
             </div>
           )}
-          <textarea
+          <ProseEditor
             value={body}
-            onChange={(e) => { setBody(e.target.value); scheduleSave(e.target.value); }}
-            onSelect={(e) => {
-              const el = e.currentTarget;
-              setSelText(el.value.slice(el.selectionStart, el.selectionEnd));
-            }}
-            placeholder="Write the chapter here. Select a sentence to record a state; your cast lights up on the right as you type."
-            style={{
-              width: "100%", minHeight: 420, resize: "vertical", fontFamily: "var(--serif)",
-              fontSize: 16, lineHeight: 1.7, padding: 16,
-            }}
+            entities={ents}
+            onChange={(v) => { setBody(v); scheduleSave(v); }}
+            onSelectText={(t) => setSelText(t)}
+            placeholder="Write the chapter here. Known names light up as you type — click one to peek. Select a sentence to record a state."
           />
         </div>
 

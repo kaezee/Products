@@ -12,6 +12,9 @@ export function Overview({ worldId, go }: { worldId: string; go: (n: Nav) => voi
   const [entities, setEntities] = useState<Entity[]>([]);
   const [types, setTypes] = useState<RelationshipType[]>([]);
   const [err, setErr] = useState<string | null>(null);
+  const [allOrphans, setAllOrphans] = useState(false);
+
+  const ORPHAN_CAP = 8;
 
   useEffect(() => {
     let alive = true;
@@ -99,7 +102,7 @@ export function Overview({ worldId, go }: { worldId: string; go: (n: Nav) => voi
                 <span style={{ fontSize: 12.5 }}>{who(s)} · {s.type_label}</span>
               </div>
             ))}
-            {orphans.map((e) => (
+            {(allOrphans ? orphans : orphans.slice(0, ORPHAN_CAP)).map((e) => (
               <div className="row click" key={e.id} onClick={() => go({ scope: "library", entityId: e.id })}>
                 <span className="chip warn">orphaned</span>
                 <span style={{ fontSize: 12.5 }}>{e.title}</span>
@@ -109,6 +112,13 @@ export function Overview({ worldId, go }: { worldId: string; go: (n: Nav) => voi
                   style={{ color: "var(--faint)", cursor: "pointer", padding: "0 4px", fontSize: 13 }}>✕</span>
               </div>
             ))}
+            {orphans.length > ORPHAN_CAP && (
+              <div className="row click" onClick={() => setAllOrphans((v) => !v)}>
+                <span className="muted" style={{ fontSize: 12 }}>
+                  {allOrphans ? "Show fewer" : `+${orphans.length - ORPHAN_CAP} more unconnected — show all`}
+                </span>
+              </div>
+            )}
           </div>
         </div>
       </div>

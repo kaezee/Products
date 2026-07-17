@@ -3,8 +3,9 @@ import { getChapters, getEntities, createChapter, reorderChapters, updateChapter
 import type { Chapter, Entity } from "../lib/types";
 import { ChapterEditor } from "./ChapterEditor";
 import { ImportDocx } from "./ImportDocx";
+import type { Nav } from "../App";
 
-export function Manuscript({ worldId, focusChapterId }: { worldId: string; focusChapterId?: string }) {
+export function Manuscript({ worldId, focusChapterId, go }: { worldId: string; focusChapterId?: string; go: (n: Nav) => void }) {
   const [chapters, setChapters] = useState<Chapter[] | null>(null);
   const [entities, setEntities] = useState<Entity[]>([]);
   const [openId, setOpenId] = useState<string | null>(focusChapterId ?? null);
@@ -87,6 +88,7 @@ export function Manuscript({ worldId, focusChapterId }: { worldId: string; focus
         chapter={open}
         entities={entities}
         onBack={() => { setOpenId(null); void reload(); }}
+        onOpenEntity={(id) => go({ scope: "library", entityId: id })}
       />
     );
   }

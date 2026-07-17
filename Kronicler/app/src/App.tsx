@@ -183,7 +183,7 @@ function Workspace({ session }: { session: Session }) {
               ) : nav.scope === "library" ? (
                 <Library key={worldId + (nav.entityId ?? "")} worldId={worldId} focusEntityId={nav.entityId} />
               ) : nav.scope === "manuscript" ? (
-                <Manuscript key={worldId + (nav.chapterId ?? "")} worldId={worldId} focusChapterId={nav.chapterId} />
+                <Manuscript key={worldId + (nav.chapterId ?? "")} worldId={worldId} focusChapterId={nav.chapterId} go={go} />
               ) : nav.scope === "notes" ? (
                 <Notes key={worldId} worldId={worldId} />
               ) : nav.scope === "settings" ? (

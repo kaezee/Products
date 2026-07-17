@@ -1,7 +1,41 @@
 import { supabase } from "./supabase";
 import type {
-  World, Entity, Chapter, RelationshipType, StreamRow, ChapterVersion, ChapterEntity,
+  World, Entity, Chapter, RelationshipType, StreamRow, ChapterVersion, ChapterEntity, Note,
 } from "./types";
+
+// ── Notes (the planning board) ───────────────────────────────────────────
+
+const NOTE_COLS = "id, world_id, body, is_secret, entity_ids, x, y";
+
+export async function getNotes(worldId: string): Promise<Note[]> {
+  const { data, error } = await supabase
+    .from("notes").select(NOTE_COLS)
+    .eq("world_id", worldId).is("deleted_at", null)
+    .order("created_at", { ascending: true });
+  if (error) throw error;
+  return (data ?? []) as Note[];
+}
+
+export async function createNote(worldId: string, x: number, y: number): Promise<Note> {
+  const { data, error } = await supabase
+    .from("notes").insert({ world_id: worldId, x, y }).select(NOTE_COLS).single();
+  if (error) throw error;
+  return data as Note;
+}
+
+export async function updateNote(
+  id: string,
+  patch: Partial<Pick<Note, "body" | "is_secret" | "entity_ids" | "x" | "y">>,
+): Promise<void> {
+  const { error } = await supabase.from("notes").update(patch).eq("id", id);
+  if (error) throw error;
+}
+
+export async function softDeleteNote(id: string): Promise<void> {
+  const { error } = await supabase
+    .from("notes").update({ deleted_at: new Date().toISOString() }).eq("id", id);
+  if (error) throw error;
+}
 
 // All reads are RLS-scoped to the signed-in user's worlds, so no explicit
 // owner filter is needed — the database enforces it.

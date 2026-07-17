@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   getRelationshipTypes, getChapterVersions, getChapterEntities,
   linkChapterEntity, saveChapterBody, getStream,
-  getEntities, createEntity, updateEntity,
+  getEntities, createEntity, updateEntity, updateChapterTitle,
 } from "../lib/api";
 import type { Chapter, Entity, RelationshipType, ChapterVersion, ChapterEntity, StreamRow } from "../lib/types";
 import { detectMentions } from "../lib/mentions";
@@ -34,6 +34,8 @@ export function ChapterEditor(props: {
   }, [worldId]);
 
   // select → act: promote a selected word to a new entity, or an alias.
+  const [title, setTitle] = useState(chapter.title);
+  const [editingTitle, setEditingTitle] = useState(false);
   const [dismissed, setDismissed] = useState<Set<string>>(new Set());
   const [entMode, setEntMode] = useState<null | "new" | "alias">(null);
   const [selWord, setSelWord] = useState("");
@@ -179,9 +181,26 @@ export function ChapterEditor(props: {
         <span className="tab" onClick={() => setShowVersions((v) => !v)}>History ({versions.length})</span>
       </div>
 
-      <h2 style={{ fontFamily: "var(--serif)", fontWeight: 500, margin: "0 0 12px" }}>
-        Ch. {chapter.manuscript_order} — {chapter.title}
-      </h2>
+      <div style={{ display: "flex", alignItems: "baseline", gap: 12, margin: "0 0 12px" }}>
+        <span className="muted" style={{ fontSize: 13, fontVariantNumeric: "tabular-nums" }}>
+          {String(chapter.manuscript_order).padStart(2, "0")}
+        </span>
+        {editingTitle ? (
+          <input autoFocus value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); if (e.key === "Escape") { setTitle(chapter.title); setEditingTitle(false); } }}
+            onBlur={async () => {
+              const t = title.trim();
+              setEditingTitle(false);
+              if (!t || t === chapter.title) { setTitle(chapter.title); return; }
+              try { await updateChapterTitle(chapter.id, t); } catch (x) { setErr(String(x)); }
+            }}
+            style={{ fontFamily: "var(--serif)", fontWeight: 500, fontSize: 22, flex: 1, padding: "2px 8px" }} />
+        ) : (
+          <h2 style={{ fontFamily: "var(--serif)", fontWeight: 500, margin: 0, cursor: "text" }}
+            title="Double-click to rename" onDoubleClick={() => setEditingTitle(true)}>{title}</h2>
+        )}
+      </div>
 
       {err && <p className="err">{err}</p>}
 

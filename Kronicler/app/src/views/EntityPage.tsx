@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   getEntityStream, getEntityChapters, getEntities, getRelationshipTypes,
   createRelationshipType, appendPairwiseState, updateEntity, softDeleteEntity,
@@ -176,9 +176,8 @@ export function EntityPage({ entity, onBack, onChanged, startEditing }: {
           selfTitle={ent.title}
           others={others}
           types={types}
-          onCancel={() => setAddingConn(false)}
-          onDone={() => {
-            setAddingConn(false);
+          onClose={() => setAddingConn(false)}
+          onAdded={() => {
             getRelationshipTypes(ent.world_id).then(setTypes).catch(() => {});
             loadConnections();
           }}
@@ -259,14 +258,14 @@ export function EntityPage({ entity, onBack, onChanged, startEditing }: {
 // Declare a standing connection from this character to another — no chapter.
 // Reuses the composer's type pattern: pick an existing relationship type, or
 // name a new one and choose its valence family.
-function AddConnection({ worldId, selfId, selfTitle, others, types, onDone, onCancel }: {
+function AddConnection({ worldId, selfId, selfTitle, others, types, onAdded, onClose }: {
   worldId: string;
   selfId: string;
   selfTitle: string;
   others: Entity[];
   types: RelationshipType[];
-  onDone: () => void;
-  onCancel: () => void;
+  onAdded: () => void;
+  onClose: () => void;
 }) {
   const [other, setOther] = useState(others[0]?.id ?? "");
   const [tq, setTq] = useState("");
@@ -274,6 +273,8 @@ function AddConnection({ worldId, selfId, selfTitle, others, types, onDone, onCa
   const [valence, setValence] = useState<Valence>("bond");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [added, setAdded] = useState(0);
+  const typeRef = useRef<HTMLInputElement>(null);
 
   const q = tq.trim().toLowerCase();
   const matches = types.filter((t) => t.label.toLowerCase().includes(q)).slice(0, 5);
@@ -281,6 +282,8 @@ function AddConnection({ worldId, selfId, selfTitle, others, types, onDone, onCa
   const chosen = typeId ? types.find((t) => t.id === typeId) ?? null : exact ?? null;
   const canMint = !chosen && q.length > 0;
 
+  // Rapid entry: add and keep the form open, so several connections in a row
+  // take one click each, not a full re-open.
   async function commit() {
     if (!other) { setErr("Pick who this connects to."); return; }
     setBusy(true);
@@ -293,7 +296,10 @@ function AddConnection({ worldId, selfId, selfTitle, others, types, onDone, onCa
       }
       if (!tid) { setErr("Choose or name a relationship type."); setBusy(false); return; }
       await appendPairwiseState({ worldId, entityA: selfId, entityB: other, typeId: tid });
-      onDone();
+      onAdded();
+      setAdded((n) => n + 1);
+      setTq(""); setTypeId(null); setBusy(false);
+      typeRef.current?.focus();
     } catch (x) { setErr(String(x)); setBusy(false); }
   }
 
@@ -303,9 +309,11 @@ function AddConnection({ worldId, selfId, selfTitle, others, types, onDone, onCa
         <span className="title-serif">{selfTitle}</span>
         <div style={{ position: "relative" }}>
           <input
+            ref={typeRef}
             autoFocus
             value={chosen ? chosen.label : tq}
             onChange={(e) => { setTq(e.target.value); setTypeId(null); }}
+            onKeyDown={(e) => { if (e.key === "Enter" && (chosen || canMint)) commit(); if (e.key === "Escape") onClose(); }}
             placeholder="is / has…"
             style={{ width: 150, borderColor: chosen ? VALENCE_COLOR[chosen.valence] : undefined }}
           />
@@ -335,10 +343,13 @@ function AddConnection({ worldId, selfId, selfTitle, others, types, onDone, onCa
           {others.map((e) => <option key={e.id} value={e.id}>{e.title}</option>)}
         </select>
         <button className="primary" onClick={commit} disabled={busy}>{busy ? "…" : "Add"}</button>
-        <button onClick={onCancel}>Cancel</button>
+        <button onClick={onClose}>Done{added > 0 ? ` (${added})` : ""}</button>
       </div>
       {err && <span className="err">{err}</span>}
-      <span className="muted">e.g. "wife" · "father" · "ally" — a standing connection, no chapter needed</span>
+      <span className="muted">
+        {added > 0 ? `✓ ${added} added — keep going, or Done.  ` : ""}
+        e.g. "wife" · "father" · "ally" — Enter to add another, no chapter needed
+      </span>
     </div>
   );
 }

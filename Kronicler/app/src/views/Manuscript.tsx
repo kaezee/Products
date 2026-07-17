@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
-import { getChapters, getEntities, createChapter, reorderChapters, updateChapterTitle } from "../lib/api";
+import { getChapters, getEntities, createChapter, reorderChapters, updateChapterTitle, softDeleteChapter } from "../lib/api";
 import type { Chapter, Entity } from "../lib/types";
 import { ChapterEditor } from "./ChapterEditor";
+import { ImportDocx } from "./ImportDocx";
 
 export function Manuscript({ worldId, focusChapterId }: { worldId: string; focusChapterId?: string }) {
   const [chapters, setChapters] = useState<Chapter[] | null>(null);
@@ -16,6 +17,7 @@ export function Manuscript({ worldId, focusChapterId }: { worldId: string; focus
   const [overIndex, setOverIndex] = useState<number | null>(null);
   const [renameId, setRenameId] = useState<string | null>(null);
   const [renameDraft, setRenameDraft] = useState("");
+  const [importing, setImporting] = useState(false);
 
   async function reload() {
     try {
@@ -42,6 +44,13 @@ export function Manuscript({ worldId, focusChapterId }: { worldId: string; focus
     } catch (x) {
       setErr(String(x));
     }
+  }
+
+  async function del(c: Chapter, ev: React.MouseEvent) {
+    ev.stopPropagation();
+    if (!confirm(`Delete chapter “${c.title}”? It's soft-deleted — recoverable from Settings → Trash.`)) return;
+    try { await softDeleteChapter(c.id); setChapters((prev) => (prev ?? []).filter((x) => x.id !== c.id)); }
+    catch (x) { setErr(String(x)); }
   }
 
   async function commitRename(id: string) {
@@ -87,8 +96,19 @@ export function Manuscript({ worldId, focusChapterId }: { worldId: string; focus
       <div className="row" style={{ borderBottom: "none", padding: 0, marginBottom: 12 }}>
         <h2 className="scope-title">Manuscript</h2>
         <span className="spacer" />
+        <button onClick={() => setImporting(true)}>Import .docx</button>
         {!adding && <button onClick={() => { setAdding(true); setNewTitle(""); }}>+ New chapter</button>}
       </div>
+
+      {importing && (
+        <ImportDocx
+          worldId={worldId}
+          mode="chapters"
+          startOrder={(chapters ?? []).reduce((m, c) => Math.max(m, c.manuscript_order), 0) + 1}
+          onClose={() => setImporting(false)}
+          onDone={() => reload()}
+        />
+      )}
 
       {adding && (
         <div className="card" style={{ marginBottom: 12, padding: 10, display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
@@ -133,6 +153,9 @@ export function Manuscript({ worldId, focusChapterId }: { worldId: string; focus
             <span className="rowact" title="Rename chapter"
               onClick={(e) => { e.stopPropagation(); setRenameId(c.id); setRenameDraft(c.title); }}
               style={{ cursor: "pointer", color: "var(--muted)", fontSize: 12, padding: "0 2px" }}>✎</span>
+            <span className="rowact" title="Delete chapter"
+              onClick={(e) => del(c, e)}
+              style={{ cursor: "pointer", color: "var(--faint)", fontSize: 13, padding: "0 2px" }}>✕</span>
           </div>
         ))}
       </div>

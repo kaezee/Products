@@ -61,10 +61,11 @@ export async function createEntity(
   worldId: string,
   type: string,
   title: string,
+  body = "",
 ): Promise<Entity> {
   const { data, error } = await supabase
     .from("entities")
-    .insert({ world_id: worldId, type, title })
+    .insert({ world_id: worldId, type, title, body })
     .select("id, world_id, type, title, aliases, body, tags")
     .single();
   if (error) throw error;
@@ -147,10 +148,11 @@ export async function createChapter(
   worldId: string,
   title: string,
   manuscriptOrder: number,
+  body = "",
 ): Promise<Chapter> {
   const { data, error } = await supabase
     .from("chapters")
-    .insert({ world_id: worldId, title, manuscript_order: manuscriptOrder })
+    .insert({ world_id: worldId, title, manuscript_order: manuscriptOrder, body })
     .select("id, world_id, title, manuscript_order, story_time_ref, body")
     .single();
   if (error) throw error;
@@ -306,6 +308,14 @@ export async function getDeletedChapters(worldId: string): Promise<Chapter[]> {
 
 export async function restoreChapter(id: string): Promise<void> {
   const { error } = await supabase.from("chapters").update({ deleted_at: null }).eq("id", id);
+  if (error) throw error;
+}
+
+export async function softDeleteChapter(id: string): Promise<void> {
+  const { error } = await supabase
+    .from("chapters")
+    .update({ deleted_at: new Date().toISOString() })
+    .eq("id", id);
   if (error) throw error;
 }
 

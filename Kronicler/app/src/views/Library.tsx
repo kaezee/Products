@@ -3,6 +3,7 @@ import { getEntities, createEntity, softDeleteEntity } from "../lib/api";
 import type { Entity } from "../lib/types";
 import { CANONICAL_ENTITY_TYPES, CUSTOM_TYPE, plural } from "../lib/entityTypes";
 import { EntityPage } from "./EntityPage";
+import { ImportDocx } from "./ImportDocx";
 
 export function Library({ worldId, focusEntityId }: { worldId: string; focusEntityId?: string }) {
   const [entities, setEntities] = useState<Entity[] | null>(null);
@@ -18,6 +19,7 @@ export function Library({ worldId, focusEntityId }: { worldId: string; focusEnti
   const [newName, setNewName] = useState("");
   const [formType, setFormType] = useState<string>("Character");
   const [customType, setCustomType] = useState("");
+  const [importing, setImporting] = useState(false);
 
   async function reload() {
     try { setEntities(await getEntities(worldId)); } catch (x) { setErr(String(x)); }
@@ -101,8 +103,19 @@ export function Library({ worldId, focusEntityId }: { worldId: string; focusEnti
       <div className="row" style={{ borderBottom: "none", padding: 0, marginBottom: 14 }}>
         <h2 className="scope-title">Library</h2>
         <span className="spacer" />
+        <button onClick={() => setImporting(true)}>Import .docx</button>
         {addMode !== "full" && <button onClick={openFull}>+ New</button>}
       </div>
+
+      {importing && (
+        <ImportDocx
+          worldId={worldId}
+          mode="entities"
+          startOrder={1}
+          onClose={() => setImporting(false)}
+          onDone={() => reload()}
+        />
+      )}
 
       {addMode === "full" && (
         <div className="card" style={{ marginBottom: 14, padding: 12, display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>

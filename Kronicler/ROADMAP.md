@@ -55,17 +55,30 @@ places, and their **relationship history** build themselves as you write, so
   their eyes (concealed states vanish). The lens now **only appears once a
   secret exists** — no clutter until it's useful.
 
+**Level 2 — inline entity highlighting**
+- The chapter editor lights up known entities as you type (highlight layer
+  behind a real textarea — plain-text body + autosave untouched). Click a
+  highlighted name → a peek card. Alignment screenshot-verified.
+
+**Notes — the planning board (canvas-lite)**
+- Its own rail section. Freeform cards you drag around a board, tag to entities,
+  and flag as secrets (🔒). A "Secrets" filter rolls up the flagged cards — the
+  natural home for reveals you haven't written yet, and the bridge to the
+  knowledge lens. (Full pan/zoom infinite canvas is the planned evolution.)
+
 ---
 
-## 🎯 The roadmap (agreed order)
+## 🎯 The roadmap
 
-1. **Level 2 — rich text editor.** Replace the plain textarea so linked
-   entities are **highlighted inline** in the prose (hover preview, click to
-   jump). The big "wow" for the writing loop. A real, standalone effort
-   (autosave, cursors, paste all get more complex).
-2. **Deeper state-marking.** Make recording "what happened" between characters
+1. ~~**Level 2 — inline entity highlighting.**~~ ✅ Shipped (highlight + click-to-
+   peek). Future add-ons: hover cards, click-to-navigate, colour by type.
+2. **Notes → full infinite canvas.** Evolve the card board into a true canvas:
+   pan, zoom, freely-placed & resizable cards, lines connecting them, minimap.
+   Its own phase (comparable to L2). Also: convert a secret note into a real
+   concealed relationship state ("turn this reveal into the lens").
+3. **Deeper state-marking.** Make recording "what happened" between characters
    faster/smarter as you write (fewer clicks, better suggestions).
-3. **The reader's payoff.** Make Stream / Graph / Brief actively *tell* you
+4. **The reader's payoff.** Make Stream / Graph / Brief actively *tell* you
    things: dormant threads, contradictions, "who knows what," arcs.
 
 ---

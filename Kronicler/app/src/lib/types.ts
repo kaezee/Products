@@ -29,6 +29,16 @@ export interface RelationshipType {
   is_terminal: boolean;
 }
 
+export interface Note {
+  id: string;
+  world_id: string;
+  body: string;
+  is_secret: boolean;
+  entity_ids: string[];
+  x: number;
+  y: number;
+}
+
 export interface Chapter {
   id: string;
   world_id: string;

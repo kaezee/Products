@@ -130,6 +130,21 @@ textarea { font-family: var(--serif); }
 .prose-back mark.ment-Event     { background: #f9ece9; box-shadow: inset 0 -1.5px 0 #e0b6ad; }
 .prose-back mark.ment-Creature  { background: #efe7f5; box-shadow: inset 0 -1.5px 0 #cdb9de; }
 
+/* Level 2 (full): contentEditable prose surface with real inline mentions */
+.rich { white-space: pre-wrap; overflow-wrap: break-word; word-break: break-word;
+  font: 400 16px/1.7 var(--serif); padding: 16px; border: 1px solid var(--line);
+  border-radius: 8px; min-height: 420px; background: var(--surface); color: var(--ink);
+  outline: none; tab-size: 4; }
+.rich:focus { border-color: var(--bond); box-shadow: 0 0 0 3px var(--bondBg); }
+.rich:empty::before { content: attr(data-placeholder); color: var(--muted); pointer-events: none; }
+.rich .ment { border-radius: 3px; padding: 0 1px; background: var(--bondBg); box-shadow: inset 0 -1.5px 0 var(--bondLine); }
+.rich .ment-Character { background: #e7edf8; box-shadow: inset 0 -1.5px 0 #b9c6de; }
+.rich .ment-Place     { background: #e7f1ea; box-shadow: inset 0 -1.5px 0 #a9c9b6; }
+.rich .ment-Faction   { background: #f7efdb; box-shadow: inset 0 -1.5px 0 #ddc48f; }
+.rich .ment-Item      { background: #efeee6; box-shadow: inset 0 -1.5px 0 #cfc9b6; }
+.rich .ment-Event     { background: #f9ece9; box-shadow: inset 0 -1.5px 0 #e0b6ad; }
+.rich .ment-Creature  { background: #efe7f5; box-shadow: inset 0 -1.5px 0 #cdb9de; }
+
 /* Notes board (canvas-lite) */
 .notes-board { position: relative; height: 68vh; overflow: auto; border: 1px solid var(--line); border-radius: 12px; background: #fbfaf5 repeating-linear-gradient(0deg, transparent, transparent 23px, rgba(31,29,24,.03) 24px), repeating-linear-gradient(90deg, transparent, transparent 23px, rgba(31,29,24,.03) 24px); }
 .notes-canvas { position: relative; }

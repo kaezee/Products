@@ -55,10 +55,14 @@ places, and their **relationship history** build themselves as you write, so
   their eyes (concealed states vanish). The lens now **only appears once a
   secret exists** — no clutter until it's useful.
 
-**Level 2 — inline entity highlighting**
-- The chapter editor lights up known entities as you type (highlight layer
-  behind a real textarea — plain-text body + autosave untouched). Click a
-  highlighted name → a peek card. Alignment screenshot-verified.
+**Level 2 — the rich editor (contentEditable)**
+- The chapter editor is a contentEditable surface where entity mentions are real
+  inline elements, tinted by type — **hover** a name for a preview card,
+  **click "Open page →"** to jump to it. Uses `contenteditable="plaintext-only"`
+  so Enter→newline, plain paste, and undo are native; the body stays PLAIN TEXT
+  (autosave + versions untouched) and highlights are decorations re-painted on a
+  debounce with the caret preserved. Browser-verified end-to-end (typing, caret,
+  newline, hover, click-through) via Playwright.
 
 **Notes — the planning board (canvas-lite)**
 - Its own rail section. Freeform cards you drag around a board, tag to entities,
@@ -70,8 +74,8 @@ places, and their **relationship history** build themselves as you write, so
 
 ## 🎯 The roadmap
 
-1. ~~**Level 2 — inline entity highlighting.**~~ ✅ Shipped (highlight + click-to-
-   peek). Future add-ons: hover cards, click-to-navigate, colour by type.
+1. ~~**Level 2 — the rich editor (contentEditable).**~~ ✅ Shipped, in full:
+   inline mentions, colour-by-type, hover preview, click-through.
 2. **Notes → full infinite canvas.** Evolve the card board into a true canvas:
    pan, zoom, freely-placed & resizable cards, lines connecting them, minimap.
    Its own phase (comparable to L2). Also: convert a secret note into a real

@@ -15,12 +15,27 @@ export function ImportDocx({ worldId, mode, startOrder, onClose, onDone }: {
 }) {
   const [stage, setStage] = useState<"pick" | "preview" | "importing" | "done">("pick");
   const [fileName, setFileName] = useState("");
+  const [rawHtml, setRawHtml] = useState("");
+  const [strategy, setStrategy] = useState<"smart" | "headings">("smart");
   const [items, setItems] = useState<ParsedItem[]>([]);
   const [types, setTypes] = useState<string[]>([]); // parallel to items (entities)
   const [keep, setKeep] = useState<boolean[]>([]);
   const [progress, setProgress] = useState({ done: 0, total: 0 });
   const [err, setErr] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  function applyParse(html: string, name: string, strat: "smart" | "headings") {
+    const parsed = parseDocxHtml(html, mode, {
+      fileTitle: name.replace(/\.docx$/i, ""),
+      defaultType: "Character",
+      canonicalTypes: [...CANONICAL_ENTITY_TYPES],
+      chapterStrategy: strat,
+    });
+    setItems(parsed);
+    setTypes(parsed.map((p) => p.type ?? "Character"));
+    setKeep(parsed.map(() => true));
+    return parsed.length;
+  }
 
   async function onFile(file: File) {
     setErr(null);
@@ -29,19 +44,16 @@ export function ImportDocx({ worldId, mode, startOrder, onClose, onDone }: {
       // Lazy-load mammoth so its ~700KB only downloads when someone imports.
       const mammoth = (await import("mammoth/mammoth.browser")).default;
       const { value: html } = await mammoth.convertToHtml({ arrayBuffer });
-      const title = file.name.replace(/\.docx$/i, "");
-      const parsed = parseDocxHtml(html, mode, {
-        fileTitle: title,
-        defaultType: "Character",
-        canonicalTypes: [...CANONICAL_ENTITY_TYPES],
-      });
-      if (parsed.length === 0) { setErr("Couldn't find any content in that file."); return; }
+      if (applyParse(html, file.name, strategy) === 0) { setErr("Couldn't find any content in that file."); return; }
+      setRawHtml(html);
       setFileName(file.name);
-      setItems(parsed);
-      setTypes(parsed.map((p) => p.type ?? "Character"));
-      setKeep(parsed.map(() => true));
       setStage("preview");
     } catch (x) { setErr("Couldn't read that file — is it a .docx? (" + String(x) + ")"); }
+  }
+
+  function switchStrategy(strat: "smart" | "headings") {
+    setStrategy(strat);
+    applyParse(rawHtml, fileName, strat);
   }
 
   const chosen = items.map((_, i) => keep[i]).filter(Boolean).length;
@@ -91,12 +103,24 @@ export function ImportDocx({ worldId, mode, startOrder, onClose, onDone }: {
 
         {stage === "preview" && (
           <div>
-            <div className="row" style={{ borderBottom: "none", padding: 0, marginBottom: 10, gap: 10 }}>
+            <div className="row" style={{ borderBottom: "none", padding: 0, marginBottom: 6, gap: 10 }}>
               <span className="muted">{fileName} — found <b>{items.length}</b> {mode === "chapters" ? "chapters" : "entities"}, importing <b>{chosen}</b></span>
               <span className="spacer" />
               <span className="tab" onClick={() => setKeep(items.map(() => true))}>all</span>
               <span className="tab" onClick={() => setKeep(items.map(() => false))}>none</span>
             </div>
+            {mode === "chapters" && (
+              <div className="row" style={{ borderBottom: "none", padding: 0, marginBottom: 10, gap: 6 }}>
+                <span className="faint" style={{ fontSize: 11 }}>Split by</span>
+                <div className="seg" style={{ fontSize: 11 }}>
+                  <span className={strategy === "smart" ? "on" : ""} onClick={() => switchStrategy("smart")}>Chapter titles</span>
+                  <span className={strategy === "headings" ? "on" : ""} onClick={() => switchStrategy("headings")}>Every heading</span>
+                </div>
+                <span className="faint" style={{ fontSize: 11 }}>
+                  {strategy === "smart" ? "cuts at “Chapter N”/“Prologue” — best when headings are used loosely" : "cuts at every Word heading — best for cleanly styled docs"}
+                </span>
+              </div>
+            )}
             <div className="card" style={{ maxHeight: "48vh", overflowY: "auto" }}>
               {items.map((it, i) => (
                 <div className="row" key={i} style={{ alignItems: "flex-start", gap: 10 }}>

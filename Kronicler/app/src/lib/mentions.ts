@@ -1,42 +1,48 @@
 import type { Entity } from "./types";
 
-// Common short words that shouldn't act as name-part matches on their own —
-// avoids "The Warden" lighting up on every "the", or an entity named "A ..."
-// matching everywhere. Titles/particles, not proper-noun parts.
+// Titles/particles that shouldn't act as name-part matches on their own.
 const STOPWORDS = new Set([
   "the", "of", "a", "an", "and", "de", "la", "le", "von", "van", "der", "di",
   "mr", "mrs", "ms", "dr", "sir", "lady", "lord",
 ]);
 
-// The recognizable "handles" for an entity: its full title, each alias, and the
-// distinctive word-parts of its title. So "Maren Vael" is recognized when the
-// prose says just "Maren" or just "Vael", without the writer having to add
-// every short form as an alias by hand. Multi-word aliases likewise contribute
-// their parts (e.g. "The Reedwife" also matches "Reedwife").
-function handles(e: Entity): string[] {
+const escape = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+const properForm = (s: string) => (s ? s[0].toUpperCase() + s.slice(1).toLowerCase() : s);
+
+// Whole full names + aliases (matched case-insensitively — a full name is
+// distinctive enough that case doesn't matter).
+function fullNames(e: Entity): string[] {
+  return [e.title, ...e.aliases].map((s) => s.trim()).filter(Boolean);
+}
+
+// Distinctive single-word parts of a name, in proper-noun form. These are
+// matched CASE-SENSITIVELY so a creature named "…Gentle giants" catches
+// "the Gentle giants" but not the ordinary word "gentle" in prose. This is the
+// whole reason a multi-word name doesn't fire on its common words.
+function properParts(e: Entity): string[] {
   const out = new Set<string>();
-  const phrases = [e.title, ...e.aliases].map((s) => s.trim()).filter(Boolean);
-  for (const phrase of phrases) {
-    out.add(phrase.toLowerCase());
-    for (const part of phrase.split(/\s+/)) {
-      const p = part.toLowerCase().replace(/[^\p{L}\p{N}'-]/gu, "");
-      if (p.length >= 3 && !STOPWORDS.has(p)) out.add(p);
+  for (const phrase of fullNames(e)) {
+    for (const raw of phrase.split(/\s+/)) {
+      const p = raw.replace(/[^\p{L}\p{N}'-]/gu, "");
+      if (p.length >= 3 && !STOPWORDS.has(p.toLowerCase())) out.add(properForm(p));
     }
   }
   return [...out];
 }
 
-// Does `hay` mention `needle` as a whole word? Word-boundary match so "Ana"
-// doesn't fire inside "Banana" and "Vael" doesn't fire inside "travel".
-function mentions(hay: string, needle: string): boolean {
-  const esc = needle.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  return new RegExp(`(^|[^\\p{L}\\p{N}])${esc}([^\\p{L}\\p{N}]|$)`, "iu").test(hay);
+function occurs(hay: string, needle: string, caseInsensitive: boolean): boolean {
+  const re = new RegExp(`(^|[^\\p{L}\\p{N}])${escape(needle)}([^\\p{L}\\p{N}]|$)`, caseInsensitive ? "iu" : "u");
+  return re.test(hay);
 }
 
-// Live mention scan (§7.4): which entities does this prose mention, by title,
-// alias, or a distinctive part of either? Word-boundary matched, case-
-// insensitive. Powers the live cast panel in the chapter editor.
+// Live mention scan (§7.4): which entities does this prose mention? Full names
+// and aliases match case-insensitively as whole words; distinctive name-parts
+// match only when capitalized, keeping common words out.
 export function detectMentions(body: string, entities: Entity[]): Entity[] {
   if (!body.trim()) return [];
-  return entities.filter((e) => handles(e).some((h) => mentions(body, h)));
+  return entities.filter(
+    (e) =>
+      fullNames(e).some((n) => occurs(body, n, true)) ||
+      properParts(e).some((p) => occurs(body, p, false)),
+  );
 }

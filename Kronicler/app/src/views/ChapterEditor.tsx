@@ -10,7 +10,7 @@ import { computeBrief } from "../lib/brief";
 import { CANONICAL_ENTITY_TYPES, CUSTOM_TYPE } from "../lib/entityTypes";
 import { Composer } from "./Composer";
 import { BriefPanel } from "./BriefPanel";
-import { ProseEditor } from "./ProseEditor";
+import { RichProse } from "./RichProse";
 
 type SaveState = "saved" | "saving" | "dirty";
 
@@ -256,13 +256,13 @@ export function ChapterEditor(props: {
               </div>
             </div>
           )}
-          <ProseEditor
+          <RichProse
             value={body}
             entities={ents}
             onChange={(v) => { setBody(v); scheduleSave(v); }}
             onSelectText={(t) => setSelText(t)}
             onOpenEntity={onOpenEntity}
-            placeholder="Write the chapter here. Known names light up as you type — click one to peek. Select a sentence to record a state."
+            placeholder="Write the chapter here. Known names light up as you type — hover one to peek. Select a sentence to record a state."
           />
         </div>
 

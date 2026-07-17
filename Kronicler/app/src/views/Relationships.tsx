@@ -39,6 +39,9 @@ export function Relationships({ worldId, go }: { worldId: string; go: (n: Nav) =
   const maxCh = useMemo(() => (rows ?? []).reduce((m, r) => Math.max(m, r.manuscript_order ?? 0), 0), [rows]);
   const asOfVal = asOf ?? maxCh;
   const characters = useMemo(() => entities.filter((e) => e.type === "Character"), [entities]);
+  // Knowledge lens is progressive: it only appears once the world actually
+  // holds a secret (a state concealed from someone). No secrets, no clutter.
+  const hasSecrets = useMemo(() => (rows ?? []).some((r) => (r.known_by?.concealed_from?.length ?? 0) > 0), [rows]);
 
   // shared filter: as-of scrub, knowledge lens, type
   const filtered = useMemo(() => {
@@ -88,12 +91,14 @@ export function Relationships({ worldId, go }: { worldId: string; go: (n: Nav) =
           <option value="all">Type: all</option>
           {types.map((t) => <option key={t.id} value={t.id}>{t.label}</option>)}
         </select>
-        <select value={viewer} onChange={(e) => setViewer(e.target.value)}
-          className={"chip click" + (viewer !== "all" ? " on" : "")} style={{ padding: "5px 10px" }}>
-          <option value="all">Knowledge: writer view (everything)</option>
-          {characters.map((e) => <option key={e.id} value={e.id}>As {e.title.split(" ")[0]} believes</option>)}
-        </select>
-        {viewer !== "all" && <span style={{ fontSize: 11.5, color: "var(--hostile)" }}>concealed states vanish — the world as they believe it</span>}
+        {hasSecrets && (
+          <select value={viewer} onChange={(e) => setViewer(e.target.value)}
+            className={"chip click" + (viewer !== "all" ? " on" : "")} style={{ padding: "5px 10px" }}>
+            <option value="all">Knowledge: writer view (everything)</option>
+            {characters.map((e) => <option key={e.id} value={e.id}>As {e.title.split(" ")[0]} believes</option>)}
+          </select>
+        )}
+        {hasSecrets && viewer !== "all" && <span style={{ fontSize: 11.5, color: "var(--hostile)" }}>concealed states vanish — the world as they believe it</span>}
         {ego && <span className="chip on click" onClick={() => setEgo(null)}>ego · {entities.find((e) => e.id === ego)?.title.split(" ")[0]} ✕</span>}
       </div>
 

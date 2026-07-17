@@ -80,6 +80,17 @@ export async function updateEntity(
   if (error) throw error;
 }
 
+// Rename a Library section: move every entity of one type to another. Renaming
+// onto an existing type merges the two sections.
+export async function renameEntityType(worldId: string, oldType: string, newType: string): Promise<void> {
+  const { error } = await supabase
+    .from("entities")
+    .update({ type: newType })
+    .eq("world_id", worldId)
+    .eq("type", oldType);
+  if (error) throw error;
+}
+
 export async function softDeleteEntity(id: string): Promise<void> {
   const { error } = await supabase
     .from("entities")

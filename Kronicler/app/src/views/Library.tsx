@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { getEntities, createEntity, softDeleteEntity } from "../lib/api";
+import { getEntities, createEntity, softDeleteEntity, renameEntityType } from "../lib/api";
 import type { Entity } from "../lib/types";
 import { CANONICAL_ENTITY_TYPES, CUSTOM_TYPE, plural } from "../lib/entityTypes";
 import { EntityPage } from "./EntityPage";
@@ -12,9 +12,13 @@ export function Library({ worldId, focusEntityId }: { worldId: string; focusEnti
   const [openId, setOpenId] = useState<string | null>(focusEntityId ?? null);
   const [openNew, setOpenNew] = useState(false);
 
+  const [query, setQuery] = useState("");
+  const [sortBy, setSortBy] = useState<"az" | "recent">("az");
+  const [renamingType, setRenamingType] = useState<string | null>(null);
+  const [typeDraft, setTypeDraft] = useState("");
+
   // Two ways to add. "full" (top-right) lets you choose the type. "quick"
-  // (under a section) is name-only and locked to that section's type — so you
-  // don't re-pick the type for every character on the same shelf.
+  // (under a section) is name-only and locked to that section's type.
   const [addMode, setAddMode] = useState<null | "full" | "quick">(null);
   const [newName, setNewName] = useState("");
   const [formType, setFormType] = useState<string>("Character");
@@ -26,8 +30,6 @@ export function Library({ worldId, focusEntityId }: { worldId: string; focusEnti
   }
   useEffect(() => { void reload(); /* eslint-disable-next-line */ }, [worldId]);
 
-  // Sections = types in use, canonical first (in canonical order), then custom
-  // alphabetically. Empty sections drop off on their own.
   const types = useMemo(() => {
     if (!entities) return [];
     const present = new Set(entities.map((e) => e.type));
@@ -45,10 +47,6 @@ export function Library({ worldId, focusEntityId }: { worldId: string; focusEnti
     setNewName("");
     setAddMode("full");
   }
-  function openQuick() {
-    setNewName("");
-    setAddMode("quick");
-  }
 
   async function create() {
     const name = newName.trim();
@@ -59,16 +57,8 @@ export function Library({ worldId, focusEntityId }: { worldId: string; focusEnti
     try {
       const e = await createEntity(worldId, type, name);
       setActiveType(type);
-      if (addMode === "quick") {
-        // stay in rapid-entry mode: clear the name, keep the form open
-        setNewName("");
-        await reload();
-      } else {
-        setAddMode(null);
-        await reload();
-        setOpenId(e.id);
-        setOpenNew(true);
-      }
+      if (addMode === "quick") { setNewName(""); await reload(); }
+      else { setAddMode(null); await reload(); setOpenId(e.id); setOpenNew(true); }
     } catch (x) { setErr(String(x)); }
   }
 
@@ -76,6 +66,15 @@ export function Library({ worldId, focusEntityId }: { worldId: string; focusEnti
     ev.stopPropagation();
     if (!confirm(`Delete "${e.title}"? It's soft-deleted — recoverable, nothing is truly lost.`)) return;
     try { await softDeleteEntity(e.id); await reload(); } catch (x) { setErr(String(x)); }
+  }
+
+  async function commitRenameType() {
+    const from = renamingType;
+    const to = typeDraft.trim();
+    setRenamingType(null);
+    if (!from || !to || to === from) return;
+    try { await renameEntityType(worldId, from, to); setActiveType(to); await reload(); }
+    catch (x) { setErr(String(x)); }
   }
 
   if (err) return <p className="err">{err}</p>;
@@ -95,12 +94,31 @@ export function Library({ worldId, focusEntityId }: { worldId: string; focusEnti
 
   const customInUse = [...new Set(entities.map((e) => e.type))].filter((t) => !isCanon(t));
   const typeOptions = [...CANONICAL_ENTITY_TYPES, ...customInUse];
-  const list = entities.filter((e) => e.type === currentType);
+
+  const q = query.trim().toLowerCase();
+  const results = q
+    ? entities
+        .filter((e) => (e.title + " " + e.aliases.join(" ") + " " + e.body).toLowerCase().includes(q))
+        .sort((a, b) => a.title.localeCompare(b.title))
+    : [];
+  const sectionList = (() => {
+    const l = entities.filter((e) => e.type === currentType);
+    return sortBy === "az" ? [...l].sort((a, b) => a.title.localeCompare(b.title)) : l;
+  })();
+
+  const row = (e: Entity, showType: boolean) => (
+    <div className="row click" key={e.id} onClick={() => { setOpenNew(false); setOpenId(e.id); }}>
+      {showType && <span className="chip">{e.type}</span>}
+      <span className="title-serif" style={{ flex: 1 }}>{e.title}</span>
+      {e.aliases.length > 0 && <span className="note">"{e.aliases.join('", "')}"</span>}
+      <span title={`Delete ${e.title}`} onClick={(ev) => del(e, ev)}
+        style={{ color: "var(--faint)", cursor: "pointer", padding: "0 4px", fontSize: 13 }}>✕</span>
+    </div>
+  );
 
   return (
     <div className="fi">
-      {/* section-level control: add-anything lives up here, next to the title */}
-      <div className="row" style={{ borderBottom: "none", padding: 0, marginBottom: 14 }}>
+      <div className="row" style={{ borderBottom: "none", padding: 0, marginBottom: 12 }}>
         <h2 className="scope-title">Library</h2>
         <span className="spacer" />
         <button onClick={() => setImporting(true)}>Import .docx</button>
@@ -108,13 +126,8 @@ export function Library({ worldId, focusEntityId }: { worldId: string; focusEnti
       </div>
 
       {importing && (
-        <ImportDocx
-          worldId={worldId}
-          mode="entities"
-          startOrder={1}
-          onClose={() => setImporting(false)}
-          onDone={() => reload()}
-        />
+        <ImportDocx worldId={worldId} mode="entities" startOrder={1}
+          onClose={() => setImporting(false)} onDone={() => reload()} />
       )}
 
       {addMode === "full" && (
@@ -142,38 +155,63 @@ export function Library({ worldId, focusEntityId }: { worldId: string; focusEnti
         </span></div></div>
       ) : (
         <>
-          <div className="tabs">
-            {types.map((t) => (
-              <span key={t} className={"tab" + (t === currentType ? " on" : "")} onClick={() => { setActiveType(t); setAddMode(null); }}>
-                {plural(t)} <span className="faint">{entities.filter((e) => e.type === t).length}</span>
-              </span>
-            ))}
+          {/* search + sort */}
+          <div className="row" style={{ borderBottom: "none", padding: 0, marginBottom: 10, gap: 8 }}>
+            <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search this library — name, alias, description…" style={{ flex: 1, maxWidth: 380 }} />
+            {query && <span className="tab" onClick={() => setQuery("")}>clear</span>}
+            {!query && (
+              <>
+                <span className="spacer" />
+                <span className="faint" style={{ fontSize: 11 }}>Sort</span>
+                <div className="seg" style={{ fontSize: 11 }}>
+                  <span className={sortBy === "az" ? "on" : ""} onClick={() => setSortBy("az")}>A–Z</span>
+                  <span className={sortBy === "recent" ? "on" : ""} onClick={() => setSortBy("recent")}>Recent</span>
+                </div>
+              </>
+            )}
           </div>
 
-          <div className="card">
-            {list.map((e) => (
-              <div className="row click" key={e.id} onClick={() => { setOpenNew(false); setOpenId(e.id); }}>
-                <span className="title-serif" style={{ flex: 1 }}>{e.title}</span>
-                {e.aliases.length > 0 && <span className="note">"{e.aliases.join('", "')}"</span>}
-                <span className="del" title={`Delete ${e.title}`} onClick={(ev) => del(e, ev)}
-                  style={{ color: "var(--faint)", cursor: "pointer", padding: "0 4px", fontSize: 13 }}>✕</span>
-              </div>
-            ))}
-            {list.length === 0 && <div className="row"><span className="muted">No {plural(currentType).toLowerCase()} yet.</span></div>}
-          </div>
-
-          {/* per-section quick add: name-only, type locked to this shelf */}
-          {addMode === "quick" ? (
-            <div className="card" style={{ marginTop: 10, padding: 10, display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-              <input autoFocus value={newName} placeholder={`New ${currentType.toLowerCase()} name`} style={{ width: 240 }}
-                onChange={(e) => setNewName(e.target.value)}
-                onKeyDown={(e) => { if (e.key === "Enter") create(); if (e.key === "Escape") setAddMode(null); }} />
-              <button className="primary" onClick={create}>Add</button>
-              <button onClick={() => setAddMode(null)}>Done</button>
-              <span className="muted">Enter to add another {currentType.toLowerCase()} — stays on this shelf</span>
+          {query ? (
+            <div className="card">
+              <div className="row" style={{ background: "var(--inset)" }}><span className="muted">{results.length} match{results.length === 1 ? "" : "es"} across all sections</span></div>
+              {results.map((e) => row(e, true))}
             </div>
           ) : (
-            <button style={{ marginTop: 10 }} onClick={openQuick}>+ New {currentType}</button>
+            <>
+              <div className="tabs">
+                {types.map((t) => renamingType === t ? (
+                  <input key={t} autoFocus value={typeDraft} style={{ width: 130, fontSize: 12.5, padding: "4px 8px" }}
+                    onChange={(e) => setTypeDraft(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === "Enter") commitRenameType(); if (e.key === "Escape") setRenamingType(null); }}
+                    onBlur={commitRenameType} />
+                ) : (
+                  <span key={t} className={"tab" + (t === currentType ? " on" : "")}
+                    title="Double-click to rename this section"
+                    onClick={() => { setActiveType(t); setAddMode(null); }}
+                    onDoubleClick={() => { setRenamingType(t); setTypeDraft(t); }}>
+                    {plural(t)} <span className="faint">{entities.filter((e) => e.type === t).length}</span>
+                  </span>
+                ))}
+              </div>
+
+              <div className="card">
+                {sectionList.map((e) => row(e, false))}
+                {sectionList.length === 0 && <div className="row"><span className="muted">No {plural(currentType).toLowerCase()} yet.</span></div>}
+              </div>
+
+              {addMode === "quick" ? (
+                <div className="card" style={{ marginTop: 10, padding: 10, display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                  <input autoFocus value={newName} placeholder={`New ${currentType.toLowerCase()} name`} style={{ width: 240 }}
+                    onChange={(e) => setNewName(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === "Enter") create(); if (e.key === "Escape") setAddMode(null); }} />
+                  <button className="primary" onClick={create}>Add</button>
+                  <button onClick={() => setAddMode(null)}>Done</button>
+                  <span className="muted">Enter to add another {currentType.toLowerCase()} — stays on this shelf</span>
+                </div>
+              ) : (
+                <button style={{ marginTop: 10 }} onClick={() => { setNewName(""); setAddMode("quick"); }}>+ New {currentType}</button>
+              )}
+            </>
           )}
         </>
       )}

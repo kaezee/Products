@@ -180,6 +180,9 @@ textarea { font-family: var(--serif); }
 .tl-note-body { font-size: 11.5px; color: var(--obligation); font-family: var(--serif); line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .tl-stem-future { background: repeating-linear-gradient(var(--obligation), var(--obligation) 3px, transparent 3px, transparent 6px); }
 .tl-dot-future { border-color: var(--obligation); }
+.tl-mini { min-width: 30px; height: 26px; padding: 0 8px; display: flex; align-items: center; justify-content: center; border: 1.5px solid var(--lineStrong); border-radius: 13px; background: var(--surface); font-size: 12px; font-variant-numeric: tabular-nums; color: var(--ink); cursor: pointer; box-shadow: var(--pop); }
+.tl-mini:hover { transform: translateY(-1px); }
+.tl-mini-future { border-style: dashed; border-color: #e0c89a; background: var(--obligationBg); }
 
 .notecard { position: absolute; width: 230px; border: 1px solid var(--lineStrong); border-radius: 10px; box-shadow: var(--pop); display: flex; flex-direction: column; }
 .notecard-resize { position: absolute; right: 1px; bottom: 1px; width: 15px; height: 15px; cursor: nwse-resize; border-right: 2px solid var(--line); border-bottom: 2px solid var(--line); border-bottom-right-radius: 9px; opacity: .45; }

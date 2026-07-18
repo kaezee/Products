@@ -5,7 +5,7 @@ import type {
 
 // ── Notes (the planning board) ───────────────────────────────────────────
 
-const NOTE_COLS = "id, world_id, body, is_secret, entity_ids, x, y";
+const NOTE_COLS = "id, world_id, body, is_secret, entity_ids, chapter_ids, plan_ref, x, y, w, h";
 
 export async function getNotes(worldId: string): Promise<Note[]> {
   const { data, error } = await supabase
@@ -25,7 +25,7 @@ export async function createNote(worldId: string, x: number, y: number): Promise
 
 export async function updateNote(
   id: string,
-  patch: Partial<Pick<Note, "body" | "is_secret" | "entity_ids" | "x" | "y">>,
+  patch: Partial<Pick<Note, "body" | "is_secret" | "entity_ids" | "chapter_ids" | "plan_ref" | "x" | "y" | "w" | "h">>,
 ): Promise<void> {
   const { error } = await supabase.from("notes").update(patch).eq("id", id);
   if (error) throw error;

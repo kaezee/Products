@@ -6,6 +6,7 @@ import { NoteToState } from "./NoteToState";
 const CARD_W = 230, CARD_H = 150; // CARD_H is a nominal height, for framing math only
 const MIN_SCALE = 0.3, MAX_SCALE = 2.2;
 const FIT_PAD = 60;
+const MIN_W = 180, MAX_W = 620, MIN_H = 130, MAX_H = 720; // card resize bounds
 
 interface View { tx: number; ty: number; s: number } // canvas transform: translate(tx,ty) scale(s), origin 0 0
 
@@ -27,6 +28,7 @@ export function Notes({ worldId }: { worldId: string }) {
   const viewRef = useRef(view); viewRef.current = view;
   const dragRef = useRef<{ id: string; offX: number; offY: number } | null>(null);
   const panRef = useRef<{ x: number; y: number; tx: number; ty: number } | null>(null);
+  const resizeRef = useRef<{ id: string; startW: number; startH: number; ox: number; oy: number } | null>(null);
 
   async function reload() {
     try {
@@ -68,6 +70,11 @@ export function Notes({ worldId }: { worldId: string }) {
     const w = toWorld(e.clientX, e.clientY);
     dragRef.current = { id: note.id, offX: w.x - note.x, offY: w.y - note.y };
   }
+  function startResize(note: Note, e: React.MouseEvent) {
+    e.preventDefault(); e.stopPropagation();
+    const w = toWorld(e.clientX, e.clientY);
+    resizeRef.current = { id: note.id, startW: note.w ?? CARD_W, startH: note.h ?? CARD_H, ox: w.x, oy: w.y };
+  }
   function startPan(e: React.MouseEvent) {
     // pan only when the gesture starts on empty board (not on a card)
     if (e.target !== e.currentTarget) return;
@@ -76,7 +83,13 @@ export function Notes({ worldId }: { worldId: string }) {
     setPanning(true);
   }
   function onMove(e: React.MouseEvent) {
-    if (dragRef.current) {
+    if (resizeRef.current) {
+      const r = resizeRef.current;
+      const w = toWorld(e.clientX, e.clientY);
+      const nw = Math.round(Math.max(MIN_W, Math.min(MAX_W, r.startW + (w.x - r.ox))));
+      const nh = Math.round(Math.max(MIN_H, Math.min(MAX_H, r.startH + (w.y - r.oy))));
+      patch(r.id, { w: nw, h: nh });
+    } else if (dragRef.current) {
       const w = toWorld(e.clientX, e.clientY);
       patch(dragRef.current.id, { x: Math.round(w.x - dragRef.current.offX), y: Math.round(w.y - dragRef.current.offY) });
     } else if (panRef.current) {
@@ -85,8 +98,14 @@ export function Notes({ worldId }: { worldId: string }) {
     }
   }
   function endDrag() {
+    const rz = resizeRef.current; resizeRef.current = null;
     const d = dragRef.current; dragRef.current = null;
     panRef.current = null; setPanning(false);
+    if (rz) {
+      const n = (notes ?? []).find((x) => x.id === rz.id);
+      if (n) updateNote(n.id, { w: n.w, h: n.h }).catch((x) => setErr(String(x)));
+      return;
+    }
     if (!d) return;
     const n = (notes ?? []).find((x) => x.id === d.id);
     if (n) updateNote(n.id, { x: n.x, y: n.y }).catch((x) => setErr(String(x)));
@@ -160,8 +179,9 @@ export function Notes({ worldId }: { worldId: string }) {
         onMouseDown={startPan} onMouseMove={onMove} onMouseUp={endDrag} onMouseLeave={endDrag} onDoubleClick={onDoubleClick}>
         <div className="notes-canvas" style={{ transform: `translate(${view.tx}px, ${view.ty}px) scale(${view.s})`, transformOrigin: "0 0" }}>
           {visible.map((n) => (
-            <NoteCard key={n.id} note={n} entities={entities}
+            <NoteCard key={n.id} note={n} entities={entities} chapters={chapters}
               onDragStart={(e) => startDrag(n, e)}
+              onResizeStart={(e) => startResize(n, e)}
               onToLens={() => setLensNote(n)}
               onChange={(p) => { patch(n.id, p); updateNote(n.id, p).catch((x) => setErr(String(x))); }}
               onDelete={async () => { if (!confirm("Delete this note?")) return; try { await softDeleteNote(n.id); setNotes((prev) => (prev ?? []).filter((x) => x.id !== n.id)); } catch (x) { setErr(String(x)); } }} />
@@ -193,17 +213,22 @@ export function Notes({ worldId }: { worldId: string }) {
   );
 }
 
-function NoteCard({ note, entities, onChange, onDelete, onDragStart, onToLens }: {
+function NoteCard({ note, entities, chapters, onChange, onDelete, onDragStart, onResizeStart, onToLens }: {
   note: Note;
   entities: Entity[];
+  chapters: Chapter[];
   onChange: (p: Partial<Note>) => void;
   onDelete: () => void;
   onDragStart: (e: React.MouseEvent) => void;
+  onResizeStart: (e: React.MouseEvent) => void;
   onToLens: () => void;
 }) {
   const [body, setBody] = useState(note.body);
   const [tagOpen, setTagOpen] = useState(false);
+  const [chOpen, setChOpen] = useState(false);
   const [q, setQ] = useState("");
+  const [cq, setCq] = useState("");
+  const [planDraft, setPlanDraft] = useState("");
   const timer = useRef<number | undefined>(undefined);
 
   function edit(v: string) {
@@ -217,8 +242,19 @@ function NoteCard({ note, entities, onChange, onDelete, onDragStart, onToLens }:
     .filter((e) => !note.entity_ids.includes(e.id) && (q ? e.title.toLowerCase().includes(q.toLowerCase()) : true))
     .slice(0, 6);
 
+  const chapterIds = note.chapter_ids ?? [];
+  const linkedCh = chapterIds.map((id) => chapters.find((c) => c.id === id)).filter(Boolean) as Chapter[];
+  const chMatches = chapters
+    .filter((c) => !chapterIds.includes(c.id) && (cq ? (c.title.toLowerCase().includes(cq.toLowerCase()) || String(c.manuscript_order).includes(cq)) : true))
+    .slice(0, 6);
+
   return (
-    <div className="notecard" style={{ left: note.x, top: note.y, borderColor: note.is_secret ? "var(--obligation)" : "var(--lineStrong)", background: note.is_secret ? "var(--obligationBg)" : "var(--surface)" }}>
+    <div className="notecard" style={{
+      left: note.x, top: note.y,
+      width: note.w ?? undefined, height: note.h ?? undefined,
+      borderColor: note.is_secret ? "var(--obligation)" : "var(--lineStrong)",
+      background: note.is_secret ? "var(--obligationBg)" : "var(--surface)",
+    }}>
       <div className="notecard-bar" onMouseDown={onDragStart}>
         <span style={{ color: "var(--faint)", cursor: "grab" }}>⠿</span>
         <span className="spacer" />
@@ -230,6 +266,7 @@ function NoteCard({ note, entities, onChange, onDelete, onDragStart, onToLens }:
           onMouseDown={(e) => e.stopPropagation()} onClick={onDelete}>✕</span>
       </div>
       <textarea className="notecard-body" value={body} placeholder="Jot an idea…"
+        style={{ resize: "none", flex: note.h ? 1 : undefined }}
         onChange={(e) => edit(e.target.value)} onBlur={() => { window.clearTimeout(timer.current); if (body !== note.body) onChange({ body }); }} />
       <div className="notecard-tags">
         {tagged.map((e) => (
@@ -238,9 +275,23 @@ function NoteCard({ note, entities, onChange, onDelete, onDragStart, onToLens }:
             {e.title} ✕
           </span>
         ))}
-        <span className="chip click" onClick={() => setTagOpen((v) => !v)}>+ tag</span>
+        {linkedCh.map((c) => (
+          <span key={c.id} className="chip on" style={{ cursor: "pointer", borderColor: "var(--bond)", color: "var(--bond)" }} title={c.title}
+            onClick={() => onChange({ chapter_ids: chapterIds.filter((id) => id !== c.id) })}>
+            📖 ch. {c.manuscript_order} ✕
+          </span>
+        ))}
+        {note.plan_ref && (
+          <span className="chip on" style={{ cursor: "pointer", borderColor: "var(--obligation)", color: "var(--obligation)" }}
+            title="A planned beat — not yet written" onClick={() => onChange({ plan_ref: null })}>
+            🗓 {note.plan_ref} ✕
+          </span>
+        )}
+        <span className="chip click" onClick={() => { setTagOpen((v) => !v); setChOpen(false); }}>+ who</span>
+        <span className="chip click" onClick={() => { setChOpen((v) => !v); setTagOpen(false); }}>+ when</span>
+
         {tagOpen && (
-          <div className="typeahead" style={{ position: "absolute", width: 200 }}>
+          <div className="typeahead" style={{ position: "absolute", width: 210 }}>
             <input autoFocus value={q} placeholder="tag an entity…" style={{ width: "100%", border: "none", borderBottom: "1px solid var(--line)" }}
               onChange={(e) => setQ(e.target.value)} />
             {matches.map((e) => (
@@ -251,6 +302,28 @@ function NoteCard({ note, entities, onChange, onDelete, onDragStart, onToLens }:
             {matches.length === 0 && <div className="ta-row"><span className="muted">no match</span></div>}
           </div>
         )}
+        {chOpen && (
+          <div className="typeahead" style={{ position: "absolute", width: 250 }}>
+            <input autoFocus value={cq} placeholder="link a chapter…" style={{ width: "100%", border: "none", borderBottom: "1px solid var(--line)" }}
+              onChange={(e) => setCq(e.target.value)} />
+            {chMatches.map((c) => (
+              <div key={c.id} className="ta-row" onClick={() => { onChange({ chapter_ids: [...chapterIds, c.id] }); setCq(""); setChOpen(false); }}>
+                <span className="chip" style={{ fontSize: 10 }}>ch. {c.manuscript_order}</span> {c.title}
+              </div>
+            ))}
+            {chMatches.length === 0 && cq && <div className="ta-row"><span className="muted">no chapter matches</span></div>}
+            <div className="ta-row" style={{ flexDirection: "column", alignItems: "stretch", gap: 6 }} onClick={(e) => e.stopPropagation()}>
+              <span className="muted" style={{ fontSize: 11 }}>…or a beat not yet written:</span>
+              <div style={{ display: "flex", gap: 6 }}>
+                <input value={planDraft} placeholder="e.g. Season 3 finale" style={{ flex: 1, fontSize: 12 }}
+                  onChange={(e) => setPlanDraft(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter" && planDraft.trim()) { onChange({ plan_ref: planDraft.trim() }); setPlanDraft(""); setChOpen(false); } }} />
+                <button style={{ padding: "2px 8px", fontSize: 11 }} disabled={!planDraft.trim()}
+                  onClick={() => { onChange({ plan_ref: planDraft.trim() }); setPlanDraft(""); setChOpen(false); }}>set</button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
       {note.is_secret && (
         <div className="notecard-foot" onMouseDown={(e) => e.stopPropagation()}>
@@ -259,6 +332,7 @@ function NoteCard({ note, entities, onChange, onDelete, onDragStart, onToLens }:
           </span>
         </div>
       )}
+      <span className="notecard-resize" title="Drag to resize" onMouseDown={onResizeStart} />
     </div>
   );
 }

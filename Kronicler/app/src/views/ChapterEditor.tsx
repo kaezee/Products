@@ -270,7 +270,7 @@ export function ChapterEditor(props: {
           {showBrief && (
             <div style={{ marginBottom: 4 }}>
               {!brief ? <p className="muted">Computing brief…</p>
-                : <BriefPanel brief={brief} chapterOrder={chapter.manuscript_order} nameOf={nameOf} compact />}
+                : <BriefPanel brief={brief} chapterOrder={chapter.manuscript_order} nameOf={nameOf} onOpenEntity={onOpenEntity} compact />}
             </div>
           )}
           {(() => {

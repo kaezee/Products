@@ -1,6 +1,7 @@
 import type { Brief } from "../lib/brief";
 import type { StreamRow } from "../lib/types";
 import { VALENCE_COLOR } from "../lib/valence";
+import { ArcSparkline } from "./ArcSparkline";
 
 // Renders a computed chapter Brief. Read-only, derived — see computeBrief.
 export function BriefPanel(props: {
@@ -19,15 +20,19 @@ export function BriefPanel(props: {
         {brief.entering.length === 0 && (
           <div className="row"><span className="muted">No prior states among this cast — a first meeting, relationally.</span></div>
         )}
-        {brief.entering.map((r) => (
-          <div className="row" key={r.state_id} style={{ padding: "8px 12px" }}>
-            <span className="dot" style={{ background: VALENCE_COLOR[r.valence] }} />
-            <span style={{ fontSize: 12.5, flex: 1 }}>
-              {who(r)} <span style={{ color: VALENCE_COLOR[r.valence], fontWeight: 600 }}>{r.type_label}</span>
-            </span>
-            <span className="muted" style={{ fontSize: 10.5 }}>ch. {r.manuscript_order}</span>
-          </div>
-        ))}
+        {brief.entering.map((r) => {
+          const arc = brief.arcByRel.get(r.relationship_id) ?? [];
+          return (
+            <div className="row" key={r.state_id} style={{ padding: "8px 12px" }}>
+              <span className="dot" style={{ background: VALENCE_COLOR[r.valence] }} />
+              <span style={{ fontSize: 12.5, flex: 1 }}>
+                {who(r)} <span style={{ color: VALENCE_COLOR[r.valence], fontWeight: 600 }}>{r.type_label}</span>
+              </span>
+              {arc.length > 1 && <ArcSparkline history={arc} />}
+              <span className="muted" style={{ fontSize: 10.5 }}>ch. {r.manuscript_order}</span>
+            </div>
+          );
+        })}
       </div>
 
       <div className="label">Knowledge lines</div>

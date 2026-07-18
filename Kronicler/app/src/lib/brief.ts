@@ -8,6 +8,7 @@ const DORMANT_GAP = 5; // chapters of silence before a thread reads as dormant
 
 export interface Brief {
   entering: StreamRow[]; // current states among the cast present
+  arcByRel: Map<string, StreamRow[]>; // full history per entering relationship
   secrets: StreamRow[];  // concealments a present character must not reference
   dormant: StreamRow[];  // quiet threads you could touch in this scene
 }
@@ -50,5 +51,14 @@ export function computeBrief(
     return r.manuscript_order != null && chapterOrder - r.manuscript_order >= DORMANT_GAP;
   });
 
-  return { entering, secrets, dormant };
+  // Arc: the full history (before this chapter) of each entering relationship.
+  const arcByRel = new Map<string, StreamRow[]>();
+  for (const r of entering) {
+    const hist = rows
+      .filter((x) => x.relationship_id === r.relationship_id && x.manuscript_order != null && x.manuscript_order < chapterOrder && !x.is_correction)
+      .sort((a, b) => (a.manuscript_order ?? 0) - (b.manuscript_order ?? 0));
+    arcByRel.set(r.relationship_id, hist);
+  }
+
+  return { entering, arcByRel, secrets, dormant };
 }

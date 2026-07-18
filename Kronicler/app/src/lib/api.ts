@@ -1,11 +1,11 @@
 import { supabase } from "./supabase";
 import type {
-  World, Entity, Chapter, RelationshipType, StreamRow, ChapterVersion, ChapterEntity, Note,
+  World, Entity, Chapter, Band, RelationshipType, StreamRow, ChapterVersion, ChapterEntity, Note,
 } from "./types";
 
 // ── Notes (the planning board) ───────────────────────────────────────────
 
-const NOTE_COLS = "id, world_id, body, is_secret, entity_ids, chapter_ids, plan_ref, x, y, w, h";
+const NOTE_COLS = "id, world_id, body, is_secret, entity_ids, chapter_ids, plan_ref, band_id, x, y, w, h";
 
 export async function getNotes(worldId: string): Promise<Note[]> {
   const { data, error } = await supabase
@@ -25,7 +25,7 @@ export async function createNote(worldId: string, x: number, y: number): Promise
 
 export async function updateNote(
   id: string,
-  patch: Partial<Pick<Note, "body" | "is_secret" | "entity_ids" | "chapter_ids" | "plan_ref" | "x" | "y" | "w" | "h">>,
+  patch: Partial<Pick<Note, "body" | "is_secret" | "entity_ids" | "chapter_ids" | "plan_ref" | "band_id" | "x" | "y" | "w" | "h">>,
 ): Promise<void> {
   const { error } = await supabase.from("notes").update(patch).eq("id", id);
   if (error) throw error;
@@ -136,12 +136,48 @@ export async function softDeleteEntity(id: string): Promise<void> {
 export async function getChapters(worldId: string): Promise<Chapter[]> {
   const { data, error } = await supabase
     .from("chapters")
-    .select("id, world_id, title, manuscript_order, story_time_ref, body")
+    .select("id, world_id, title, manuscript_order, story_time_ref, body, band_id")
     .eq("world_id", worldId)
     .is("deleted_at", null)
     .order("manuscript_order", { ascending: true });
   if (error) throw error;
   return data ?? [];
+}
+
+// ── Timeline bands (Novel 1 / Season 4 / the Spin-off) ────────────────────
+export async function getBands(worldId: string): Promise<Band[]> {
+  const { data, error } = await supabase
+    .from("bands")
+    .select("id, world_id, name, band_order, color")
+    .eq("world_id", worldId).is("deleted_at", null)
+    .order("band_order", { ascending: true });
+  if (error) throw error;
+  return (data ?? []) as Band[];
+}
+
+export async function createBand(worldId: string, name: string, bandOrder: number): Promise<Band> {
+  const { data, error } = await supabase
+    .from("bands").insert({ world_id: worldId, name, band_order: bandOrder })
+    .select("id, world_id, name, band_order, color").single();
+  if (error) throw error;
+  return data as Band;
+}
+
+export async function updateBand(id: string, patch: Partial<Pick<Band, "name" | "band_order" | "color">>): Promise<void> {
+  const { error } = await supabase.from("bands").update(patch).eq("id", id);
+  if (error) throw error;
+}
+
+export async function softDeleteBand(id: string): Promise<void> {
+  // the band goes; its chapters/notes fall back to unsorted (band_id kept but
+  // the band is hidden, so the timeline treats them as unbanded)
+  const { error } = await supabase.from("bands").update({ deleted_at: new Date().toISOString() }).eq("id", id);
+  if (error) throw error;
+}
+
+export async function setChapterBand(chapterId: string, bandId: string | null): Promise<void> {
+  const { error } = await supabase.from("chapters").update({ band_id: bandId }).eq("id", chapterId);
+  if (error) throw error;
 }
 
 export async function getRelationshipTypes(worldId: string): Promise<RelationshipType[]> {
@@ -198,7 +234,7 @@ export async function createChapter(
   const { data, error } = await supabase
     .from("chapters")
     .insert({ world_id: worldId, title, manuscript_order: manuscriptOrder, body })
-    .select("id, world_id, title, manuscript_order, story_time_ref, body")
+    .select("id, world_id, title, manuscript_order, story_time_ref, body, band_id")
     .single();
   if (error) throw error;
   return data;
@@ -403,7 +439,7 @@ export async function restoreEntity(id: string): Promise<void> {
 export async function getDeletedChapters(worldId: string): Promise<Chapter[]> {
   const { data, error } = await supabase
     .from("chapters")
-    .select("id, world_id, title, manuscript_order, story_time_ref, body, deleted_at")
+    .select("id, world_id, title, manuscript_order, story_time_ref, body, band_id, deleted_at")
     .eq("world_id", worldId)
     .not("deleted_at", "is", null)
     .order("deleted_at", { ascending: false });

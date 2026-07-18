@@ -7,6 +7,7 @@ import { AuthGate } from "./auth/AuthGate";
 import { Library } from "./views/Library";
 import { Relationships } from "./views/Relationships";
 import { Manuscript } from "./views/Manuscript";
+import { Timeline } from "./views/Timeline";
 import { Notes } from "./views/Notes";
 import { Overview } from "./views/Overview";
 import { Settings } from "./views/Settings";
@@ -17,13 +18,14 @@ export function App() {
   return <AuthGate>{(session) => <Workspace session={session} />}</AuthGate>;
 }
 
-type Scope = "overview" | "library" | "manuscript" | "relationships" | "notes" | "settings";
+type Scope = "overview" | "library" | "manuscript" | "timeline" | "relationships" | "notes" | "settings";
 export interface Nav { scope: Scope; entityId?: string; chapterId?: string }
 
 const RAIL: [Scope, string, string][] = [
   ["overview", "Overview", "◫"],
   ["library", "Library", "❖"],
   ["manuscript", "Manuscript", "▤"],
+  ["timeline", "Timeline", "◷"],
   ["relationships", "Relationships", "✳"],
   ["notes", "Notes", "✎"],
 ];
@@ -184,6 +186,8 @@ function Workspace({ session }: { session: Session }) {
                 <Library key={worldId + (nav.entityId ?? "")} worldId={worldId} focusEntityId={nav.entityId} />
               ) : nav.scope === "manuscript" ? (
                 <Manuscript key={worldId + (nav.chapterId ?? "")} worldId={worldId} focusChapterId={nav.chapterId} go={go} />
+              ) : nav.scope === "timeline" ? (
+                <Timeline key={worldId} worldId={worldId} go={go} />
               ) : nav.scope === "notes" ? (
                 <Notes key={worldId} worldId={worldId} />
               ) : nav.scope === "settings" ? (

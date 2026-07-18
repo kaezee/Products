@@ -155,6 +155,27 @@ textarea { font-family: var(--serif); }
 .canvas-zoom .zoom-pct { min-width: 44px; text-align: center; font-size: 11px; color: var(--muted); cursor: pointer; }
 .canvas-zoom .zoom-pct:hover { color: var(--ink); }
 .canvas-zoom .zoom-sep { width: 1px; align-self: stretch; margin: 2px 1px; background: var(--line); }
+/* Timeline — horizontal band board */
+.tl-board { display: flex; gap: 12px; overflow-x: auto; padding: 4px 4px 16px; align-items: flex-start; min-height: 40vh; }
+.tl-band { flex: 0 0 260px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); display: flex; flex-direction: column; max-height: 72vh; }
+.tl-band-unsorted { background: var(--wash); border-style: dashed; }
+.tl-band-planned { border-color: #e0c89a; background: var(--surface); }
+.tl-band-head { display: flex; align-items: center; gap: 6px; padding: 8px 10px; border-bottom: 1px solid var(--line); }
+.tl-band-name { flex: 1; font-family: var(--serif); font-weight: 500; font-size: 14px; border: none; background: transparent; padding: 2px 4px; border-radius: 6px; }
+.tl-band-name:focus { outline: none; background: var(--wash); }
+.tl-band-acts { display: flex; gap: 2px; }
+.tl-arrow { cursor: pointer; color: var(--muted); font-size: 12px; padding: 1px 4px; border-radius: 5px; }
+.tl-arrow:hover { background: var(--wash); color: var(--ink); }
+.tl-arrow.off { opacity: .25; pointer-events: none; }
+.tl-band-body { display: flex; flex-direction: column; gap: 6px; padding: 8px; overflow-y: auto; }
+.tl-chapter { display: flex; align-items: center; gap: 7px; padding: 7px 9px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); cursor: pointer; }
+.tl-chapter:hover { border-color: var(--lineStrong); box-shadow: var(--pop); }
+.tl-ch-no { font-size: 10.5px; color: var(--faint); font-variant-numeric: tabular-nums; }
+.tl-ch-title { flex: 1; font-family: var(--serif); font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tl-note { display: flex; align-items: center; gap: 7px; padding: 6px 9px; border: 1px dashed #e0c89a; border-radius: 8px; background: var(--obligationBg); }
+.tl-note-mark { font-size: 12px; }
+.tl-note-body { flex: 1; font-size: 12px; color: var(--obligation); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
 .notecard { position: absolute; width: 230px; border: 1px solid var(--lineStrong); border-radius: 10px; box-shadow: var(--pop); display: flex; flex-direction: column; }
 .notecard-resize { position: absolute; right: 1px; bottom: 1px; width: 15px; height: 15px; cursor: nwse-resize; border-right: 2px solid var(--line); border-bottom: 2px solid var(--line); border-bottom-right-radius: 9px; opacity: .45; }
 .notecard-resize:hover { opacity: 1; border-color: var(--muted); }

@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from "react";
-import { appendPairwiseState, createRelationshipType } from "../lib/api";
+import { appendPairwiseState, createRelationshipType, setStateKnownBy } from "../lib/api";
 import type { Entity, RelationshipType, Valence } from "../lib/types";
 import { VALENCE_COLOR } from "../lib/valence";
 
@@ -37,6 +37,8 @@ export function Composer(props: {
   const [typeId, setTypeId] = useState<string | null>(null);
   const [mintValence, setMintValence] = useState<Valence>("neutral");
   const [concealed, setConcealed] = useState<string[]>([]);
+  const [intent, setIntent] = useState<"truth" | "belief">("truth");
+  const [believers, setBelievers] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [added, setAdded] = useState(0);
@@ -60,19 +62,21 @@ export function Composer(props: {
         onTypesChanged();
       }
       if (!tid) { setErr("Choose or name a relationship type."); setBusy(false); return; }
-      await appendPairwiseState({
+      if (intent === "belief" && believers.length === 0) { setErr("Pick who holds this belief."); setBusy(false); return; }
+      const stateId = await appendPairwiseState({
         worldId,
         entityA: a,
         entityB: b,
         typeId: tid,
         manuscriptRef: chapterId,
         note,
-        concealedFrom: concealed,
+        concealedFrom: intent === "truth" ? concealed : [],
       });
+      if (intent === "belief") await setStateKnownBy(stateId, { believed_by: believers });
       onAppended();
       // rapid entry: keep the composer open for the next beat in this scene
       setAdded((n) => n + 1);
-      setTypeQuery(""); setTypeId(null); setConcealed([]); setBusy(false);
+      setTypeQuery(""); setTypeId(null); setConcealed([]); setBelievers([]); setBusy(false);
       typeRef.current?.focus();
     } catch (x) {
       setErr(String(x));
@@ -136,17 +140,41 @@ export function Composer(props: {
           <select value={b} onChange={(e) => setB(e.target.value)} className="sel">{entOptions(a)}</select>
         </div>
 
-        {/* knowledge: everyone by default, exceptions opt-in */}
-        <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap", marginBottom: 12 }}>
-          <span className="muted">known by everyone + the reader</span>
-          {concealCandidates.map((e) => (
-            <span key={e.id}
-              className={"chip" + (concealed.includes(e.id) ? " on" : "")}
-              onClick={() => setConcealed((c) => c.includes(e.id) ? c.filter((x) => x !== e.id) : [...c, e.id])}>
-              {concealed.includes(e.id) ? "" : "…except "}{e.title.split(" ")[0]}
-            </span>
-          ))}
+        {/* truth vs belief */}
+        <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginBottom: 8 }}>
+          <span className="seg" style={{ fontSize: 11 }}>
+            <span className={intent === "truth" ? "on" : ""} onClick={() => setIntent("truth")}>the truth</span>
+            <span className={intent === "belief" ? "on" : ""} onClick={() => setIntent("belief")}>🧠 a belief</span>
+          </span>
+          <span className="faint" style={{ fontSize: 11 }}>
+            {intent === "truth" ? "what actually happens" : "what someone thinks is true — even if it's wrong"}
+          </span>
         </div>
+
+        {/* knowledge: for truth, conceal from exceptions; for belief, name who holds it */}
+        {intent === "truth" ? (
+          <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap", marginBottom: 12 }}>
+            <span className="muted">known by everyone + the reader</span>
+            {concealCandidates.map((e) => (
+              <span key={e.id}
+                className={"chip" + (concealed.includes(e.id) ? " on" : "")}
+                onClick={() => setConcealed((c) => c.includes(e.id) ? c.filter((x) => x !== e.id) : [...c, e.id])}>
+                {concealed.includes(e.id) ? "" : "…except "}{e.title.split(" ")[0]}
+              </span>
+            ))}
+          </div>
+        ) : (
+          <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap", marginBottom: 12 }}>
+            <span className="muted">believed by</span>
+            {entities.filter((e) => e.type === "Character").map((e) => (
+              <span key={e.id}
+                className={"chip" + (believers.includes(e.id) ? " on" : "")}
+                onClick={() => setBelievers((c) => c.includes(e.id) ? c.filter((x) => x !== e.id) : [...c, e.id])}>
+                {believers.includes(e.id) ? "🧠 " : ""}{e.title.split(" ")[0]}
+              </span>
+            ))}
+          </div>
+        )}
 
         <p className="note" style={{ borderLeft: "2px solid var(--line)", paddingLeft: 10, margin: "0 0 12px" }}>
           "{note.length > 160 ? note.slice(0, 160) + "…" : note}"

@@ -310,6 +310,17 @@ export async function appendGroupState(args: {
   return data as string;
 }
 
+// Attribute a state as a belief (or set any known_by shape). A belief carries
+// { believed_by: [ids] } — what those characters think is true, which the lens
+// substitutes over the truth. Passing null clears it back to objective truth.
+export async function setStateKnownBy(
+  stateId: string,
+  knownBy: { concealed_from?: string[]; believed_by?: string[] } | null,
+): Promise<void> {
+  const { error } = await supabase.from("relationship_states").update({ known_by: knownBy }).eq("id", stateId);
+  if (error) throw error;
+}
+
 // Fix a mistake in a connection: repoint a state to a different relationship
 // type (and optionally its note). Append-only history is for story changes —
 // a data-entry slip should just be correctable.

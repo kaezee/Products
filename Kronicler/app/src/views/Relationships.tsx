@@ -4,6 +4,7 @@ import type { StreamRow, Entity, RelationshipType } from "../lib/types";
 import type { Nav } from "../App";
 import { VALENCE_COLOR } from "../lib/valence";
 import { streamPhrase } from "../lib/direction";
+import { visibleUnderLens, latestTruthByRel, latestByRel, isBelief, believersOf, ironyLabel } from "../lib/knowledge";
 import { Graph } from "./Graph";
 import { TypeDictionary } from "./TypeDictionary";
 
@@ -40,29 +41,36 @@ export function Relationships({ worldId, go }: { worldId: string; go: (n: Nav) =
   const maxCh = useMemo(() => (rows ?? []).reduce((m, r) => Math.max(m, r.manuscript_order ?? 0), 0), [rows]);
   const asOfVal = asOf ?? maxCh;
   const characters = useMemo(() => entities.filter((e) => e.type === "Character"), [entities]);
-  // Knowledge lens is progressive: it only appears once the world actually
-  // holds a secret (a state concealed from someone). No secrets, no clutter.
-  const hasSecrets = useMemo(() => (rows ?? []).some((r) => (r.known_by?.concealed_from?.length ?? 0) > 0), [rows]);
+  const nameOf = (id: string) => entities.find((e) => e.id === id)?.title.split(" ")[0] ?? "someone";
+  // Knowledge lens is progressive: it only appears once the world holds a secret
+  // (a concealed truth) OR a belief (a character thinking something false).
+  const hasSecrets = useMemo(
+    () => (rows ?? []).some((r) => (r.known_by?.concealed_from?.length ?? 0) > 0 || isBelief(r)),
+    [rows],
+  );
 
-  // shared filter: as-of scrub, knowledge lens, type
-  const filtered = useMemo(() => {
+  // scope by as-of + type first, then apply the knowledge lens (concealment +
+  // belief substitution). See lib/knowledge.
+  const scoped = useMemo(() => {
     return (rows ?? []).filter((r) => {
       if (r.manuscript_order != null && r.manuscript_order > asOfVal) return false;
       if (typeId !== "all" && r.type_id !== typeId) return false;
-      if (viewer !== "all" && (r.known_by?.concealed_from ?? []).includes(viewer)) return false;
       return true;
     });
-  }, [rows, asOfVal, typeId, viewer]);
+  }, [rows, asOfVal, typeId]);
 
-  // Graph wants one current state per relationship (as of the scrub)
-  const latest = useMemo(() => {
-    const m = new Map<string, StreamRow>();
-    for (const r of filtered) {
-      const cur = m.get(r.relationship_id);
-      if (!cur || (r.manuscript_order ?? -1) > (cur.manuscript_order ?? -1)) m.set(r.relationship_id, r);
-    }
-    return [...m.values()];
-  }, [filtered]);
+  const filtered = useMemo(() => visibleUnderLens(scoped, viewer), [scoped, viewer]);
+
+  // latest truth per relationship (as of the scrub) — the canonical world, and
+  // the baseline a belief is compared against for dramatic irony.
+  const truthByRel = useMemo(() => latestTruthByRel(scoped), [scoped]);
+
+  // Graph wants one current state per relationship. Writer view = truth only;
+  // a character's view = their world (beliefs already substituted by the lens).
+  const latest = useMemo(
+    () => (viewer === "all" ? [...truthByRel.values()] : latestByRel(filtered)),
+    [viewer, truthByRel, filtered],
+  );
 
   const streamRows = useMemo(
     () => [...filtered].sort((a, b) => (a.manuscript_order ?? 1e9) - (b.manuscript_order ?? 1e9)),
@@ -99,7 +107,7 @@ export function Relationships({ worldId, go }: { worldId: string; go: (n: Nav) =
             {characters.map((e) => <option key={e.id} value={e.id}>As {e.title.split(" ")[0]} believes</option>)}
           </select>
         )}
-        {hasSecrets && viewer !== "all" && <span style={{ fontSize: 11.5, color: "var(--hostile)" }}>concealed states vanish — the world as they believe it</span>}
+        {hasSecrets && viewer !== "all" && <span style={{ fontSize: 11.5, color: "var(--hostile)" }}>their world — concealed truths vanish, their own beliefs stand in</span>}
         {ego && <span className="chip on click" onClick={() => setEgo(null)}>ego · {entities.find((e) => e.id === ego)?.title.split(" ")[0]} ✕</span>}
       </div>
 
@@ -110,13 +118,15 @@ export function Relationships({ worldId, go }: { worldId: string; go: (n: Nav) =
           <div className="card">
             {streamRows.map((s) => {
               const concealed = s.known_by?.concealed_from?.length ?? 0;
+              const belief = isBelief(s);
+              const believers = believersOf(s).map(nameOf).join(", ");
+              const irony = belief ? ironyLabel(s, truthByRel) : null;
               const ph = streamPhrase(s);
               const verb = { color: VALENCE_COLOR[s.valence], fontWeight: 650, fontSize: 12.5 } as const;
               return (
-                <div className="row" key={s.state_id}>
-                  <span className="dot" style={{ background: VALENCE_COLOR[s.valence] }} />
+                <div className="row" key={s.state_id} style={belief ? { borderLeft: "2px solid var(--obligation)" } : undefined}>
+                  <span className="dot" style={{ background: VALENCE_COLOR[s.valence], opacity: belief ? 0.55 : 1 }} />
                   {ph.subject ? (
-                    // one-way: read as a sentence "Subject  verb  Object"
                     <span className="title-serif">
                       {ph.subject} <span style={verb}>{ph.verb}</span> {ph.object}
                     </span>
@@ -125,6 +135,13 @@ export function Relationships({ worldId, go }: { worldId: string; go: (n: Nav) =
                       <span className="title-serif">{ph.names}</span>
                       {ph.trailingVerb && <span style={verb}>{ph.trailingVerb}</span>}
                     </>
+                  )}
+                  {belief && (
+                    <span style={{ fontSize: 11, color: "var(--obligation)", whiteSpace: "nowrap" }}
+                      title="A belief held by these characters — may differ from the truth">
+                      🧠 {believers} believe{believersOf(s).length === 1 ? "s" : ""}
+                      {irony && <span style={{ color: "var(--hostile)" }}> — actually {irony}</span>}
+                    </span>
                   )}
                   <span className="note" style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.note}</span>
                   {concealed > 0 && <span style={{ color: "var(--hostile)", fontSize: 11 }}>concealed ×{concealed}</span>}

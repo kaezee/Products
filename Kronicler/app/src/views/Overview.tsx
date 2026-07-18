@@ -53,6 +53,40 @@ export function Overview({ worldId, go }: { worldId: string; go: (n: Nav) => voi
     });
   }, [stream, typesById]);
 
+  // Continuity check: an entity in a TERMINAL state (dead/destroyed/gone) that
+  // still takes part in a later state is a likely contradiction — the exact
+  // slip a novelist needs caught. Computed from the stream + which types are
+  // flagged terminal.
+  const contradictions = useMemo(() => {
+    if (!stream) return [];
+    const terminalTypes = new Set(types.filter((t) => t.is_terminal).map((t) => t.id));
+    if (terminalTypes.size === 0) return [];
+    const terminalAt = new Map<string, number>(); // entity → earliest terminal chapter
+    for (const s of stream) {
+      if (s.is_correction || s.manuscript_order == null || !terminalTypes.has(s.type_id)) continue;
+      for (const p of s.participants) {
+        const cur = terminalAt.get(p.entity_id);
+        if (cur == null || s.manuscript_order < cur) terminalAt.set(p.entity_id, s.manuscript_order);
+      }
+    }
+    const out: { id: string; name: string; termCh: number; laterCh: number; laterLabel: string }[] = [];
+    for (const [id, termCh] of terminalAt) {
+      let later: { ch: number; label: string } | null = null;
+      for (const s of stream) {
+        if (s.is_correction || s.manuscript_order == null || s.manuscript_order <= termCh) continue;
+        if (terminalTypes.has(s.type_id)) continue;
+        if (s.participants.some((p) => p.entity_id === id) && (!later || s.manuscript_order > later.ch)) {
+          later = { ch: s.manuscript_order, label: s.type_label };
+        }
+      }
+      if (later) {
+        const ent = entities.find((e) => e.id === id);
+        out.push({ id, name: ent?.title ?? "someone", termCh, laterCh: later.ch, laterLabel: later.label });
+      }
+    }
+    return out;
+  }, [stream, types, entities]);
+
   async function delOrphan(e: Entity, ev: React.MouseEvent) {
     ev.stopPropagation();
     if (!confirm(`Delete "${e.title}"? It's soft-deleted — recoverable, nothing is truly lost.`)) return;
@@ -93,9 +127,17 @@ export function Overview({ worldId, go }: { worldId: string; go: (n: Nav) => voi
         <div>
           <div className="label" style={{ marginTop: 0 }}>Needs attention</div>
           <div className="card">
-            {dormant.length === 0 && orphans.length === 0 && (
+            {dormant.length === 0 && orphans.length === 0 && contradictions.length === 0 && (
               <div className="row"><span className="muted">Nothing flagged — every thread is live and every entity connected.</span></div>
             )}
+            {contradictions.map((c) => (
+              <div className="row click" key={"c" + c.id} onClick={() => go({ scope: "library", entityId: c.id })}>
+                <span className="chip" style={{ borderColor: "var(--hostile)", background: "var(--hostileBg)", color: "var(--hostile)" }}>contradiction</span>
+                <span style={{ fontSize: 12.5 }}>
+                  <b>{c.name}</b> — terminal in ch. {c.termCh}, but “{c.laterLabel}” in ch. {c.laterCh}
+                </span>
+              </div>
+            ))}
             {dormant.map((s) => (
               <div className="row click" key={"d" + s.state_id} onClick={() => go({ scope: "relationships" })}>
                 <span className="chip warn">dormant</span>

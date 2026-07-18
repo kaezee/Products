@@ -154,6 +154,7 @@ textarea { font-family: var(--serif); }
 .canvas-zoom button:hover { background: var(--wash); }
 .canvas-zoom .zoom-pct { min-width: 44px; text-align: center; font-size: 11px; color: var(--muted); cursor: pointer; }
 .canvas-zoom .zoom-pct:hover { color: var(--ink); }
+.canvas-zoom .zoom-sep { width: 1px; align-self: stretch; margin: 2px 1px; background: var(--line); }
 .notecard { position: absolute; width: 230px; border: 1px solid var(--lineStrong); border-radius: 10px; box-shadow: var(--pop); display: flex; flex-direction: column; }
 .notecard-bar { display: flex; align-items: center; gap: 6px; padding: 5px 8px; border-bottom: 1px solid var(--line); cursor: grab; user-select: none; }
 .notecard-body { border: none; border-radius: 0; background: transparent; resize: vertical; min-height: 78px; font-family: var(--serif); font-size: 13.5px; line-height: 1.5; padding: 9px 10px; box-shadow: none; }

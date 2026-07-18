@@ -3,8 +3,9 @@ import { getNotes, createNote, updateNote, softDeleteNote, getEntities, getRelat
 import type { Note, Entity, RelationshipType, Chapter } from "../lib/types";
 import { NoteToState } from "./NoteToState";
 
-const CARD_W = 230;
+const CARD_W = 230, CARD_H = 150; // CARD_H is a nominal height, for framing math only
 const MIN_SCALE = 0.3, MAX_SCALE = 2.2;
+const FIT_PAD = 60;
 
 interface View { tx: number; ty: number; s: number } // canvas transform: translate(tx,ty) scale(s), origin 0 0
 
@@ -46,12 +47,20 @@ export function Notes({ worldId }: { worldId: string }) {
     return { x: (clientX - r.left - v.tx) / v.s, y: (clientY - r.top - v.ty) / v.s };
   }
 
-  async function add() {
+  async function createAt(wx: number, wy: number) {
+    try { const n = await createNote(worldId, Math.round(wx), Math.round(wy)); setNotes((prev) => [...(prev ?? []), n]); }
+    catch (x) { setErr(String(x)); }
+  }
+  function add() {
     // drop the new card near the centre of the current viewport, in world space
     const r = boardRef.current?.getBoundingClientRect();
     const c = r ? toWorld(r.left + r.width / 2 - (CARD_W / 2) * view.s, r.top + 80) : { x: 60, y: 60 };
-    try { const n = await createNote(worldId, Math.round(c.x), Math.round(c.y)); setNotes((prev) => [...(prev ?? []), n]); }
-    catch (x) { setErr(String(x)); }
+    void createAt(c.x, c.y);
+  }
+  function onDoubleClick(e: React.MouseEvent) {
+    if (e.target !== e.currentTarget) return; // only on empty board
+    const w = toWorld(e.clientX, e.clientY);
+    void createAt(w.x - CARD_W / 2, w.y - 16);
   }
 
   function startDrag(note: Note, e: React.MouseEvent) {
@@ -111,6 +120,19 @@ export function Notes({ worldId }: { worldId: string }) {
     if (r) zoomAt(r.left + r.width / 2, r.top + r.height / 2, dir > 0 ? 1.2 : 1 / 1.2);
   }
   function resetView() { setView({ tx: 40, ty: 40, s: 1 }); }
+  // frame every visible card within the viewport — the "I've lost my cards" escape hatch
+  function fitView() {
+    const cards = show === "secrets" ? (notes ?? []).filter((n) => n.is_secret) : (notes ?? []);
+    const r = boardRef.current?.getBoundingClientRect();
+    if (!r || cards.length === 0) { resetView(); return; }
+    const minX = Math.min(...cards.map((n) => n.x));
+    const minY = Math.min(...cards.map((n) => n.y));
+    const maxX = Math.max(...cards.map((n) => n.x + CARD_W));
+    const maxY = Math.max(...cards.map((n) => n.y + CARD_H));
+    const cw = Math.max(1, maxX - minX), ch = Math.max(1, maxY - minY);
+    const s = Math.min(MAX_SCALE, Math.max(MIN_SCALE, Math.min((r.width - 2 * FIT_PAD) / cw, (r.height - 2 * FIT_PAD) / ch, 1)));
+    setView({ s, tx: (r.width - cw * s) / 2 - minX * s, ty: (r.height - ch * s) / 2 - minY * s });
+  }
 
   if (err) return <p className="err">{err}</p>;
   if (!notes) return <p className="muted">Loading notes…</p>;
@@ -122,7 +144,7 @@ export function Notes({ worldId }: { worldId: string }) {
     <div className="fi">
       <div className="row" style={{ borderBottom: "none", padding: 0, marginBottom: 12, gap: 10 }}>
         <h2 className="scope-title">Notes</h2>
-        <span className="faint" style={{ fontSize: 11 }}>drag cards · drag empty space to pan · scroll to zoom</span>
+        <span className="faint" style={{ fontSize: 11 }}>drag to pan · scroll to zoom · double-click to add</span>
         <span className="spacer" />
         <div className="seg" style={{ fontSize: 11 }}>
           <span className={show === "all" ? "on" : ""} onClick={() => setShow("all")}>All {notes.length}</span>
@@ -132,7 +154,7 @@ export function Notes({ worldId }: { worldId: string }) {
       </div>
 
       <div ref={boardRef} className={"notes-board" + (panning ? " panning" : "")}
-        onMouseDown={startPan} onMouseMove={onMove} onMouseUp={endDrag} onMouseLeave={endDrag}>
+        onMouseDown={startPan} onMouseMove={onMove} onMouseUp={endDrag} onMouseLeave={endDrag} onDoubleClick={onDoubleClick}>
         <div className="notes-canvas" style={{ transform: `translate(${view.tx}px, ${view.ty}px) scale(${view.s})`, transformOrigin: "0 0" }}>
           {visible.map((n) => (
             <NoteCard key={n.id} note={n} entities={entities}
@@ -145,13 +167,15 @@ export function Notes({ worldId }: { worldId: string }) {
 
         {visible.length === 0 && (
           <div className="muted" style={{ position: "absolute", left: 44, top: 40, pointerEvents: "none" }}>
-            {show === "secrets" ? "No secrets flagged yet — flag a note with the lock." : "Empty board — hit “+ New note” to jot your first idea."}
+            {show === "secrets" ? "No secrets flagged yet — flag a note with the lock." : "Empty board — double-click anywhere (or “+ New note”) to jot your first idea."}
           </div>
         )}
 
         <div className="canvas-zoom">
+          <button title="Fit all notes in view" onClick={fitView}>⤢</button>
+          <span className="zoom-sep" />
           <button title="Zoom out" onClick={() => zoomButton(-1)}>−</button>
-          <span className="zoom-pct" title="Reset view" onClick={resetView}>{Math.round(view.s * 100)}%</span>
+          <span className="zoom-pct" title="Reset to 100%" onClick={resetView}>{Math.round(view.s * 100)}%</span>
           <button title="Zoom in" onClick={() => zoomButton(1)}>+</button>
         </div>
       </div>

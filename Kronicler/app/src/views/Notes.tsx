@@ -104,6 +104,9 @@ export function Notes({ worldId }: { worldId: string }) {
   }
   // Native non-passive wheel listener: React's synthetic onWheel is passive, so
   // preventDefault there is a no-op and the page scrolls instead of zooming.
+  // Depend on notes being loaded: the board isn't rendered while notes === null,
+  // so an empty-dep effect would attach to a boardRef that's still null.
+  const boardReady = notes != null;
   useEffect(() => {
     const el = boardRef.current;
     if (!el) return;
@@ -113,7 +116,7 @@ export function Notes({ worldId }: { worldId: string }) {
     };
     el.addEventListener("wheel", handler, { passive: false });
     return () => el.removeEventListener("wheel", handler);
-  }, []);
+  }, [boardReady]);
 
   function zoomButton(dir: 1 | -1) {
     const r = boardRef.current?.getBoundingClientRect();

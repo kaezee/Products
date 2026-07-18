@@ -322,6 +322,32 @@ export async function swapParticipant(
   if (ins.error) throw ins.error;
 }
 
+// ── Directional connections (per-side role words) ────────────────────────
+// Direction lives in relationship_participants.role — no schema change. See
+// lib/direction.ts for the model (mutual / two-way / one-way).
+
+// The relationship a state belongs to (needed to set per-side roles after an
+// append, which returns only the state id).
+export async function relationshipIdForState(stateId: string): Promise<string> {
+  const { data, error } = await supabase
+    .from("relationship_states").select("relationship_id").eq("id", stateId).single();
+  if (error) throw error;
+  return (data as { relationship_id: string }).relationship_id;
+}
+
+// Set (or clear, with null) the directional word on each side of a connection.
+export async function setConnectionRoles(
+  relationshipId: string,
+  roles: { entityId: string; role: string | null }[],
+): Promise<void> {
+  for (const r of roles) {
+    const { error } = await supabase.from("relationship_participants")
+      .update({ role: r.role })
+      .eq("relationship_id", relationshipId).eq("entity_id", r.entityId);
+    if (error) throw error;
+  }
+}
+
 // ── Trash / restore (soft-deleted rows are recoverable) ──────────────────
 
 export async function getDeletedEntities(worldId: string): Promise<Entity[]> {

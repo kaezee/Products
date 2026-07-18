@@ -3,6 +3,7 @@ import { getStream, getEntities, getRelationshipTypes } from "../lib/api";
 import type { StreamRow, Entity, RelationshipType } from "../lib/types";
 import type { Nav } from "../App";
 import { VALENCE_COLOR } from "../lib/valence";
+import { streamPhrase } from "../lib/direction";
 import { Graph } from "./Graph";
 import { TypeDictionary } from "./TypeDictionary";
 
@@ -109,11 +110,22 @@ export function Relationships({ worldId, go }: { worldId: string; go: (n: Nav) =
           <div className="card">
             {streamRows.map((s) => {
               const concealed = s.known_by?.concealed_from?.length ?? 0;
+              const ph = streamPhrase(s);
+              const verb = { color: VALENCE_COLOR[s.valence], fontWeight: 650, fontSize: 12.5 } as const;
               return (
                 <div className="row" key={s.state_id}>
                   <span className="dot" style={{ background: VALENCE_COLOR[s.valence] }} />
-                  <span className="title-serif">{s.participants.map((p) => p.title).join(" · ")}</span>
-                  <span style={{ color: VALENCE_COLOR[s.valence], fontWeight: 650, fontSize: 12.5 }}>{s.type_label}</span>
+                  {ph.subject ? (
+                    // one-way: read as a sentence "Subject  verb  Object"
+                    <span className="title-serif">
+                      {ph.subject} <span style={verb}>{ph.verb}</span> {ph.object}
+                    </span>
+                  ) : (
+                    <>
+                      <span className="title-serif">{ph.names}</span>
+                      {ph.trailingVerb && <span style={verb}>{ph.trailingVerb}</span>}
+                    </>
+                  )}
                   <span className="note" style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.note}</span>
                   {concealed > 0 && <span style={{ color: "var(--hostile)", fontSize: 11 }}>concealed ×{concealed}</span>}
                   <span className="muted" style={{ whiteSpace: "nowrap" }}>{s.manuscript_order != null ? `ch. ${s.manuscript_order}` : "unplaced"}</span>

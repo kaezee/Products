@@ -35,8 +35,12 @@ export interface Note {
   body: string;
   is_secret: boolean;
   entity_ids: string[];
+  chapter_ids: string[];
+  plan_ref: string | null;
   x: number;
   y: number;
+  w: number | null;
+  h: number | null;
 }
 
 export interface Chapter {

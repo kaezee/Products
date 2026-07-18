@@ -156,6 +156,8 @@ textarea { font-family: var(--serif); }
 .canvas-zoom .zoom-pct:hover { color: var(--ink); }
 .canvas-zoom .zoom-sep { width: 1px; align-self: stretch; margin: 2px 1px; background: var(--line); }
 .notecard { position: absolute; width: 230px; border: 1px solid var(--lineStrong); border-radius: 10px; box-shadow: var(--pop); display: flex; flex-direction: column; }
+.notecard-resize { position: absolute; right: 1px; bottom: 1px; width: 15px; height: 15px; cursor: nwse-resize; border-right: 2px solid var(--line); border-bottom: 2px solid var(--line); border-bottom-right-radius: 9px; opacity: .45; }
+.notecard-resize:hover { opacity: 1; border-color: var(--muted); }
 .notecard-bar { display: flex; align-items: center; gap: 6px; padding: 5px 8px; border-bottom: 1px solid var(--line); cursor: grab; user-select: none; }
 .notecard-body { border: none; border-radius: 0; background: transparent; resize: vertical; min-height: 78px; font-family: var(--serif); font-size: 13.5px; line-height: 1.5; padding: 9px 10px; box-shadow: none; }
 .notecard-body:focus { outline: none; box-shadow: none; }

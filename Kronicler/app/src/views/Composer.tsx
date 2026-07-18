@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { appendPairwiseState, createRelationshipType } from "../lib/api";
 import type { Entity, RelationshipType, Valence } from "../lib/types";
 import { VALENCE_COLOR } from "../lib/valence";
@@ -37,6 +37,8 @@ export function Composer(props: {
   const [concealed, setConcealed] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [added, setAdded] = useState(0);
+  const typeRef = useRef<HTMLInputElement>(null);
 
   const q = typeQuery.trim().toLowerCase();
   const matches = types.filter((t) => t.label.toLowerCase().includes(q)).slice(0, 5);
@@ -66,7 +68,10 @@ export function Composer(props: {
         concealedFrom: concealed,
       });
       onAppended();
-      onClose();
+      // rapid entry: keep the composer open for the next beat in this scene
+      setAdded((n) => n + 1);
+      setTypeQuery(""); setTypeId(null); setConcealed([]); setBusy(false);
+      typeRef.current?.focus();
     } catch (x) {
       setErr(String(x));
       setBusy(false);
@@ -92,9 +97,11 @@ export function Composer(props: {
           <select value={a} onChange={(e) => setA(e.target.value)} className="sel">{entOptions(b)}</select>
           <div style={{ position: "relative" }}>
             <input
+              ref={typeRef}
               autoFocus
               value={chosenType ? chosenType.label : typeQuery}
               onChange={(e) => { setTypeQuery(e.target.value); setTypeId(null); }}
+              onKeyDown={(e) => { if (e.key === "Enter" && (chosenType || canMint) && a && b && a !== b) commit(); if (e.key === "Escape") onClose(); }}
               placeholder="did what…"
               style={{ width: 150, borderColor: chosenType ? VALENCE_COLOR[chosenType.valence] : undefined }}
             />
@@ -144,7 +151,10 @@ export function Composer(props: {
           <button className="primary" onClick={commit} disabled={busy}>
             {busy ? "…" : "Append state"}
           </button>
-          <span className="muted">appends a row — history is never overwritten</span>
+          <button onClick={onClose}>Done{added > 0 ? ` (${added})` : ""}</button>
+          <span className="muted">
+            {added > 0 ? `✓ ${added} recorded — keep going.  ` : ""}Enter to append · history is never overwritten
+          </span>
         </div>
       </div>
     </div>

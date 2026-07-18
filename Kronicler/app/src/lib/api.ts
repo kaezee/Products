@@ -287,6 +287,29 @@ export async function appendPairwiseState(args: {
   return data as string;
 }
 
+// Atomic find-or-create relationship + append a state over an arbitrary SET of
+// participants (2+). Groups are one relationship with a shared history; see
+// append_group_state. entityIds order doesn't matter (normalized server-side).
+export async function appendGroupState(args: {
+  worldId: string;
+  entityIds: string[];
+  typeId: string;
+  manuscriptRef?: string | null;
+  note?: string;
+  concealedFrom?: string[];
+}): Promise<string> {
+  const { data, error } = await supabase.rpc("append_group_state", {
+    p_world_id: args.worldId,
+    p_entity_ids: args.entityIds,
+    p_type_id: args.typeId,
+    p_manuscript_ref: args.manuscriptRef ?? null,
+    p_note: args.note ?? null,
+    p_concealed_from: args.concealedFrom && args.concealedFrom.length > 0 ? args.concealedFrom : null,
+  });
+  if (error) throw error;
+  return data as string;
+}
+
 // Fix a mistake in a connection: repoint a state to a different relationship
 // type (and optionally its note). Append-only history is for story changes —
 // a data-entry slip should just be correctable.

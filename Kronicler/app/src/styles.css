@@ -153,6 +153,7 @@ textarea { font-family: var(--serif); }
 .notecard-body { border: none; border-radius: 0; background: transparent; resize: vertical; min-height: 78px; font-family: var(--serif); font-size: 13.5px; line-height: 1.5; padding: 9px 10px; box-shadow: none; }
 .notecard-body:focus { outline: none; box-shadow: none; }
 .notecard-tags { display: flex; flex-wrap: wrap; gap: 4px; padding: 6px 8px 8px; position: relative; }
+.notecard-foot { padding: 0 8px 8px; display: flex; }
 .typeahead { position: absolute; top: 110%; left: 0; width: 240px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; box-shadow: var(--pop); z-index: 5; overflow: hidden; }
 .ta-row { display: flex; align-items: center; gap: 8px; padding: 8px 12px; font-size: 12.5px; cursor: pointer; border-bottom: 1px solid var(--line); }
 .ta-row:last-child { border-bottom: none; }

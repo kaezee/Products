@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
-import { getNotes, createNote, updateNote, softDeleteNote, getEntities } from "../lib/api";
-import type { Note, Entity } from "../lib/types";
+import { getNotes, createNote, updateNote, softDeleteNote, getEntities, getRelationshipTypes, getChapters } from "../lib/api";
+import type { Note, Entity, RelationshipType, Chapter } from "../lib/types";
+import { NoteToState } from "./NoteToState";
 
 const CANVAS_W = 2600, CANVAS_H = 1800, CARD_W = 230;
 
@@ -10,16 +11,19 @@ const CANVAS_W = 2600, CANVAS_H = 1800, CARD_W = 230;
 export function Notes({ worldId }: { worldId: string }) {
   const [notes, setNotes] = useState<Note[] | null>(null);
   const [entities, setEntities] = useState<Entity[]>([]);
+  const [types, setTypes] = useState<RelationshipType[]>([]);
+  const [chapters, setChapters] = useState<Chapter[]>([]);
   const [err, setErr] = useState<string | null>(null);
   const [show, setShow] = useState<"all" | "secrets">("all");
+  const [lensNote, setLensNote] = useState<Note | null>(null);
   const boardRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<{ id: string; offX: number; offY: number } | null>(null);
 
   async function reload() {
     try {
-      const [n, e] = await Promise.all([getNotes(worldId), getEntities(worldId)]);
-      setNotes(n); setEntities(e);
+      const [n, e, t, c] = await Promise.all([getNotes(worldId), getEntities(worldId), getRelationshipTypes(worldId), getChapters(worldId)]);
+      setNotes(n); setEntities(e); setTypes(t); setChapters(c);
     } catch (x) { setErr(String(x)); }
   }
   useEffect(() => { void reload(); /* eslint-disable-next-line */ }, [worldId]);
@@ -83,21 +87,30 @@ export function Notes({ worldId }: { worldId: string }) {
           {visible.map((n) => (
             <NoteCard key={n.id} note={n} entities={entities}
               onDragStart={(e) => startDrag(n, e)}
+              onToLens={() => setLensNote(n)}
               onChange={(p) => { patch(n.id, p); updateNote(n.id, p).catch((x) => setErr(String(x))); }}
               onDelete={async () => { if (!confirm("Delete this note?")) return; try { await softDeleteNote(n.id); setNotes((prev) => (prev ?? []).filter((x) => x.id !== n.id)); } catch (x) { setErr(String(x)); } }} />
           ))}
         </div>
       </div>
+
+      {lensNote && (
+        <NoteToState worldId={worldId} note={lensNote} entities={entities} types={types} chapters={chapters}
+          onClose={() => setLensNote(null)}
+          onDone={() => reload()}
+          onTypesChanged={() => getRelationshipTypes(worldId).then(setTypes).catch(() => {})} />
+      )}
     </div>
   );
 }
 
-function NoteCard({ note, entities, onChange, onDelete, onDragStart }: {
+function NoteCard({ note, entities, onChange, onDelete, onDragStart, onToLens }: {
   note: Note;
   entities: Entity[];
   onChange: (p: Partial<Note>) => void;
   onDelete: () => void;
   onDragStart: (e: React.MouseEvent) => void;
+  onToLens: () => void;
 }) {
   const [body, setBody] = useState(note.body);
   const [tagOpen, setTagOpen] = useState(false);
@@ -150,6 +163,13 @@ function NoteCard({ note, entities, onChange, onDelete, onDragStart }: {
           </div>
         )}
       </div>
+      {note.is_secret && (
+        <div className="notecard-foot" onMouseDown={(e) => e.stopPropagation()}>
+          <span className="chip click" title="Turn this secret into a real, lens-enforced concealed state" onClick={onToLens}>
+            → concealed state
+          </span>
+        </div>
+      )}
     </div>
   );
 }

@@ -3,12 +3,96 @@ import {
   getEntityStream, getEntityChapters, getEntities, getRelationshipTypes,
   createRelationshipType, appendPairwiseState, updateEntity, softDeleteEntity,
   updateStateType, softDeleteRelationship, swapParticipant,
+  relationshipIdForState, setConnectionRoles,
 } from "../lib/api";
 import type { Entity, StreamRow, RelationshipType, Valence } from "../lib/types";
 import type { EntityChapter } from "../lib/api";
 import { VALENCE_COLOR } from "../lib/valence";
 import { CANONICAL_ENTITY_TYPES, CUSTOM_TYPE } from "../lib/entityTypes";
+import { sideLabel, suggestInverse } from "../lib/direction";
 import { ArcSparkline } from "./ArcSparkline";
+
+// The direction picker shared by the add-form and the edit-panel: "both ways"
+// (symmetric) vs "directional", with an optional other-side word.
+function DirectionPicker({ forward, mode, inverse, onMode, onInverse, onInverseCommit }: {
+  forward: string;
+  mode: "mutual" | "directed";
+  inverse: string;
+  onMode: (m: "mutual" | "directed") => void;
+  onInverse: (s: string) => void;
+  onInverseCommit?: (s: string) => void;
+}) {
+  const suggestion = suggestInverse(forward);
+  return (
+    <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap", fontSize: 12 }}>
+      <span className="seg" style={{ fontSize: 11 }}>
+        <span className={mode === "mutual" ? "on" : ""} onClick={() => onMode("mutual")}>↔ both ways</span>
+        <span className={mode === "directed" ? "on" : ""} onClick={() => onMode("directed")}>→ directional</span>
+      </span>
+      {mode === "directed" && (
+        <>
+          <span className="muted">other side reads:</span>
+          <input value={inverse} onChange={(e) => onInverse(e.target.value)}
+            onBlur={(e) => onInverseCommit?.(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") onInverseCommit?.((e.target as HTMLInputElement).value); }}
+            placeholder={suggestion ? suggestion : "blank = one-way"} style={{ width: 130 }} />
+          {!inverse.trim() && <span className="faint" style={{ fontSize: 11 }}>one-way — not shown in reverse</span>}
+        </>
+      )}
+    </div>
+  );
+}
+
+// The edit panel for an existing connection: change its type, swap who it joins,
+// and set how each side reads (direction).
+function EditConnection({ latest, selfId, otherId, others, types, onChangeType, onSwap, onApplyDirection, onDone }: {
+  latest: StreamRow;
+  selfId: string;
+  otherId: string | null;
+  others: Entity[];
+  types: RelationshipType[];
+  onChangeType: (stateId: string, typeId: string) => void;
+  onSwap: (relId: string, oldId: string | null, newId: string) => void;
+  onApplyDirection: (relId: string, roles: { entityId: string; role: string | null }[]) => void;
+  onDone: () => void;
+}) {
+  const otherRole = otherId ? latest.participants.find((p) => p.entity_id === otherId)?.role ?? null : null;
+  const startDirectional = latest.participants.some((p) => !!p.role);
+  const [mode, setMode] = useState<"mutual" | "directed">(startDirectional ? "directed" : "mutual");
+  const [inverse, setInverse] = useState(otherRole ?? "");
+
+  function apply(nextMode: "mutual" | "directed", nextInverse: string) {
+    if (!otherId) return;
+    const roles = nextMode === "mutual"
+      ? [{ entityId: selfId, role: null }, { entityId: otherId, role: null }]
+      : [{ entityId: selfId, role: latest.type_label }, { entityId: otherId, role: nextInverse.trim() || null }];
+    onApplyDirection(latest.relationship_id, roles);
+  }
+
+  return (
+    <div style={{ margin: "0 0 10px 24px", display: "flex", flexDirection: "column", gap: 8, padding: "8px 10px", background: "var(--inset)", borderRadius: 8 }}>
+      <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+        <select className="sel" value={latest.type_id} style={{ padding: "4px 8px", fontSize: 12.5 }}
+          onChange={(e) => onChangeType(latest.state_id, e.target.value)}>
+          {types.map((t) => <option key={t.id} value={t.id}>{t.label}</option>)}
+        </select>
+        <span className="muted">with</span>
+        <select className="sel" value={otherId ?? ""} style={{ padding: "4px 8px", fontSize: 12.5 }}
+          onChange={(e) => onSwap(latest.relationship_id, otherId, e.target.value)}>
+          {others.map((o) => <option key={o.id} value={o.id}>{o.title}</option>)}
+        </select>
+        <button style={{ padding: "3px 10px", fontSize: 12 }} onClick={onDone}>Done</button>
+      </div>
+      <DirectionPicker forward={latest.type_label} mode={mode} inverse={inverse}
+        onMode={(m) => { setMode(m); apply(m, inverse); }}
+        onInverse={setInverse}
+        onInverseCommit={(s) => apply("directed", s)} />
+      <span className="faint" style={{ fontSize: 11 }}>
+        type / who it links to update in place · direction sets how each side reads (e.g. {latest.type_label} ↔ its opposite)
+      </span>
+    </div>
+  );
+}
 
 const isCanonical = (t: string) => (CANONICAL_ENTITY_TYPES as readonly string[]).includes(t);
 
@@ -104,6 +188,10 @@ export function EntityPage({ entity, onBack, onChanged, startEditing }: {
     try { await swapParticipant(relId, oldId, newId); loadConnections(); } catch (x) { setErr(String(x)); }
   }
 
+  async function applyDirection(relId: string, roles: { entityId: string; role: string | null }[]) {
+    try { await setConnectionRoles(relId, roles); loadConnections(); } catch (x) { setErr(String(x)); }
+  }
+
   async function removeConnection(relId: string, label: string) {
     if (!confirm(`Remove the "${label}" connection? It's soft-deleted — recoverable, nothing is truly lost.`)) return;
     try { await softDeleteRelationship(relId); loadConnections(); } catch (x) { setErr(String(x)); }
@@ -193,15 +281,26 @@ export function EntityPage({ entity, onBack, onChanged, startEditing }: {
         {groups.map(({ relId, history, latest, others: otherNames, otherId }) => {
           const isOpen = open === relId;
           const isEditing = editingRel === relId;
+          const side = sideLabel(latest, ent.id);
+          const toggle = () => setOpen(isOpen ? null : relId);
           return (
             <div key={relId} style={{ borderBottom: "1px solid var(--line)" }}>
               <div className="row" style={{ borderBottom: "none" }} title="Double-click to edit"
                 onDoubleClick={() => setEditingRel(relId)}>
-                <span className="muted" style={{ width: 10, cursor: "pointer" }} onClick={() => setOpen(isOpen ? null : relId)}>{isOpen ? "▾" : "▸"}</span>
+                <span className="muted" style={{ width: 10, cursor: "pointer" }} onClick={toggle}>{isOpen ? "▾" : "▸"}</span>
                 <span className="dot" style={{ background: VALENCE_COLOR[latest.valence] }} />
-                <span style={{ color: VALENCE_COLOR[latest.valence], fontWeight: 600, fontSize: 12.5, cursor: "pointer" }}
-                  onClick={() => setOpen(isOpen ? null : relId)}>{latest.type_label}</span>
-                <span className="title-serif" style={{ flex: 1, cursor: "pointer" }} onClick={() => setOpen(isOpen ? null : relId)}>{otherNames}</span>
+                {side.incoming ? (
+                  // self is the object of a one-way link: read it passively (the other is the subject)
+                  <span className="title-serif" style={{ flex: 1, cursor: "pointer" }} onClick={toggle}>
+                    {otherNames} <span className="muted" style={{ fontStyle: "italic" }}>{side.label} ↩</span>
+                  </span>
+                ) : (
+                  <>
+                    <span style={{ color: VALENCE_COLOR[latest.valence], fontWeight: 600, fontSize: 12.5, cursor: "pointer" }}
+                      onClick={toggle}>{side.label}</span>
+                    <span className="title-serif" style={{ flex: 1, cursor: "pointer" }} onClick={toggle}>{otherNames}</span>
+                  </>
+                )}
                 {history.length > 1 && <ArcSparkline history={history} />}
                 <span className="muted">{latest.manuscript_order != null ? `ch. ${latest.manuscript_order}` : "standing"}</span>
                 <span className="rowact" title="Edit this connection" onClick={() => setEditingRel(isEditing ? null : relId)}
@@ -211,19 +310,9 @@ export function EntityPage({ entity, onBack, onChanged, startEditing }: {
               </div>
 
               {isEditing && (
-                <div style={{ margin: "0 0 10px 24px", display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", padding: "8px 10px", background: "var(--inset)", borderRadius: 8 }}>
-                  <select className="sel" value={latest.type_id} style={{ padding: "4px 8px", fontSize: 12.5 }}
-                    onChange={(e) => changeType(latest.state_id, e.target.value)}>
-                    {types.map((t) => <option key={t.id} value={t.id}>{t.label}</option>)}
-                  </select>
-                  <span className="muted">with</span>
-                  <select className="sel" value={otherId ?? ""} style={{ padding: "4px 8px", fontSize: 12.5 }}
-                    onChange={(e) => swapPerson(relId, otherId, e.target.value)}>
-                    {others.map((o) => <option key={o.id} value={o.id}>{o.title}</option>)}
-                  </select>
-                  <button style={{ padding: "3px 10px", fontSize: 12 }} onClick={() => setEditingRel(null)}>Done</button>
-                  <span className="faint" style={{ fontSize: 11 }}>changing the type or who it links to updates this connection in place</span>
-                </div>
+                <EditConnection latest={latest} selfId={ent.id} otherId={otherId} others={others} types={types}
+                  onChangeType={changeType} onSwap={swapPerson} onApplyDirection={applyDirection}
+                  onDone={() => setEditingRel(null)} />
               )}
 
               {isOpen && (
@@ -276,6 +365,9 @@ function AddConnection({ worldId, selfId, selfTitle, others, types, onAdded, onC
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [added, setAdded] = useState(0);
+  const [mode, setMode] = useState<"mutual" | "directed">("mutual");
+  const [inverse, setInverse] = useState("");
+  const [dirTouched, setDirTouched] = useState(false);
   const typeRef = useRef<HTMLInputElement>(null);
 
   const q = tq.trim().toLowerCase();
@@ -283,6 +375,17 @@ function AddConnection({ worldId, selfId, selfTitle, others, types, onAdded, onC
   const exact = types.find((t) => t.label.toLowerCase() === q);
   const chosen = typeId ? types.find((t) => t.id === typeId) ?? null : exact ?? null;
   const canMint = !chosen && q.length > 0;
+  const forward = chosen?.label ?? tq.trim();
+
+  // Auto-detect direction from the word — "wife"→two-way, "is a"→one-way — until
+  // the writer overrides it. Keeps simple relations one-click while offering
+  // sensible directional defaults.
+  useEffect(() => {
+    if (dirTouched) return;
+    const sug = suggestInverse(forward);
+    if (sug === null) { setMode("mutual"); setInverse(""); }
+    else { setMode("directed"); setInverse(sug); }
+  }, [forward, dirTouched]);
 
   // Rapid entry: add and keep the form open, so several connections in a row
   // take one click each, not a full re-open.
@@ -297,10 +400,17 @@ function AddConnection({ worldId, selfId, selfTitle, others, types, onAdded, onC
         tid = t.id;
       }
       if (!tid) { setErr("Choose or name a relationship type."); setBusy(false); return; }
-      await appendPairwiseState({ worldId, entityA: selfId, entityB: other, typeId: tid });
+      const stateId = await appendPairwiseState({ worldId, entityA: selfId, entityB: other, typeId: tid });
+      if (mode === "directed") {
+        const relId = await relationshipIdForState(stateId);
+        await setConnectionRoles(relId, [
+          { entityId: selfId, role: forward },
+          { entityId: other, role: inverse.trim() || null },
+        ]);
+      }
       onAdded();
       setAdded((n) => n + 1);
-      setTq(""); setTypeId(null); setBusy(false);
+      setTq(""); setTypeId(null); setDirTouched(false); setBusy(false);
       typeRef.current?.focus();
     } catch (x) { setErr(String(x)); setBusy(false); }
   }
@@ -347,6 +457,11 @@ function AddConnection({ worldId, selfId, selfTitle, others, types, onAdded, onC
         <button className="primary" onClick={commit} disabled={busy}>{busy ? "…" : "Add"}</button>
         <button onClick={onClose}>Done{added > 0 ? ` (${added})` : ""}</button>
       </div>
+      {forward.length > 0 && (
+        <DirectionPicker forward={forward} mode={mode} inverse={inverse}
+          onMode={(m) => { setDirTouched(true); setMode(m); }}
+          onInverse={(s) => { setDirTouched(true); setInverse(s); }} />
+      )}
       {err && <span className="err">{err}</span>}
       <span className="muted">
         {added > 0 ? `✓ ${added} added — keep going, or Done.  ` : ""}

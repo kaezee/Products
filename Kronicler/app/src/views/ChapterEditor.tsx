@@ -214,10 +214,10 @@ export function ChapterEditor(props: {
             <button disabled={!selText.trim()} onClick={() => openEntMode("alias")}
               title="Attach the selected word as another name for an entity you already have">⚯ Alias of…</button>
             <button disabled={selText.trim().length < 3} onClick={() => setComposerOpen(true)}
-              title={selText ? "Record a state from the selected sentence" : "Select a sentence in the draft first"}>
-              ✳ Mark state change
+              title={selText ? "Record what happens between two characters in the selected sentence" : "Select a sentence in the draft first"}>
+              ✳ Mark a moment
             </button>
-            <span className="muted" style={{ fontSize: 11.5 }}>select a word to make it an entity, or a sentence to mark what happened</span>
+            <span className="muted" style={{ fontSize: 11.5 }}>select a word to make it an entity, or a sentence to record what happens between characters</span>
           </div>
 
           {entMode === "new" && (
@@ -321,6 +321,8 @@ export function ChapterEditor(props: {
         <Composer
           worldId={worldId}
           chapterId={chapter.id}
+          chapterOrder={chapter.manuscript_order}
+          chapterTitle={title}
           entities={ents}
           types={types}
           castIds={castIds}

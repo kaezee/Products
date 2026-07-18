@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   getEntityStream, getEntityChapters, getEntities, getRelationshipTypes,
-  createRelationshipType, appendPairwiseState, updateEntity, softDeleteEntity,
+  createRelationshipType, appendPairwiseState, appendGroupState, updateEntity, softDeleteEntity,
   updateStateType, softDeleteRelationship, swapParticipant,
   relationshipIdForState, setConnectionRoles,
 } from "../lib/api";
@@ -83,13 +83,19 @@ function EditConnection({ latest, selfId, otherId, others, types, onChangeType, 
         </select>
         <button style={{ padding: "3px 10px", fontSize: 12 }} onClick={onDone}>Done</button>
       </div>
-      <DirectionPicker forward={latest.type_label} mode={mode} inverse={inverse}
-        onMode={(m) => { setMode(m); apply(m, inverse); }}
-        onInverse={setInverse}
-        onInverseCommit={(s) => apply("directed", s)} />
-      <span className="faint" style={{ fontSize: 11 }}>
-        type / who it links to update in place · direction sets how each side reads (e.g. {latest.type_label} ↔ its opposite)
-      </span>
+      {latest.participants.length === 2 ? (
+        <>
+          <DirectionPicker forward={latest.type_label} mode={mode} inverse={inverse}
+            onMode={(m) => { setMode(m); apply(m, inverse); }}
+            onInverse={setInverse}
+            onInverseCommit={(s) => apply("directed", s)} />
+          <span className="faint" style={{ fontSize: 11 }}>
+            type / who it links to update in place · direction sets how each side reads (e.g. {latest.type_label} ↔ its opposite)
+          </span>
+        </>
+      ) : (
+        <span className="faint" style={{ fontSize: 11 }}>👥 group of {latest.participants.length} — reads the same for everyone (direction applies to one-to-one bonds)</span>
+      )}
     </div>
   );
 }
@@ -358,7 +364,7 @@ function AddConnection({ worldId, selfId, selfTitle, others, types, onAdded, onC
   onAdded: () => void;
   onClose: () => void;
 }) {
-  const [other, setOther] = useState(others[0]?.id ?? "");
+  const [picked, setPicked] = useState<string[]>(others[0] ? [others[0].id] : []);
   const [tq, setTq] = useState("");
   const [typeId, setTypeId] = useState<string | null>(null);
   const [valence, setValence] = useState<Valence>("bond");
@@ -369,6 +375,9 @@ function AddConnection({ worldId, selfId, selfTitle, others, types, onAdded, onC
   const [inverse, setInverse] = useState("");
   const [dirTouched, setDirTouched] = useState(false);
   const typeRef = useRef<HTMLInputElement>(null);
+
+  const isGroup = picked.length >= 2; // 3+ participants incl. self → one group relationship
+  const remaining = others.filter((e) => !picked.includes(e.id));
 
   const q = tq.trim().toLowerCase();
   const matches = types.filter((t) => t.label.toLowerCase().includes(q)).slice(0, 5);
@@ -390,7 +399,7 @@ function AddConnection({ worldId, selfId, selfTitle, others, types, onAdded, onC
   // Rapid entry: add and keep the form open, so several connections in a row
   // take one click each, not a full re-open.
   async function commit() {
-    if (!other) { setErr("Pick who this connects to."); return; }
+    if (picked.length === 0) { setErr("Pick at least one person to connect."); return; }
     setBusy(true);
     setErr(null);
     try {
@@ -400,17 +409,24 @@ function AddConnection({ worldId, selfId, selfTitle, others, types, onAdded, onC
         tid = t.id;
       }
       if (!tid) { setErr("Choose or name a relationship type."); setBusy(false); return; }
-      const stateId = await appendPairwiseState({ worldId, entityA: selfId, entityB: other, typeId: tid });
-      if (mode === "directed") {
-        const relId = await relationshipIdForState(stateId);
-        await setConnectionRoles(relId, [
-          { entityId: selfId, role: forward },
-          { entityId: other, role: inverse.trim() || null },
-        ]);
+      if (isGroup) {
+        // one relationship spanning everyone — a party, a faction, a pact
+        await appendGroupState({ worldId, entityIds: [selfId, ...picked], typeId: tid });
+      } else {
+        const stateId = await appendPairwiseState({ worldId, entityA: selfId, entityB: picked[0], typeId: tid });
+        if (mode === "directed") {
+          const relId = await relationshipIdForState(stateId);
+          await setConnectionRoles(relId, [
+            { entityId: selfId, role: forward },
+            { entityId: picked[0], role: inverse.trim() || null },
+          ]);
+        }
       }
       onAdded();
       setAdded((n) => n + 1);
-      setTq(""); setTypeId(null); setDirTouched(false); setBusy(false);
+      setTq(""); setTypeId(null); setDirTouched(false);
+      setPicked(remaining[0] ? [remaining[0].id] : []);
+      setBusy(false);
       typeRef.current?.focus();
     } catch (x) { setErr(String(x)); setBusy(false); }
   }
@@ -451,21 +467,34 @@ function AddConnection({ worldId, selfId, selfTitle, others, types, onAdded, onC
             </div>
           )}
         </div>
-        <select value={other} onChange={(e) => setOther(e.target.value)} className="sel">
-          {others.map((e) => <option key={e.id} value={e.id}>{e.title}</option>)}
-        </select>
+        {picked.map((id) => {
+          const e = others.find((o) => o.id === id);
+          return (
+            <span key={id} className="chip on" style={{ cursor: "pointer" }} onClick={() => setPicked((p) => p.filter((x) => x !== id))}>
+              {e?.title ?? "?"} ✕
+            </span>
+          );
+        })}
+        {remaining.length > 0 && (
+          <select value="" className="sel" style={{ width: 130 }}
+            onChange={(e) => { if (e.target.value) setPicked((p) => [...p, e.target.value]); }}>
+            <option value="">{picked.length ? "+ add person…" : "pick a person…"}</option>
+            {remaining.map((e) => <option key={e.id} value={e.id}>{e.title}</option>)}
+          </select>
+        )}
         <button className="primary" onClick={commit} disabled={busy}>{busy ? "…" : "Add"}</button>
         <button onClick={onClose}>Done{added > 0 ? ` (${added})` : ""}</button>
       </div>
-      {forward.length > 0 && (
+      {!isGroup && forward.length > 0 && (
         <DirectionPicker forward={forward} mode={mode} inverse={inverse}
           onMode={(m) => { setDirTouched(true); setMode(m); }}
           onInverse={(s) => { setDirTouched(true); setInverse(s); }} />
       )}
+      {isGroup && <span className="faint" style={{ fontSize: 11 }}>👥 group — one shared relationship among {selfTitle} + {picked.length} others, reads the same for everyone</span>}
       {err && <span className="err">{err}</span>}
       <span className="muted">
         {added > 0 ? `✓ ${added} added — keep going, or Done.  ` : ""}
-        e.g. "wife" · "father" · "ally" — Enter to add another, no chapter needed
+        one person = a bond (e.g. "wife" · "ally"); add more for a group (a party, a faction) — Enter to add
       </span>
     </div>
   );

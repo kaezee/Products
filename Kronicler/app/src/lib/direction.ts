@@ -33,8 +33,10 @@ export function suggestInverse(forward: string): string | null {
   return key in INVERSE ? INVERSE[key] : null;
 }
 
+// Direction is a two-party concept; a group (3+ participants) always reads by
+// its shared type label.
 export function isDirectional(row: StreamRow): boolean {
-  return row.participants.some((p) => !!p.role);
+  return row.participants.length === 2 && row.participants.some((p) => !!p.role);
 }
 
 export interface SideLabel { label: string; incoming: boolean }
@@ -57,7 +59,8 @@ export interface StreamPhrase {
 export function streamPhrase(row: StreamRow): StreamPhrase {
   const parts = row.participants;
   const roled = parts.filter((p) => !!p.role);
-  if (roled.length === 0) {
+  // groups (3+) and role-less pairs read as names + shared verb
+  if (parts.length !== 2 || roled.length === 0) {
     return { names: parts.map((p) => p.title).join(" · "), trailingVerb: row.type_label };
   }
   if (roled.length === 1) {

@@ -8,6 +8,7 @@ import type { Entity, StreamRow, RelationshipType, Valence } from "../lib/types"
 import type { EntityChapter } from "../lib/api";
 import { VALENCE_COLOR } from "../lib/valence";
 import { CANONICAL_ENTITY_TYPES, CUSTOM_TYPE } from "../lib/entityTypes";
+import { ArcSparkline } from "./ArcSparkline";
 
 const isCanonical = (t: string) => (CANONICAL_ENTITY_TYPES as readonly string[]).includes(t);
 
@@ -253,22 +254,6 @@ export function EntityPage({ entity, onBack, onChanged, startEditing }: {
         ))}
       </div>
     </div>
-  );
-}
-
-// The relationship's arc: one bar per state in story order, coloured by valence,
-// fading in toward the present — you read a bond souring (green→amber→red) or
-// mending at a glance. The payoff a spreadsheet can't give you.
-function ArcSparkline({ history }: { history: StreamRow[] }) {
-  const items = history.slice(-14);
-  return (
-    <span style={{ display: "inline-flex", gap: 2, alignItems: "center" }} title="Relationship arc — how it changed over the story">
-      {items.map((h, i) => (
-        <span key={h.state_id}
-          title={`${h.type_label} · ${h.manuscript_order != null ? "ch. " + h.manuscript_order : "standing"}`}
-          style={{ width: 5, height: 13, borderRadius: 2, background: VALENCE_COLOR[h.valence], opacity: 0.5 + 0.5 * (i / Math.max(1, items.length - 1)) }} />
-      ))}
-    </span>
   );
 }
 

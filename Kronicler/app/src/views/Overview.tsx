@@ -53,39 +53,37 @@ export function Overview({ worldId, go }: { worldId: string; go: (n: Nav) => voi
     });
   }, [stream, typesById]);
 
-  // Continuity check: an entity in a TERMINAL state (dead/destroyed/gone) that
-  // still takes part in a later state is a likely contradiction — the exact
-  // slip a novelist needs caught. Computed from the stream + which types are
-  // flagged terminal.
+  // Continuity check (per relationship): a thread you marked TERMINAL (ended —
+  // severed, died, reconciled-for-good) that then gets a later, non-terminal
+  // state is a likely slip: "you said this ended, but kept adding to it."
   const contradictions = useMemo(() => {
     if (!stream) return [];
     const terminalTypes = new Set(types.filter((t) => t.is_terminal).map((t) => t.id));
     if (terminalTypes.size === 0) return [];
-    const terminalAt = new Map<string, number>(); // entity → earliest terminal chapter
+    const byRel = new Map<string, StreamRow[]>();
     for (const s of stream) {
-      if (s.is_correction || s.manuscript_order == null || !terminalTypes.has(s.type_id)) continue;
-      for (const p of s.participants) {
-        const cur = terminalAt.get(p.entity_id);
-        if (cur == null || s.manuscript_order < cur) terminalAt.set(p.entity_id, s.manuscript_order);
-      }
+      if (s.is_correction || s.manuscript_order == null) continue;
+      const a = byRel.get(s.relationship_id) ?? [];
+      a.push(s); byRel.set(s.relationship_id, a);
     }
-    const out: { id: string; name: string; termCh: number; laterCh: number; laterLabel: string }[] = [];
-    for (const [id, termCh] of terminalAt) {
-      let later: { ch: number; label: string } | null = null;
-      for (const s of stream) {
-        if (s.is_correction || s.manuscript_order == null || s.manuscript_order <= termCh) continue;
-        if (terminalTypes.has(s.type_id)) continue;
-        if (s.participants.some((p) => p.entity_id === id) && (!later || s.manuscript_order > later.ch)) {
-          later = { ch: s.manuscript_order, label: s.type_label };
-        }
-      }
+    const out: { relId: string; id?: string; who: string; termCh: number; termLabel: string; laterCh: number; laterLabel: string }[] = [];
+    for (const [relId, states] of byRel) {
+      const sorted = [...states].sort((a, b) => (a.manuscript_order ?? 0) - (b.manuscript_order ?? 0));
+      const ti = sorted.findIndex((s) => terminalTypes.has(s.type_id));
+      if (ti === -1) continue;
+      const term = sorted[ti];
+      const later = sorted.slice(ti + 1).find((s) => !terminalTypes.has(s.type_id));
       if (later) {
-        const ent = entities.find((e) => e.id === id);
-        out.push({ id, name: ent?.title ?? "someone", termCh, laterCh: later.ch, laterLabel: later.label });
+        out.push({
+          relId, id: term.participants[0]?.entity_id,
+          who: term.participants.map((p) => p.title).join(" · "),
+          termCh: term.manuscript_order!, termLabel: term.type_label,
+          laterCh: later.manuscript_order!, laterLabel: later.type_label,
+        });
       }
     }
     return out;
-  }, [stream, types, entities]);
+  }, [stream, types]);
 
   async function delOrphan(e: Entity, ev: React.MouseEvent) {
     ev.stopPropagation();
@@ -131,10 +129,10 @@ export function Overview({ worldId, go }: { worldId: string; go: (n: Nav) => voi
               <div className="row"><span className="muted">Nothing flagged — every thread is live and every entity connected.</span></div>
             )}
             {contradictions.map((c) => (
-              <div className="row click" key={"c" + c.id} onClick={() => go({ scope: "library", entityId: c.id })}>
-                <span className="chip" style={{ borderColor: "var(--hostile)", background: "var(--hostileBg)", color: "var(--hostile)" }}>contradiction</span>
+              <div className="row click" key={"c" + c.relId} onClick={() => c.id && go({ scope: "library", entityId: c.id })}>
+                <span className="chip" style={{ borderColor: "var(--hostile)", background: "var(--hostileBg)", color: "var(--hostile)" }}>reopened</span>
                 <span style={{ fontSize: 12.5 }}>
-                  <b>{c.name}</b> — terminal in ch. {c.termCh}, but “{c.laterLabel}” in ch. {c.laterCh}
+                  <b>{c.who}</b> — “{c.termLabel}” (ended) in ch. {c.termCh}, but “{c.laterLabel}” in ch. {c.laterCh}
                 </span>
               </div>
             ))}

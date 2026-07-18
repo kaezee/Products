@@ -128,7 +128,7 @@ export function Relationships({ worldId, go }: { worldId: string; go: (n: Nav) =
                   )}
                   <span className="note" style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.note}</span>
                   {concealed > 0 && <span style={{ color: "var(--hostile)", fontSize: 11 }}>concealed ×{concealed}</span>}
-                  <span className="muted" style={{ whiteSpace: "nowrap" }}>{s.manuscript_order != null ? `ch. ${s.manuscript_order}` : "unplaced"}</span>
+                  <span className="muted" style={{ whiteSpace: "nowrap" }}>{s.manuscript_order != null ? `ch. ${s.manuscript_order}` : "standing"}</span>
                 </div>
               );
             })}

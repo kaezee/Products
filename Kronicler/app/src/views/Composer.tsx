@@ -12,6 +12,8 @@ const VALENCES: Valence[] = ["bond", "hostile", "obligation", "neutral"];
 export function Composer(props: {
   worldId: string;
   chapterId: string;
+  chapterOrder: number;
+  chapterTitle: string;
   entities: Entity[];
   types: RelationshipType[];
   castIds: string[];
@@ -20,7 +22,7 @@ export function Composer(props: {
   onAppended: () => void;
   onTypesChanged: () => void;
 }) {
-  const { worldId, chapterId, entities, types, castIds, note, onClose, onAppended, onTypesChanged } = props;
+  const { worldId, chapterId, chapterOrder, chapterTitle, entities, types, castIds, note, onClose, onAppended, onTypesChanged } = props;
 
   const ordered = useMemo(() => {
     // cast first, then everyone else — you usually mark the people on the page
@@ -86,11 +88,15 @@ export function Composer(props: {
   return (
     <div className="overlay" onClick={onClose}>
       <div className="composer" onClick={(e) => e.stopPropagation()}>
-        <div className="row" style={{ borderBottom: "none", padding: 0, marginBottom: 12 }}>
-          <span className="label" style={{ margin: 0 }}>New state · this chapter · auto</span>
+        <div className="row" style={{ borderBottom: "none", padding: 0, marginBottom: 4 }}>
+          <span className="label" style={{ margin: 0 }}>Record a moment</span>
           <span className="spacer" />
           <span style={{ cursor: "pointer", color: "var(--muted)" }} onClick={onClose}>✕</span>
         </div>
+        <p className="muted" style={{ margin: "0 0 10px", fontSize: 12 }}>
+          What happens between two characters here? It joins their relationship history, filed under
+          {" "}<span style={{ color: "var(--ink)", fontWeight: 600 }}>📖 ch. {String(chapterOrder).padStart(2, "0")} — {chapterTitle}</span>.
+        </p>
 
         {/* the sentence */}
         <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginBottom: 12 }}>
@@ -149,11 +155,11 @@ export function Composer(props: {
         {err && <p className="err">{err}</p>}
         <div className="row" style={{ borderBottom: "none", padding: 0, gap: 10 }}>
           <button className="primary" onClick={commit} disabled={busy}>
-            {busy ? "…" : "Append state"}
+            {busy ? "…" : "Record moment"}
           </button>
           <button onClick={onClose}>Done{added > 0 ? ` (${added})` : ""}</button>
           <span className="muted">
-            {added > 0 ? `✓ ${added} recorded — keep going.  ` : ""}Enter to append · history is never overwritten
+            {added > 0 ? `✓ ${added} recorded — keep going.  ` : ""}Enter to record · nothing is ever overwritten
           </span>
         </div>
       </div>

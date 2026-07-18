@@ -146,8 +146,14 @@ textarea { font-family: var(--serif); }
 .rich .ment-Creature  { background: #efe7f5; box-shadow: inset 0 -1.5px 0 #cdb9de; }
 
 /* Notes board (canvas-lite) */
-.notes-board { position: relative; height: 68vh; overflow: auto; border: 1px solid var(--line); border-radius: 12px; background: #fbfaf5 repeating-linear-gradient(0deg, transparent, transparent 23px, rgba(31,29,24,.03) 24px), repeating-linear-gradient(90deg, transparent, transparent 23px, rgba(31,29,24,.03) 24px); }
-.notes-canvas { position: relative; }
+.notes-board { position: relative; height: 68vh; overflow: hidden; border: 1px solid var(--line); border-radius: 12px; background: #fbfaf5 repeating-linear-gradient(0deg, transparent, transparent 23px, rgba(31,29,24,.03) 24px), repeating-linear-gradient(90deg, transparent, transparent 23px, rgba(31,29,24,.03) 24px); cursor: grab; }
+.notes-board.panning { cursor: grabbing; }
+.notes-canvas { position: absolute; top: 0; left: 0; width: 0; height: 0; will-change: transform; }
+.canvas-zoom { position: absolute; right: 12px; bottom: 12px; display: flex; align-items: center; gap: 2px; background: var(--surface); border: 1px solid var(--line); border-radius: 9px; box-shadow: var(--pop); padding: 2px; user-select: none; }
+.canvas-zoom button { border: none; background: transparent; box-shadow: none; padding: 2px 9px; font-size: 15px; line-height: 1; color: var(--ink); border-radius: 7px; }
+.canvas-zoom button:hover { background: var(--wash); }
+.canvas-zoom .zoom-pct { min-width: 44px; text-align: center; font-size: 11px; color: var(--muted); cursor: pointer; }
+.canvas-zoom .zoom-pct:hover { color: var(--ink); }
 .notecard { position: absolute; width: 230px; border: 1px solid var(--lineStrong); border-radius: 10px; box-shadow: var(--pop); display: flex; flex-direction: column; }
 .notecard-bar { display: flex; align-items: center; gap: 6px; padding: 5px 8px; border-bottom: 1px solid var(--line); cursor: grab; user-select: none; }
 .notecard-body { border: none; border-radius: 0; background: transparent; resize: vertical; min-height: 78px; font-family: var(--serif); font-size: 13.5px; line-height: 1.5; padding: 9px 10px; box-shadow: none; }

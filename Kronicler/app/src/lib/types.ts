@@ -37,6 +37,7 @@ export interface Note {
   entity_ids: string[];
   chapter_ids: string[];
   plan_ref: string | null;
+  band_id: string | null;
   x: number;
   y: number;
   w: number | null;
@@ -50,6 +51,15 @@ export interface Chapter {
   manuscript_order: number;
   story_time_ref: number | null;
   body: string;
+  band_id: string | null;
+}
+
+export interface Band {
+  id: string;
+  world_id: string;
+  name: string;
+  band_order: number;
+  color: string | null;
 }
 
 export interface ChapterVersion {

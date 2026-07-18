@@ -3,7 +3,7 @@
 A living record of what's shipped, what's queued, and the product decisions
 behind them. Kept in the repo so nothing lives only in chat.
 
-_Last updated: 2026-07-17_
+_Last updated: 2026-07-18_
 
 ---
 
@@ -64,11 +64,17 @@ places, and their **relationship history** build themselves as you write, so
   debounce with the caret preserved. Browser-verified end-to-end (typing, caret,
   newline, hover, click-through) via Playwright.
 
-**Notes — the planning board (canvas-lite)**
-- Its own rail section. Freeform cards you drag around a board, tag to entities,
-  and flag as secrets (🔒). A "Secrets" filter rolls up the flagged cards — the
-  natural home for reveals you haven't written yet, and the bridge to the
-  knowledge lens. (Full pan/zoom infinite canvas is the planned evolution.)
+**Notes — the planning board (infinite canvas)**
+- Its own rail section: a true infinite canvas. Cards live in world space — you
+  **pan** (drag empty board), **zoom** (wheel toward the cursor, or ± controls),
+  **fit-to-view** (⤢) to reframe everything, and **double-click** empty canvas
+  to drop a note there. Tag cards to entities; flag as secrets (🔒); a "Secrets"
+  filter rolls up the flagged ones.
+- **Wired to the knowledge lens.** A secret card has a **"→ concealed state"**
+  action that turns the idea into a *real* relationship state the "As X believes"
+  lens enforces — pre-filled with the tagged entities and note body, pick who's
+  "kept in the dark", optionally pin a chapter. The note stays; the lens-enforced
+  secret is added alongside it.
 
 ---
 
@@ -76,10 +82,10 @@ places, and their **relationship history** build themselves as you write, so
 
 1. ~~**Level 2 — the rich editor (contentEditable).**~~ ✅ Shipped, in full:
    inline mentions, colour-by-type, hover preview, click-through.
-2. **Notes → full infinite canvas.** Evolve the card board into a true canvas:
-   pan, zoom, freely-placed & resizable cards, lines connecting them, minimap.
-   Its own phase (comparable to L2). Also: convert a secret note into a real
-   concealed relationship state ("turn this reveal into the lens").
+2. ~~**Notes → full infinite canvas.**~~ ✅ Shipped: pan/zoom/fit canvas in
+   world space, double-click-to-create, and the note→concealed-state bridge to
+   the lens. _Still open as later niceties: resizable cards, lines connecting
+   cards, a minimap, and a persistent "already promoted" marker on a note._
 3. **Deeper state-marking.** Make recording "what happened" between characters
    faster/smarter as you write (fewer clicks, better suggestions).
 4. **The reader's payoff.** Make Stream / Graph / Brief actively *tell* you

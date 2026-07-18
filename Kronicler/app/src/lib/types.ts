@@ -85,7 +85,7 @@ export interface StreamRow {
   chapter_title: string | null;
   manuscript_order: number | null;
   is_correction: boolean;
-  known_by: { concealed_from?: string[] } | null;
+  known_by: { concealed_from?: string[]; believed_by?: string[] } | null;
   note: string | null;
   created_at: string;
   participants: StreamParticipant[];

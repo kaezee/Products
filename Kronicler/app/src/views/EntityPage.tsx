@@ -10,6 +10,7 @@ import type { EntityChapter } from "../lib/api";
 import { VALENCE_COLOR } from "../lib/valence";
 import { CANONICAL_ENTITY_TYPES, CUSTOM_TYPE } from "../lib/entityTypes";
 import { sideLabel, suggestInverse } from "../lib/direction";
+import { isBelief } from "../lib/knowledge";
 import { ArcSparkline } from "./ArcSparkline";
 
 // The direction picker shared by the add-form and the edit-panel: "both ways"
@@ -150,6 +151,7 @@ export function EntityPage({ entity, onBack, onChanged, startEditing }: {
   const groups = useMemo(() => {
     const m = new Map<string, StreamRow[]>();
     for (const r of rows ?? []) {
+      if (isBelief(r)) continue; // connections are the truth; beliefs live in the lens
       const arr = m.get(r.relationship_id) ?? [];
       arr.push(r);
       m.set(r.relationship_id, arr);

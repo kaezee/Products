@@ -1,4 +1,5 @@
 import type { StreamRow, RelationshipType } from "./types";
+import { isBelief } from "./knowledge";
 
 // The chapter Brief (PRD §7.5): everything true as a chapter opens, computed
 // from relationship_states — never authored. Warnings appear where they prevent
@@ -20,6 +21,10 @@ export function computeBrief(
   typesById: Map<string, RelationshipType>,
 ): Brief {
   const cast = new Set(castIds);
+
+  // The Brief is the truth of the scene — beliefs (what characters wrongly think)
+  // never enter it.
+  rows = rows.filter((r) => !isBelief(r));
 
   // latest state per relationship strictly BEFORE this chapter opens
   const latestByRel = new Map<string, StreamRow>();

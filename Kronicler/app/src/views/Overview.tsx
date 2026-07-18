@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { getStream, getEntities, getRelationshipTypes, softDeleteEntity } from "../lib/api";
 import type { StreamRow, Entity, RelationshipType } from "../lib/types";
+import { isBelief } from "../lib/knowledge";
 import type { Nav } from "../App";
 import { VALENCE_COLOR } from "../lib/valence";
 
@@ -43,6 +44,7 @@ export function Overview({ worldId, go }: { worldId: string; go: (n: Nav) => voi
     const now = stream.reduce((m, s) => Math.max(m, s.manuscript_order ?? 0), 0);
     const latest = new Map<string, StreamRow>();
     for (const s of stream) {
+      if (isBelief(s)) continue; // truth only — beliefs aren't real threads
       const cur = latest.get(s.relationship_id);
       if (!cur || (s.manuscript_order ?? -1) > (cur.manuscript_order ?? -1)) latest.set(s.relationship_id, s);
     }
@@ -62,7 +64,7 @@ export function Overview({ worldId, go }: { worldId: string; go: (n: Nav) => voi
     if (terminalTypes.size === 0) return [];
     const byRel = new Map<string, StreamRow[]>();
     for (const s of stream) {
-      if (s.is_correction || s.manuscript_order == null) continue;
+      if (s.is_correction || s.manuscript_order == null || isBelief(s)) continue;
       const a = byRel.get(s.relationship_id) ?? [];
       a.push(s); byRel.set(s.relationship_id, a);
     }

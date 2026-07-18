@@ -3,11 +3,15 @@ import { getNotes, createNote, updateNote, softDeleteNote, getEntities, getRelat
 import type { Note, Entity, RelationshipType, Chapter } from "../lib/types";
 import { NoteToState } from "./NoteToState";
 
-const CANVAS_W = 2600, CANVAS_H = 1800, CARD_W = 230;
+const CARD_W = 230;
+const MIN_SCALE = 0.3, MAX_SCALE = 2.2;
 
-// The planning board (canvas-lite). Freeform note cards you drag around, tag to
-// entities, and flag as secrets — a place to hold ideas and reveals you haven't
-// written yet. Full pan/zoom infinite canvas is a later evolution.
+interface View { tx: number; ty: number; s: number } // canvas transform: translate(tx,ty) scale(s), origin 0 0
+
+// The planning board — an infinite canvas. Note cards live in world coordinates
+// (note.x / note.y); the board is a fixed viewport you pan (drag empty space)
+// and zoom (wheel / the ± controls) over that unbounded space. Cards can be
+// tagged to entities, flagged as secrets, and promoted into lens-enforced states.
 export function Notes({ worldId }: { worldId: string }) {
   const [notes, setNotes] = useState<Note[] | null>(null);
   const [entities, setEntities] = useState<Entity[]>([]);
@@ -16,9 +20,12 @@ export function Notes({ worldId }: { worldId: string }) {
   const [err, setErr] = useState<string | null>(null);
   const [show, setShow] = useState<"all" | "secrets">("all");
   const [lensNote, setLensNote] = useState<Note | null>(null);
+  const [view, setView] = useState<View>({ tx: 40, ty: 40, s: 1 });
+  const [panning, setPanning] = useState(false);
   const boardRef = useRef<HTMLDivElement>(null);
-  const canvasRef = useRef<HTMLDivElement>(null);
+  const viewRef = useRef(view); viewRef.current = view;
   const dragRef = useRef<{ id: string; offX: number; offY: number } | null>(null);
+  const panRef = useRef<{ x: number; y: number; tx: number; ty: number } | null>(null);
 
   async function reload() {
     try {
@@ -32,31 +39,78 @@ export function Notes({ worldId }: { worldId: string }) {
     setNotes((prev) => (prev ?? []).map((n) => (n.id === id ? { ...n, ...p } : n)));
   }
 
+  // board-local screen point → world coordinate
+  function toWorld(clientX: number, clientY: number) {
+    const r = boardRef.current!.getBoundingClientRect();
+    const v = viewRef.current;
+    return { x: (clientX - r.left - v.tx) / v.s, y: (clientY - r.top - v.ty) / v.s };
+  }
+
   async function add() {
-    const b = boardRef.current;
-    const x = (b?.scrollLeft ?? 0) + 40, y = (b?.scrollTop ?? 0) + 40;
-    try { const n = await createNote(worldId, x, y); setNotes((prev) => [...(prev ?? []), n]); }
+    // drop the new card near the centre of the current viewport, in world space
+    const r = boardRef.current?.getBoundingClientRect();
+    const c = r ? toWorld(r.left + r.width / 2 - (CARD_W / 2) * view.s, r.top + 80) : { x: 60, y: 60 };
+    try { const n = await createNote(worldId, Math.round(c.x), Math.round(c.y)); setNotes((prev) => [...(prev ?? []), n]); }
     catch (x) { setErr(String(x)); }
   }
 
   function startDrag(note: Note, e: React.MouseEvent) {
     e.preventDefault();
-    const rect = canvasRef.current!.getBoundingClientRect();
-    dragRef.current = { id: note.id, offX: e.clientX - (rect.left + note.x), offY: e.clientY - (rect.top + note.y) };
+    const w = toWorld(e.clientX, e.clientY);
+    dragRef.current = { id: note.id, offX: w.x - note.x, offY: w.y - note.y };
+  }
+  function startPan(e: React.MouseEvent) {
+    // pan only when the gesture starts on empty board (not on a card)
+    if (e.target !== e.currentTarget) return;
+    e.preventDefault();
+    panRef.current = { x: e.clientX, y: e.clientY, tx: view.tx, ty: view.ty };
+    setPanning(true);
   }
   function onMove(e: React.MouseEvent) {
-    if (!dragRef.current) return;
-    const rect = canvasRef.current!.getBoundingClientRect();
-    const x = Math.max(0, Math.min(CANVAS_W - CARD_W, e.clientX - rect.left - dragRef.current.offX));
-    const y = Math.max(0, e.clientY - rect.top - dragRef.current.offY);
-    patch(dragRef.current.id, { x, y });
+    if (dragRef.current) {
+      const w = toWorld(e.clientX, e.clientY);
+      patch(dragRef.current.id, { x: Math.round(w.x - dragRef.current.offX), y: Math.round(w.y - dragRef.current.offY) });
+    } else if (panRef.current) {
+      const p = panRef.current;
+      setView((v) => ({ ...v, tx: p.tx + (e.clientX - p.x), ty: p.ty + (e.clientY - p.y) }));
+    }
   }
   function endDrag() {
     const d = dragRef.current; dragRef.current = null;
+    panRef.current = null; setPanning(false);
     if (!d) return;
     const n = (notes ?? []).find((x) => x.id === d.id);
     if (n) updateNote(n.id, { x: n.x, y: n.y }).catch((x) => setErr(String(x)));
   }
+
+  // zoom toward the cursor, keeping the world point under it fixed
+  function zoomAt(clientX: number, clientY: number, factor: number) {
+    setView((v) => {
+      const s = Math.min(MAX_SCALE, Math.max(MIN_SCALE, v.s * factor));
+      const r = boardRef.current!.getBoundingClientRect();
+      const bx = clientX - r.left, by = clientY - r.top;
+      const wx = (bx - v.tx) / v.s, wy = (by - v.ty) / v.s;
+      return { s, tx: bx - wx * s, ty: by - wy * s };
+    });
+  }
+  // Native non-passive wheel listener: React's synthetic onWheel is passive, so
+  // preventDefault there is a no-op and the page scrolls instead of zooming.
+  useEffect(() => {
+    const el = boardRef.current;
+    if (!el) return;
+    const handler = (e: WheelEvent) => {
+      e.preventDefault();
+      zoomAt(e.clientX, e.clientY, e.deltaY < 0 ? 1.1 : 1 / 1.1);
+    };
+    el.addEventListener("wheel", handler, { passive: false });
+    return () => el.removeEventListener("wheel", handler);
+  }, []);
+
+  function zoomButton(dir: 1 | -1) {
+    const r = boardRef.current?.getBoundingClientRect();
+    if (r) zoomAt(r.left + r.width / 2, r.top + r.height / 2, dir > 0 ? 1.2 : 1 / 1.2);
+  }
+  function resetView() { setView({ tx: 40, ty: 40, s: 1 }); }
 
   if (err) return <p className="err">{err}</p>;
   if (!notes) return <p className="muted">Loading notes…</p>;
@@ -68,7 +122,7 @@ export function Notes({ worldId }: { worldId: string }) {
     <div className="fi">
       <div className="row" style={{ borderBottom: "none", padding: 0, marginBottom: 12, gap: 10 }}>
         <h2 className="scope-title">Notes</h2>
-        <span className="faint" style={{ fontSize: 11 }}>drag cards anywhere · tag to entities · flag secrets</span>
+        <span className="faint" style={{ fontSize: 11 }}>drag cards · drag empty space to pan · scroll to zoom</span>
         <span className="spacer" />
         <div className="seg" style={{ fontSize: 11 }}>
           <span className={show === "all" ? "on" : ""} onClick={() => setShow("all")}>All {notes.length}</span>
@@ -77,13 +131,9 @@ export function Notes({ worldId }: { worldId: string }) {
         <button onClick={add}>+ New note</button>
       </div>
 
-      <div ref={boardRef} className="notes-board" onMouseMove={onMove} onMouseUp={endDrag} onMouseLeave={endDrag}>
-        <div ref={canvasRef} className="notes-canvas" style={{ width: CANVAS_W, height: CANVAS_H }}>
-          {visible.length === 0 && (
-            <div className="muted" style={{ position: "absolute", left: 44, top: 40 }}>
-              {show === "secrets" ? "No secrets flagged yet — flag a note with the lock." : "Empty board — hit “+ New note” to jot your first idea."}
-            </div>
-          )}
+      <div ref={boardRef} className={"notes-board" + (panning ? " panning" : "")}
+        onMouseDown={startPan} onMouseMove={onMove} onMouseUp={endDrag} onMouseLeave={endDrag}>
+        <div className="notes-canvas" style={{ transform: `translate(${view.tx}px, ${view.ty}px) scale(${view.s})`, transformOrigin: "0 0" }}>
           {visible.map((n) => (
             <NoteCard key={n.id} note={n} entities={entities}
               onDragStart={(e) => startDrag(n, e)}
@@ -91,6 +141,18 @@ export function Notes({ worldId }: { worldId: string }) {
               onChange={(p) => { patch(n.id, p); updateNote(n.id, p).catch((x) => setErr(String(x))); }}
               onDelete={async () => { if (!confirm("Delete this note?")) return; try { await softDeleteNote(n.id); setNotes((prev) => (prev ?? []).filter((x) => x.id !== n.id)); } catch (x) { setErr(String(x)); } }} />
           ))}
+        </div>
+
+        {visible.length === 0 && (
+          <div className="muted" style={{ position: "absolute", left: 44, top: 40, pointerEvents: "none" }}>
+            {show === "secrets" ? "No secrets flagged yet — flag a note with the lock." : "Empty board — hit “+ New note” to jot your first idea."}
+          </div>
+        )}
+
+        <div className="canvas-zoom">
+          <button title="Zoom out" onClick={() => zoomButton(-1)}>−</button>
+          <span className="zoom-pct" title="Reset view" onClick={resetView}>{Math.round(view.s * 100)}%</span>
+          <button title="Zoom in" onClick={() => zoomButton(1)}>+</button>
         </div>
       </div>
 

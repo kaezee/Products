@@ -201,6 +201,7 @@ export function EntityPage({ entity, onBack, onChanged, startEditing }: {
                 <span style={{ color: VALENCE_COLOR[latest.valence], fontWeight: 600, fontSize: 12.5, cursor: "pointer" }}
                   onClick={() => setOpen(isOpen ? null : relId)}>{latest.type_label}</span>
                 <span className="title-serif" style={{ flex: 1, cursor: "pointer" }} onClick={() => setOpen(isOpen ? null : relId)}>{otherNames}</span>
+                {history.length > 1 && <ArcSparkline history={history} />}
                 <span className="muted">{latest.manuscript_order != null ? `ch. ${latest.manuscript_order}` : "standing"}</span>
                 <span className="rowact" title="Edit this connection" onClick={() => setEditingRel(isEditing ? null : relId)}
                   style={{ cursor: "pointer", color: isEditing ? "var(--bond)" : "var(--muted)", fontSize: 12, padding: "0 2px" }}>edit</span>
@@ -252,6 +253,22 @@ export function EntityPage({ entity, onBack, onChanged, startEditing }: {
         ))}
       </div>
     </div>
+  );
+}
+
+// The relationship's arc: one bar per state in story order, coloured by valence,
+// fading in toward the present — you read a bond souring (green→amber→red) or
+// mending at a glance. The payoff a spreadsheet can't give you.
+function ArcSparkline({ history }: { history: StreamRow[] }) {
+  const items = history.slice(-14);
+  return (
+    <span style={{ display: "inline-flex", gap: 2, alignItems: "center" }} title="Relationship arc — how it changed over the story">
+      {items.map((h, i) => (
+        <span key={h.state_id}
+          title={`${h.type_label} · ${h.manuscript_order != null ? "ch. " + h.manuscript_order : "standing"}`}
+          style={{ width: 5, height: 13, borderRadius: 2, background: VALENCE_COLOR[h.valence], opacity: 0.5 + 0.5 * (i / Math.max(1, items.length - 1)) }} />
+      ))}
+    </span>
   );
 }
 

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { getStream, getEntities, getRelationshipTypes, softDeleteEntity } from "../lib/api";
 import type { StreamRow, Entity, RelationshipType } from "../lib/types";
 import { isBelief } from "../lib/knowledge";
+import { findIssues } from "../lib/continuity";
 import type { Nav } from "../App";
 import { VALENCE_COLOR } from "../lib/valence";
 
@@ -55,37 +56,16 @@ export function Overview({ worldId, go }: { worldId: string; go: (n: Nav) => voi
     });
   }, [stream, typesById]);
 
-  // Continuity check (per relationship): a thread you marked TERMINAL (ended —
-  // severed, died, reconciled-for-good) that then gets a later, non-terminal
-  // state is a likely slip: "you said this ended, but kept adding to it."
-  const contradictions = useMemo(() => {
+  // Continuity checks (lib/continuity, node-tested): reopened threads, states
+  // concealed from someone who's in them, and beliefs that clash with the truth.
+  const issues = useMemo(() => {
     if (!stream) return [];
-    const terminalTypes = new Set(types.filter((t) => t.is_terminal).map((t) => t.id));
-    if (terminalTypes.size === 0) return [];
-    const byRel = new Map<string, StreamRow[]>();
-    for (const s of stream) {
-      if (s.is_correction || s.manuscript_order == null || isBelief(s)) continue;
-      const a = byRel.get(s.relationship_id) ?? [];
-      a.push(s); byRel.set(s.relationship_id, a);
-    }
-    const out: { relId: string; id?: string; who: string; termCh: number; termLabel: string; laterCh: number; laterLabel: string }[] = [];
-    for (const [relId, states] of byRel) {
-      const sorted = [...states].sort((a, b) => (a.manuscript_order ?? 0) - (b.manuscript_order ?? 0));
-      const ti = sorted.findIndex((s) => terminalTypes.has(s.type_id));
-      if (ti === -1) continue;
-      const term = sorted[ti];
-      const later = sorted.slice(ti + 1).find((s) => !terminalTypes.has(s.type_id));
-      if (later) {
-        out.push({
-          relId, id: term.participants[0]?.entity_id,
-          who: term.participants.map((p) => p.title).join(" · "),
-          termCh: term.manuscript_order!, termLabel: term.type_label,
-          laterCh: later.manuscript_order!, laterLabel: later.type_label,
-        });
-      }
-    }
-    return out;
-  }, [stream, types]);
+    const nameOf = (id: string) => entities.find((e) => e.id === id)?.title ?? "someone";
+    return findIssues(stream, types, nameOf);
+  }, [stream, types, entities]);
+  const contradictions = useMemo(() => issues.flatMap((i) => i.kind === "reopened" ? [i] : []), [issues]);
+  const orphaned = useMemo(() => issues.flatMap((i) => i.kind === "orphaned-anchor" ? [i] : []), [issues]);
+  const ironies = useMemo(() => issues.flatMap((i) => i.kind === "belief-clash" ? [i] : []), [issues]);
 
   async function delOrphan(e: Entity, ev: React.MouseEvent) {
     ev.stopPropagation();
@@ -127,14 +107,22 @@ export function Overview({ worldId, go }: { worldId: string; go: (n: Nav) => voi
         <div>
           <div className="label" style={{ marginTop: 0 }}>Needs attention</div>
           <div className="card">
-            {dormant.length === 0 && orphans.length === 0 && contradictions.length === 0 && (
+            {dormant.length === 0 && orphans.length === 0 && contradictions.length === 0 && orphaned.length === 0 && (
               <div className="row"><span className="muted">Nothing flagged — every thread is live and every entity connected.</span></div>
             )}
             {contradictions.map((c) => (
-              <div className="row click" key={"c" + c.relId} onClick={() => c.id && go({ scope: "library", entityId: c.id })}>
+              <div className="row click" key={"c" + c.relId} onClick={() => c.entityId && go({ scope: "library", entityId: c.entityId })}>
                 <span className="chip" style={{ borderColor: "var(--hostile)", background: "var(--hostileBg)", color: "var(--hostile)" }}>reopened</span>
                 <span style={{ fontSize: 12.5 }}>
                   <b>{c.who}</b> — “{c.termLabel}” (ended) in ch. {c.termCh}, but “{c.laterLabel}” in ch. {c.laterCh}
+                </span>
+              </div>
+            ))}
+            {orphaned.map((c) => (
+              <div className="row click" key={"o" + c.relId} onClick={() => go({ scope: "relationships" })}>
+                <span className="chip warn">lost chapter</span>
+                <span style={{ fontSize: 12.5 }}>
+                  <b>{c.who}</b> · {c.label} — marked in a chapter that's since been deleted, so it shows as “standing”. Re-mark it{c.note ? <> (“{c.note.slice(0, 40)}{c.note.length > 40 ? "…" : ""}”)</> : null}.
                 </span>
               </div>
             ))}
@@ -164,6 +152,22 @@ export function Overview({ worldId, go }: { worldId: string; go: (n: Nav) => voi
           </div>
         </div>
       </div>
+
+      {ironies.length > 0 && (
+        <>
+          <div className="label" style={{ marginTop: 22 }}>🎭 Dramatic irony in play</div>
+          <div className="card" style={{ maxWidth: 760 }}>
+            {ironies.map((c) => (
+              <div className="row click" key={"i" + c.relId} onClick={() => go({ scope: "relationships" })}>
+                <span className="chip" style={{ borderColor: "var(--obligation)", background: "var(--obligationBg)", color: "var(--obligation)" }}>irony</span>
+                <span style={{ fontSize: 12.5 }}>
+                  <b>{c.believers}</b> believe{c.believers.includes(",") ? "" : "s"} it's <span style={{ color: "var(--obligation)", fontWeight: 600 }}>{c.belief}</span> — but it's actually <span style={{ color: "var(--hostile)", fontWeight: 600 }}>{c.truth}</span>. The reader knows; they don't.
+                </span>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
     </div>
   );
 }

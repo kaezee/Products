@@ -18,7 +18,7 @@ export interface Brief {
 export function computeBrief(
   allRows: StreamRow[],
   castIds: string[],
-  chapterOrder: number,
+  chapter: { manuscript_order: number; story_time_ref: number | null },
   typesById: Map<string, RelationshipType>,
 ): Brief {
   const cast = new Set(castIds);
@@ -27,14 +27,21 @@ export function computeBrief(
   // separately (below) so we can show who's mistaken in the room.
   const rows = allRows.filter((r) => !isBelief(r));
 
-  // latest state per relationship strictly BEFORE this chapter opens
+  // "Before this chapter opens" follows the chapter's IN-WORLD time when it has
+  // one — so a flashback's Brief reflects the world as it stood at that moment,
+  // not the reader's narrative position. Falls back to manuscript order (the
+  // linear default) when no in-world time is set. (Dormancy stays narrative —
+  // it's about chapters of silence, not in-world years.)
+  const useStory = chapter.story_time_ref != null;
+  const posOf = (r: StreamRow) => (useStory ? r.story_time_ref : r.manuscript_order);
+  const here = useStory ? chapter.story_time_ref! : chapter.manuscript_order;
+
   const latestByRel = new Map<string, StreamRow>();
   for (const r of rows) {
-    if (r.manuscript_order == null || r.manuscript_order >= chapterOrder) continue;
+    const p = posOf(r);
+    if (p == null || p >= here) continue;
     const cur = latestByRel.get(r.relationship_id);
-    if (!cur || r.manuscript_order > (cur.manuscript_order ?? -Infinity)) {
-      latestByRel.set(r.relationship_id, r);
-    }
+    if (!cur || p > (posOf(cur) ?? -Infinity)) latestByRel.set(r.relationship_id, r);
   }
   const latest = [...latestByRel.values()];
 
@@ -50,19 +57,26 @@ export function computeBrief(
     return anyPresent(r) || concealed.some((id) => cast.has(id));
   });
 
-  const dormant = latest.filter((r) => {
+  // Dormant = narrative silence, always by manuscript order (its own latest map).
+  const mLatest = new Map<string, StreamRow>();
+  for (const r of rows) {
+    if (r.manuscript_order == null || r.manuscript_order >= chapter.manuscript_order) continue;
+    const cur = mLatest.get(r.relationship_id);
+    if (!cur || r.manuscript_order > (cur.manuscript_order ?? -Infinity)) mLatest.set(r.relationship_id, r);
+  }
+  const dormant = [...mLatest.values()].filter((r) => {
     if (!anyPresent(r)) return false;
     const t = typesById.get(r.type_id);
     if (t?.is_ambient || t?.is_terminal) return false;
-    return r.manuscript_order != null && chapterOrder - r.manuscript_order >= DORMANT_GAP;
+    return r.manuscript_order != null && chapter.manuscript_order - r.manuscript_order >= DORMANT_GAP;
   });
 
-  // Arc: the full history (before this chapter) of each entering relationship.
+  // Arc: the full history (before this chapter, same axis) of each entering rel.
   const arcByRel = new Map<string, StreamRow[]>();
   for (const r of entering) {
     const hist = rows
-      .filter((x) => x.relationship_id === r.relationship_id && x.manuscript_order != null && x.manuscript_order < chapterOrder && !x.is_correction)
-      .sort((a, b) => (a.manuscript_order ?? 0) - (b.manuscript_order ?? 0));
+      .filter((x) => { const p = posOf(x); return x.relationship_id === r.relationship_id && p != null && p < here && !x.is_correction; })
+      .sort((a, b) => (posOf(a) ?? 0) - (posOf(b) ?? 0));
     arcByRel.set(r.relationship_id, hist);
   }
 
@@ -72,10 +86,11 @@ export function computeBrief(
   const beliefByRel = new Map<string, StreamRow>();
   for (const r of allRows) {
     if (!isBelief(r)) continue;
-    if (r.manuscript_order != null && r.manuscript_order >= chapterOrder) continue;
+    const p = posOf(r);
+    if (p != null && p >= here) continue;
     if (!believersOf(r).some((id) => cast.has(id))) continue;
     const cur = beliefByRel.get(r.relationship_id);
-    if (!cur || (r.manuscript_order ?? -Infinity) > (cur.manuscript_order ?? -Infinity)) beliefByRel.set(r.relationship_id, r);
+    if (!cur || (p ?? -Infinity) > (posOf(cur) ?? -Infinity)) beliefByRel.set(r.relationship_id, r);
   }
   const beliefs = [...beliefByRel.values()].map((row) => ({ row, truth: latestByRel.get(row.relationship_id) ?? null }));
 

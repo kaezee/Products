@@ -110,8 +110,8 @@ export function ChapterEditor(props: {
     return (id: string) => m.get(id) ?? "someone";
   }, [ents]);
   const brief = useMemo(
-    () => (stream ? computeBrief(stream, castIds, chapter.manuscript_order, typesById) : null),
-    [stream, castIds, chapter.manuscript_order, typesById],
+    () => (stream ? computeBrief(stream, castIds, { manuscript_order: chapter.manuscript_order, story_time_ref: chapter.story_time_ref }, typesById) : null),
+    [stream, castIds, chapter.manuscript_order, chapter.story_time_ref, typesById],
   );
 
   async function link(entityId: string) {

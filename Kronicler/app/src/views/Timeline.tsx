@@ -2,9 +2,12 @@ import { useEffect, useRef, useState } from "react";
 import {
   getBands, createBand, updateBand, softDeleteBand, setChapterBand,
   getChapters, getNotes, createNote, updateNote, softDeleteNote,
+  getEntities, getStream, getEntityChapters,
 } from "../lib/api";
-import type { Band, Chapter, Note } from "../lib/types";
+import type { Band, Chapter, Note, Entity, StreamRow } from "../lib/types";
 import type { Nav } from "../App";
+import { VALENCE_COLOR } from "../lib/valence";
+import { isBelief } from "../lib/knowledge";
 
 // The Timeline: a pan/zoom canvas with a horizontal time spine. Chapters ride
 // ABOVE the line, grouped into bands (a season/novel collapses to one block,
@@ -25,6 +28,10 @@ export function Timeline({ worldId, go }: { worldId: string; go: (n: Nav) => voi
   const [bands, setBands] = useState<Band[]>([]);
   const [chapters, setChapters] = useState<Chapter[]>([]);
   const [notes, setNotes] = useState<Note[]>([]);
+  const [entities, setEntities] = useState<Entity[]>([]);
+  const [stream, setStream] = useState<StreamRow[]>([]);
+  const [followId, setFollowId] = useState<string>("");
+  const [appears, setAppears] = useState<Set<string>>(new Set());
   const [err, setErr] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
@@ -38,11 +45,19 @@ export function Timeline({ worldId, go }: { worldId: string; go: (n: Nav) => voi
 
   async function reload() {
     try {
-      const [b, c, n] = await Promise.all([getBands(worldId), getChapters(worldId), getNotes(worldId)]);
-      setBands(b.sort((x, y) => x.band_order - y.band_order)); setChapters(c); setNotes(n);
+      const [b, c, n, e, s] = await Promise.all([getBands(worldId), getChapters(worldId), getNotes(worldId), getEntities(worldId), getStream(worldId)]);
+      setBands(b.sort((x, y) => x.band_order - y.band_order)); setChapters(c); setNotes(n); setEntities(e); setStream(s);
     } catch (x) { setErr(String(x)); } finally { setLoading(false); }
   }
   useEffect(() => { setLoading(true); void reload(); /* eslint-disable-next-line */ }, [worldId]);
+
+  // when following a character, load the chapters they appear in (to light them)
+  useEffect(() => {
+    if (!followId) { setAppears(new Set()); return; }
+    let live = true;
+    getEntityChapters(followId).then((cs) => { if (live) setAppears(new Set(cs.map((c) => c.chapter_id))); }).catch(() => {});
+    return () => { live = false; };
+  }, [followId]);
 
   const bandIds = new Set(bands.map((b) => b.id));
   const ordered = [...chapters].sort((a, b) => a.manuscript_order - b.manuscript_order);
@@ -81,6 +96,19 @@ export function Timeline({ worldId, go }: { worldId: string; go: (n: Nav) => voi
     if (seg.exp) seg.chs.forEach((c, i) => chapterX.set(c.id, seg.x + i * COL + COL / 2));
     else seg.chs.forEach((c) => chapterX.set(c.id, seg.x + seg.w / 2));
   }
+
+  // Character drill-down: the followed character's relationship beats (truth
+  // only), anchored to the chapters they happen in, in story order → an arc.
+  const characters = entities.filter((e) => e.type === "Character");
+  const ARC_Y = 122;
+  const beats = !followId ? [] : stream
+    .filter((s) => !isBelief(s) && s.manuscript_ref && chapterX.has(s.manuscript_ref) && s.manuscript_order != null && s.participants.some((p) => p.entity_id === followId))
+    .map((s) => ({
+      x: chapterX.get(s.manuscript_ref!)!, valence: s.valence, order: s.manuscript_order!,
+      label: s.type_label, other: s.participants.find((p) => p.entity_id !== followId)?.title ?? "",
+    }))
+    .sort((a, b) => a.order - b.order);
+  const dimCh = (id: string) => followId !== "" && !appears.has(id);
 
   // place notes below the line (stacked when they share an anchor)
   const belowNotes: { note: Note; x: number; top: number }[] = [];
@@ -229,19 +257,22 @@ export function Timeline({ worldId, go }: { worldId: string; go: (n: Nav) => voi
       {bands.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
     </select>
   );
-  const chapterStop = (c: Chapter, left: number, tint: string) => (
-    <div key={c.id}>
-      <div className={"tl-card" + (selected.has(c.id) ? " sel" : "")} style={{ left: left + 6 }} onClick={(e) => onChapterClick(c, e)}>
-        <div className="tl-card-top">
-          <span className="tl-ch-no">{selecting ? (selected.has(c.id) ? "☑" : "☐") : String(c.manuscript_order).padStart(2, "0")}</span>
-          {selecting ? <span className="tl-ch-no">{String(c.manuscript_order).padStart(2, "0")}</span> : picker(c.band_id, (id) => assignChapter(c.id, id))}
+  const chapterStop = (c: Chapter, left: number, tint: string) => {
+    const dim = dimCh(c.id);
+    return (
+      <div key={c.id} style={dim ? { opacity: 0.28 } : undefined}>
+        <div className={"tl-card" + (selected.has(c.id) ? " sel" : "")} style={{ left: left + 6 }} onClick={(e) => onChapterClick(c, e)}>
+          <div className="tl-card-top">
+            <span className="tl-ch-no">{selecting ? (selected.has(c.id) ? "☑" : "☐") : String(c.manuscript_order).padStart(2, "0")}</span>
+            {selecting ? <span className="tl-ch-no">{String(c.manuscript_order).padStart(2, "0")}</span> : picker(c.band_id, (id) => assignChapter(c.id, id))}
+          </div>
+          <div className="tl-ch-title">{c.title}</div>
         </div>
-        <div className="tl-ch-title">{c.title}</div>
+        <div className="tl-stem" style={{ left: left + COL / 2 }} />
+        <div className="tl-dot" style={{ left: left + COL / 2 - DOTC, background: tint, borderColor: tint }} />
       </div>
-      <div className="tl-stem" style={{ left: left + COL / 2 }} />
-      <div className="tl-dot" style={{ left: left + COL / 2 - DOTC, background: tint, borderColor: tint }} />
-    </div>
-  );
+    );
+  };
 
   return (
     <div className="fi">
@@ -249,12 +280,28 @@ export function Timeline({ worldId, go }: { worldId: string; go: (n: Nav) => voi
         <h2 className="scope-title" style={{ margin: 0 }}>Timeline</h2>
         <span className="faint" style={{ fontSize: 11 }}>drag to pan · scroll to zoom · click a band to open/close · notes pin below the line</span>
         <span className="spacer" />
+        {characters.length > 0 && (
+          <select className={"sel" + (followId ? " " : "")} value={followId} onChange={(e) => setFollowId(e.target.value)}
+            style={followId ? { borderColor: "var(--bond)", color: "var(--bond)" } : undefined} title="Trace one character's arc across the line">
+            <option value="">Follow a character…</option>
+            {characters.map((e) => <option key={e.id} value={e.id}>◇ {e.title}</option>)}
+          </select>
+        )}
         <button className={selecting ? "primary" : ""} onClick={() => { setSelecting((v) => !v); setSelected(new Set()); anchorRef.current = null; }}>
           {selecting ? "Done selecting" : "☑ Select"}
         </button>
         <button onClick={addNote}>+ Note</button>
         <button onClick={addBand}>+ Band</button>
       </div>
+
+      {followId && (
+        <div className="tl-selbar" style={{ borderColor: "var(--bond)" }}>
+          <span style={{ fontWeight: 600, color: "var(--bond)" }}>◇ {characters.find((c) => c.id === followId)?.title}</span>
+          <span className="faint" style={{ fontSize: 11 }}>{beats.length} relationship beat{beats.length === 1 ? "" : "s"} on the line · their chapters lit, arc coloured by valence</span>
+          <span className="spacer" />
+          <button onClick={() => setFollowId("")}>Stop following</button>
+        </div>
+      )}
 
       {selecting && (
         <div className="tl-selbar">
@@ -284,8 +331,9 @@ export function Timeline({ worldId, go }: { worldId: string; go: (n: Nav) => voi
                 if (seg.kind === "chapter") return chapterStop(seg.chapter, seg.x, "var(--lineStrong)");
                 const { band, chs, x: sx, w, exp, tint } = seg;
                 const first = chs[0].manuscript_order, last = chs[chs.length - 1].manuscript_order;
+                const bandDim = followId !== "" && !exp && !chs.some((c) => appears.has(c.id));
                 return (
-                  <div key={band.id}>
+                  <div key={band.id} style={bandDim ? { opacity: 0.32 } : undefined}>
                     <div className="tl-bandbar" style={{ left: sx, width: w, background: tint + "26", borderColor: tint, cursor: "pointer" }}
                       onClick={() => toggle(band.id)} title={exp ? "Click to close" : "Click to open chapters"}>
                       <span className="tl-band-toggle">{exp ? "▾" : "▸"}</span>
@@ -314,6 +362,21 @@ export function Timeline({ worldId, go }: { worldId: string; go: (n: Nav) => voi
                   </div>
                 );
               })}
+
+              {/* the followed character's arc, threaded through their chapters */}
+              {followId && beats.length > 0 && (
+                <svg className="tl-arc" width={contentW} height={contentH} style={{ position: "absolute", left: 0, top: 0, pointerEvents: "none", overflow: "visible" }}>
+                  {beats.slice(1).map((b, i) => (
+                    <line key={"l" + i} x1={beats[i].x} y1={ARC_Y} x2={b.x} y2={ARC_Y}
+                      stroke={VALENCE_COLOR[b.valence]} strokeWidth={2.5} strokeLinecap="round" opacity={0.7} />
+                  ))}
+                  {beats.map((b, i) => (
+                    <circle key={"c" + i} cx={b.x} cy={ARC_Y} r={5} fill={VALENCE_COLOR[b.valence]} stroke="#fff" strokeWidth={1.5} style={{ pointerEvents: "auto" }}>
+                      <title>{`${b.label}${b.other ? " · " + b.other : ""} — ch ${b.order}`}</title>
+                    </circle>
+                  ))}
+                </svg>
+              )}
 
               {/* pinned notes, below the line */}
               {belowNotes.map(({ note, x: nx, top }) => (

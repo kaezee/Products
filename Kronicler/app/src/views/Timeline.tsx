@@ -32,6 +32,7 @@ export function Timeline({ worldId, go }: { worldId: string; go: (n: Nav) => voi
   const [stream, setStream] = useState<StreamRow[]>([]);
   const [followId, setFollowId] = useState<string>("");
   const [appears, setAppears] = useState<Set<string>>(new Set());
+  const [timeAxis, setTimeAxis] = useState<"narrative" | "world">("narrative");
   const [err, setErr] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
@@ -61,7 +62,18 @@ export function Timeline({ worldId, go }: { worldId: string; go: (n: Nav) => voi
   }, [followId]);
 
   const bandIds = new Set(bands.map((b) => b.id));
-  const ordered = [...chapters].sort((a, b) => a.manuscript_order - b.manuscript_order);
+  // narrative order = manuscript position; in-world = chronological (story_time_ref),
+  // undated chapters sorting to the end. This is the two-axis-time toggle.
+  const ordered = [...chapters].sort((a, b) => {
+    if (timeAxis === "world") {
+      const av = a.story_time_ref, bv = b.story_time_ref;
+      if (av == null && bv == null) return a.manuscript_order - b.manuscript_order;
+      if (av == null) return 1;
+      if (bv == null) return -1;
+      if (av !== bv) return av - bv;
+    }
+    return a.manuscript_order - b.manuscript_order;
+  });
   const tintOf = (b: Band) => b.color || BAND_TINTS[bands.indexOf(b) % BAND_TINTS.length];
 
   // segments left → right
@@ -108,7 +120,7 @@ export function Timeline({ worldId, go }: { worldId: string; go: (n: Nav) => voi
       x: chapterX.get(s.manuscript_ref!)!, valence: s.valence, order: s.manuscript_order!,
       label: s.type_label, other: s.participants.find((p) => p.entity_id !== followId)?.title ?? "",
     }))
-    .sort((a, b) => a.order - b.order);
+    .sort((a, b) => a.x - b.x); // thread the arc left → right along whichever axis is active
   const dimCh = (id: string) => followId !== "" && !appears.has(id);
 
   // Timeline notes: freely draggable (their x/y is where they sit). A note keeps
@@ -299,7 +311,7 @@ export function Timeline({ worldId, go }: { worldId: string; go: (n: Nav) => voi
       <div key={c.id} style={dim ? { opacity: 0.28 } : undefined}>
         <div className={"tl-card" + (selected.has(c.id) ? " sel" : "")} style={{ left: left + 6 }} onClick={(e) => onChapterClick(c, e)}>
           <div className="tl-card-top">
-            <span className="tl-ch-no">{selecting ? (selected.has(c.id) ? "☑" : "☐") : String(c.manuscript_order).padStart(2, "0")}</span>
+            <span className="tl-ch-no">{selecting ? (selected.has(c.id) ? "☑" : "☐") : String(c.manuscript_order).padStart(2, "0")}{timeAxis === "world" && c.story_time_ref != null ? ` · 🕐${c.story_time_ref}` : ""}</span>
             {selecting ? <span className="tl-ch-no">{String(c.manuscript_order).padStart(2, "0")}</span> : picker(c.band_id, (id) => assignChapter(c.id, id))}
           </div>
           <div className="tl-ch-title">{c.title}</div>
@@ -316,6 +328,10 @@ export function Timeline({ worldId, go }: { worldId: string; go: (n: Nav) => voi
         <h2 className="scope-title" style={{ margin: 0 }}>Timeline</h2>
         <span className="faint" style={{ fontSize: 11 }}>drag to pan · scroll to zoom · click a band to open/close · notes pin below the line</span>
         <span className="spacer" />
+        <div className="seg" style={{ fontSize: 11 }} title="Narrative = chapter order (as written). In-world = chronological, by each chapter's in-world time (flashbacks move).">
+          <span className={timeAxis === "narrative" ? "on" : ""} onClick={() => setTimeAxis("narrative")}>Narrative</span>
+          <span className={timeAxis === "world" ? "on" : ""} onClick={() => setTimeAxis("world")}>🕐 In-world</span>
+        </div>
         {characters.length > 0 && (
           <select className={"sel" + (followId ? " " : "")} value={followId} onChange={(e) => setFollowId(e.target.value)}
             style={followId ? { borderColor: "var(--bond)", color: "var(--bond)" } : undefined} title="Trace one character's arc across the line">

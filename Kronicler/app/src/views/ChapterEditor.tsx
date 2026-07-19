@@ -123,6 +123,13 @@ export function ChapterEditor(props: {
     }
   }
 
+  async function linkAll(ids: string[]) {
+    try {
+      for (const id of ids) await linkChapterEntity(chapter.id, id, "mentioned");
+      setCast(await getChapterEntities(chapter.id));
+    } catch (x) { setErr(String(x)); }
+  }
+
   function openEntMode(mode: "new" | "alias") {
     const w = selText.trim();
     if (!w) return;
@@ -287,9 +294,17 @@ export function ChapterEditor(props: {
           )}
           {(() => {
             const visible = mentioned.filter((e) => !dismissed.has(e.id));
+            const unlinked = visible.filter((e) => !castIds.includes(e.id));
             return (
               <>
-                <div className="label" style={{ marginTop: showBrief ? 22 : 0 }}>Cast detected · {visible.length}</div>
+                <div className="row" style={{ borderBottom: "none", padding: 0, marginTop: showBrief ? 22 : 0, marginBottom: 6, alignItems: "baseline" }}>
+                  <div className="label" style={{ margin: 0 }}>Cast detected · {visible.length}</div>
+                  <span className="spacer" />
+                  {unlinked.length > 1 && (
+                    <button style={{ padding: "3px 9px", fontSize: 11 }} onClick={() => linkAll(unlinked.map((e) => e.id))}
+                      title="Add all detected characters to this chapter's cast (feeds the Brief)">link all {unlinked.length}</button>
+                  )}
+                </div>
                 <div className="card">
                   {visible.length === 0 && <div className="row"><span className="muted">No known entities mentioned yet.</span></div>}
                   {visible.map((e) => {

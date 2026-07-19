@@ -60,6 +60,7 @@ export interface Band {
   name: string;
   band_order: number;
   color: string | null;
+  time_frame: string | null;
 }
 
 export interface ChapterVersion {

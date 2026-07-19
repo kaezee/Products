@@ -1,17 +1,18 @@
 import { useEffect, useRef, useState } from "react";
 import {
   getBands, createBand, updateBand, softDeleteBand, setChapterBand,
-  getChapters, getNotes, updateNote,
+  getChapters, getNotes, createNote, updateNote, softDeleteNote,
 } from "../lib/api";
 import type { Band, Chapter, Note } from "../lib/types";
 import type { Nav } from "../App";
 
-// The Timeline: a pan/zoom canvas with a horizontal time spine. Chapters are
-// stops on the line; a BAND (a season / novel) collapses to one block —
-// "ch 1–22 · Season 1" — and expands to its chapters on click. Unbanded chapters
-// stand alone on the line; planned 🗓 beats trail into the future.
+// The Timeline: a pan/zoom canvas with a horizontal time spine. Chapters ride
+// ABOVE the line, grouped into bands (a season/novel collapses to one block,
+// clicks open/close). Notes pin BELOW the line to a chapter, a band, or the
+// future. Bands can carry an in-world time frame ("Year 2000–2100").
 
 const COL = 158, BAND_W = 214, GAP = 14, DOTC = 5.5;
+const AXIS_Y = 150, NOTE_TOP = 172, NOTE_H = 58, STACK = 66;
 const BAND_TINTS = ["#8a6fb0", "#5b8ab0", "#b08a4a", "#5f9a6a", "#b06a6a", "#7a7ab0"];
 const MIN_SCALE = 0.2, MAX_SCALE = 2, FIT_PAD = 50;
 
@@ -44,8 +45,7 @@ export function Timeline({ worldId, go }: { worldId: string; go: (n: Nav) => voi
   const ordered = [...chapters].sort((a, b) => a.manuscript_order - b.manuscript_order);
   const tintOf = (b: Band) => b.color || BAND_TINTS[bands.indexOf(b) % BAND_TINTS.length];
 
-  // Lay the spine out left → right as a sequence of segments: a band (collapsed
-  // block or expanded run of chapters) or a lone unbanded chapter.
+  // segments left → right
   const segs: Seg[] = [];
   let x = 0;
   const placed = new Set<string>();
@@ -66,15 +66,42 @@ export function Timeline({ worldId, go }: { worldId: string; go: (n: Nav) => voi
     }
   }
   const spineW = Math.max(x, 300);
-  const plannedNotes = notes.filter((n) => n.plan_ref);
   const futureX = spineW + 30;
-  const emptyBands = bands.filter((b) => !ordered.some((c) => c.band_id === b.id));
-  const contentW = futureX + (plannedNotes.length ? plannedNotes.length * 128 + 40 : 40);
-  const contentH = 200;
 
-  // ── pan / zoom (Notes canvas engine) ────────────────────────────────────
+  // x-anchor for pinning notes: a chapter's centre (band centre if collapsed),
+  // a band's centre, else the future zone.
+  const chapterX = new Map<string, number>();
+  const bandCenterX = new Map<string, number>();
+  for (const seg of segs) {
+    if (seg.kind === "chapter") { chapterX.set(seg.chapter.id, seg.x + COL / 2); continue; }
+    bandCenterX.set(seg.band.id, seg.x + seg.w / 2);
+    if (seg.exp) seg.chs.forEach((c, i) => chapterX.set(c.id, seg.x + i * COL + COL / 2));
+    else seg.chs.forEach((c) => chapterX.set(c.id, seg.x + seg.w / 2));
+  }
+
+  // place notes below the line (stacked when they share an anchor)
+  const belowNotes: { note: Note; x: number; top: number }[] = [];
+  const stackAt = new Map<number, number>();
+  let futureCount = 0;
+  const place = (note: Note, ax: number) => {
+    const key = Math.round(ax / 8);
+    const s = stackAt.get(key) ?? 0; stackAt.set(key, s + 1);
+    belowNotes.push({ note, x: ax, top: NOTE_TOP + s * STACK });
+  };
+  for (const n of notes) {
+    const chId = n.chapter_ids?.[0];
+    if (chId && chapterX.has(chId)) { place(n, chapterX.get(chId)!); continue; }
+    if (n.band_id && bandCenterX.has(n.band_id)) { place(n, bandCenterX.get(n.band_id)!); continue; }
+    if (n.plan_ref) { place(n, futureX + futureCount * 138 + 64); futureCount++; }
+  }
+  const emptyBands = bands.filter((b) => !ordered.some((c) => c.band_id === b.id));
+  const maxTop = belowNotes.reduce((m, b) => Math.max(m, b.top), NOTE_TOP);
+  const contentW = Math.max(futureX + (futureCount ? futureCount * 138 + 60 : 40), 360);
+  const contentH = maxTop + NOTE_H + 10;
+
+  // ── pan / zoom ──────────────────────────────────────────────────────────
   function startPan(e: React.MouseEvent) {
-    if ((e.target as HTMLElement).closest(".tl-card, .tl-note-bead, .tl-bandbar, .tl-summary, select, input, button")) return;
+    if ((e.target as HTMLElement).closest(".tl-card, .tl-summary, .tl-bandbar, .tl-pinnote, select, input, button")) return;
     e.preventDefault();
     panRef.current = { x: e.clientX, y: e.clientY, tx: view.tx, ty: view.ty };
     setPanning(true);
@@ -119,9 +146,9 @@ export function Timeline({ worldId, go }: { worldId: string; go: (n: Nav) => voi
     try { const b = await createBand(worldId, `Band ${bands.length + 1}`, order); setBands((p) => [...p, b]); }
     catch (x) { setErr(String(x)); }
   }
-  async function rename(b: Band, name: string) {
-    setBands((prev) => prev.map((z) => z.id === b.id ? { ...z, name } : z));
-    try { await updateBand(b.id, { name: name.trim() || "Untitled" }); } catch (x) { setErr(String(x)); }
+  async function patchBand(b: Band, patch: Partial<Band>) {
+    setBands((prev) => prev.map((z) => z.id === b.id ? { ...z, ...patch } : z));
+    try { await updateBand(b.id, patch); } catch (x) { setErr(String(x)); }
   }
   async function removeBand(b: Band) {
     if (!confirm(`Delete band "${b.name}"? Its chapters stay on the line, just unbanded — nothing is lost.`)) return;
@@ -131,9 +158,30 @@ export function Timeline({ worldId, go }: { worldId: string; go: (n: Nav) => voi
     setChapters((prev) => prev.map((c) => c.id === chapterId ? { ...c, band_id: bandId } : c));
     try { await setChapterBand(chapterId, bandId); } catch (x) { setErr(String(x)); }
   }
-  async function assignNote(noteId: string, bandId: string | null) {
-    setNotes((prev) => prev.map((n) => n.id === noteId ? { ...n, band_id: bandId } : n));
-    try { await updateNote(noteId, { band_id: bandId }); } catch (x) { setErr(String(x)); }
+  async function addNote() {
+    try {
+      const n = await createNote(worldId, 40, 40);
+      const anchor: Partial<Note> = ordered[0] ? { chapter_ids: [ordered[0].id] } : { plan_ref: "planned" };
+      await updateNote(n.id, { body: "New note", ...anchor });
+      setNotes((p) => [...p, { ...n, body: "New note", ...anchor } as Note]);
+    } catch (x) { setErr(String(x)); }
+  }
+  function patchNoteLocal(id: string, patch: Partial<Note>) {
+    setNotes((prev) => prev.map((n) => n.id === id ? { ...n, ...patch } : n));
+  }
+  async function pinNote(noteId: string, sel: string) {
+    const patch: Partial<Note> = sel.startsWith("c:") ? { chapter_ids: [sel.slice(2)], band_id: null, plan_ref: null }
+      : sel.startsWith("b:") ? { band_id: sel.slice(2), chapter_ids: [], plan_ref: null }
+        : { plan_ref: "planned", chapter_ids: [], band_id: null };
+    patchNoteLocal(noteId, patch);
+    try { await updateNote(noteId, patch); } catch (x) { setErr(String(x)); }
+  }
+  async function editNoteBody(noteId: string, body: string) {
+    patchNoteLocal(noteId, { body });
+    try { await updateNote(noteId, { body }); } catch (x) { setErr(String(x)); }
+  }
+  async function deleteNote(noteId: string) {
+    try { await softDeleteNote(noteId); setNotes((p) => p.filter((n) => n.id !== noteId)); } catch (x) { setErr(String(x)); }
   }
 
   if (err) return <p className="err">{err}</p>;
@@ -165,19 +213,20 @@ export function Timeline({ worldId, go }: { worldId: string; go: (n: Nav) => voi
     <div className="fi">
       <div className="row" style={{ borderBottom: "none", padding: 0, marginBottom: 12, gap: 10 }}>
         <h2 className="scope-title" style={{ margin: 0 }}>Timeline</h2>
-        <span className="faint" style={{ fontSize: 11 }}>drag to pan · scroll to zoom · click a band to expand its chapters</span>
+        <span className="faint" style={{ fontSize: 11 }}>drag to pan · scroll to zoom · click a band to open/close · notes pin below the line</span>
         <span className="spacer" />
+        <button onClick={addNote}>+ Note</button>
         <button onClick={addBand}>+ Band</button>
       </div>
 
-      {ordered.length === 0 && plannedNotes.length === 0 ? (
+      {ordered.length === 0 && notes.length === 0 ? (
         <div className="card"><div className="row"><span className="muted">No chapters yet — write some in the Manuscript, then group them into bands here.</span></div></div>
       ) : (
         <div ref={boardRef} className={"notes-board" + (panning ? " panning" : "")}
           onMouseDown={startPan} onMouseMove={onMove} onMouseUp={endPan} onMouseLeave={endPan}>
           <div className="notes-canvas" style={{ transform: `translate(${view.tx}px, ${view.ty}px) scale(${view.s})`, transformOrigin: "0 0" }}>
-            <div className="tl-inner" style={{ width: contentW }}>
-              <div className="tl-axis" style={{ width: contentW - 20 }} />
+            <div className="tl-inner" style={{ width: contentW, height: contentH }}>
+              <div className="tl-axis" style={{ width: contentW - 20, top: AXIS_Y }} />
 
               {segs.map((seg) => {
                 if (seg.kind === "chapter") return chapterStop(seg.chapter, seg.x, "var(--lineStrong)");
@@ -185,10 +234,18 @@ export function Timeline({ worldId, go }: { worldId: string; go: (n: Nav) => voi
                 const first = chs[0].manuscript_order, last = chs[chs.length - 1].manuscript_order;
                 return (
                   <div key={band.id}>
-                    <div className="tl-bandbar" style={{ left: sx, width: w, background: tint + "26", borderColor: tint }}>
-                      <span className="tl-band-toggle" title={exp ? "Collapse" : "Expand chapters"} onClick={() => toggle(band.id)}>{exp ? "▾" : "▸"}</span>
-                      <input className="tl-bandname" value={band.name} style={{ color: tint }} onChange={(e) => rename(band, e.target.value)} />
-                      <span className="tl-bandx" title="Delete band" onClick={() => removeBand(band)}>✕</span>
+                    <div className="tl-bandbar" style={{ left: sx, width: w, background: tint + "26", borderColor: tint, cursor: "pointer" }}
+                      onClick={() => toggle(band.id)} title={exp ? "Click to close" : "Click to open chapters"}>
+                      <span className="tl-band-toggle">{exp ? "▾" : "▸"}</span>
+                      <input className="tl-bandname" value={band.name} style={{ color: tint }}
+                        onMouseDown={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()}
+                        onChange={(e) => patchBand(band, { name: e.target.value })} />
+                      {exp && (
+                        <input className="tl-tf" value={band.time_frame ?? ""} placeholder="🕐 time frame…"
+                          onMouseDown={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()}
+                          onChange={(e) => patchBand(band, { time_frame: e.target.value })} />
+                      )}
+                      <span className="tl-bandx" title="Delete band" onMouseDown={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); removeBand(band); }}>✕</span>
                     </div>
                     {exp ? (
                       chs.map((c, i) => chapterStop(c, sx + i * COL, tint))
@@ -196,7 +253,7 @@ export function Timeline({ worldId, go }: { worldId: string; go: (n: Nav) => voi
                       <>
                         <div className="tl-summary" style={{ left: sx + 4, width: w - 8, borderColor: tint }} onClick={() => toggle(band.id)}>
                           <div className="tl-sum-range" style={{ color: tint }}>ch {first}{last !== first ? `–${last}` : ""}</div>
-                          <div className="tl-sum-count">{chs.length} chapter{chs.length > 1 ? "s" : ""} · click to open</div>
+                          <div className="tl-sum-count">{chs.length} chapter{chs.length > 1 ? "s" : ""}{band.time_frame ? ` · 🕐 ${band.time_frame}` : " · click to open"}</div>
                         </div>
                         <div className="tl-stem" style={{ left: sx + w / 2 }} />
                         <div className="tl-dot" style={{ left: sx + w / 2 - DOTC, background: tint, borderColor: tint }} />
@@ -206,14 +263,13 @@ export function Timeline({ worldId, go }: { worldId: string; go: (n: Nav) => voi
                 );
               })}
 
-              {plannedNotes.map((n, i) => (
-                <div key={n.id}>
-                  <div className="tl-note-bead" style={{ left: futureX + i * 128 }} title={n.body || ""}>
-                    <div className="tl-card-top"><span className="tl-note-mark">🗓</span>{picker(n.band_id, (id) => assignNote(n.id, id))}</div>
-                    <div className="tl-note-body">{n.plan_ref}</div>
-                  </div>
-                  <div className="tl-stem tl-stem-future" style={{ left: futureX + i * 128 + 59 }} />
-                  <div className="tl-dot tl-dot-future" style={{ left: futureX + i * 128 + 59 - DOTC }} />
+              {/* pinned notes, below the line */}
+              {belowNotes.map(({ note, x: nx, top }) => (
+                <div key={note.id}>
+                  <div className="tl-connector" style={{ left: nx, top: AXIS_Y, height: top - AXIS_Y }} />
+                  <div className="tl-dot tl-dot-note" style={{ left: nx - DOTC, top: AXIS_Y - 5 }} />
+                  <PinnedNote note={note} left={nx - 64} top={top} bands={bands} chapters={ordered}
+                    onPin={(sel) => pinNote(note.id, sel)} onEdit={(b) => editNoteBody(note.id, b)} onDelete={() => deleteNote(note.id)} />
                 </div>
               ))}
             </div>
@@ -234,12 +290,46 @@ export function Timeline({ worldId, go }: { worldId: string; go: (n: Nav) => voi
           <span className="faint" style={{ fontSize: 11 }}>empty bands (assign chapters to place them on the line):</span>
           {emptyBands.map((b) => (
             <span key={b.id} className="chip" style={{ borderColor: tintOf(b), color: tintOf(b) }}>
-              <input className="tl-bandname" value={b.name} style={{ width: 90, color: "inherit" }} onChange={(e) => rename(b, e.target.value)} />
+              <input className="tl-bandname" value={b.name} style={{ width: 90, color: "inherit" }} onChange={(e) => patchBand(b, { name: e.target.value })} />
               <span className="tl-bandx" onClick={() => removeBand(b)}>✕</span>
             </span>
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+// A note pinned below the spine: edit its text, re-pin it (chapter / band /
+// future), or delete it.
+function PinnedNote({ note, left, top, bands, chapters, onPin, onEdit, onDelete }: {
+  note: Note;
+  left: number; top: number;
+  bands: Band[]; chapters: Chapter[];
+  onPin: (sel: string) => void;
+  onEdit: (body: string) => void;
+  onDelete: () => void;
+}) {
+  const [body, setBody] = useState(note.body || note.plan_ref || "");
+  const timer = useRef<number | undefined>(undefined);
+  const pinVal = note.chapter_ids?.[0] ? "c:" + note.chapter_ids[0] : note.band_id ? "b:" + note.band_id : "future";
+  function edit(v: string) {
+    setBody(v);
+    window.clearTimeout(timer.current);
+    timer.current = window.setTimeout(() => onEdit(v), 600);
+  }
+  return (
+    <div className="tl-pinnote" style={{ left, top }} onMouseDown={(e) => e.stopPropagation()}>
+      <div className="tl-pin-top">
+        <select className="tl-pick" value={pinVal} onChange={(e) => onPin(e.target.value)}>
+          {chapters.map((c) => <option key={c.id} value={"c:" + c.id}>📖 ch {c.manuscript_order}</option>)}
+          {bands.map((b) => <option key={b.id} value={"b:" + b.id}>▦ {b.name}</option>)}
+          <option value="future">🗓 future</option>
+        </select>
+        <span className="tl-bandx" title="Delete note" onClick={onDelete}>✕</span>
+      </div>
+      <input className="tl-pin-body" value={body} placeholder="a note…" onChange={(e) => edit(e.target.value)}
+        onBlur={() => { window.clearTimeout(timer.current); if (body !== note.body) onEdit(body); }} />
     </div>
   );
 }

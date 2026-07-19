@@ -3,6 +3,7 @@ import { getStream, getEntities, getRelationshipTypes, softDeleteEntity } from "
 import type { StreamRow, Entity, RelationshipType } from "../lib/types";
 import { isBelief } from "../lib/knowledge";
 import { findIssues } from "../lib/continuity";
+import { findDuplicates } from "../lib/dedupe";
 import type { Nav } from "../App";
 import { VALENCE_COLOR } from "../lib/valence";
 
@@ -66,6 +67,7 @@ export function Overview({ worldId, go }: { worldId: string; go: (n: Nav) => voi
   const contradictions = useMemo(() => issues.flatMap((i) => i.kind === "reopened" ? [i] : []), [issues]);
   const orphaned = useMemo(() => issues.flatMap((i) => i.kind === "orphaned-anchor" ? [i] : []), [issues]);
   const ironies = useMemo(() => issues.flatMap((i) => i.kind === "belief-clash" ? [i] : []), [issues]);
+  const duplicates = useMemo(() => findDuplicates(entities), [entities]);
 
   async function delOrphan(e: Entity, ev: React.MouseEvent) {
     ev.stopPropagation();
@@ -107,9 +109,19 @@ export function Overview({ worldId, go }: { worldId: string; go: (n: Nav) => voi
         <div>
           <div className="label" style={{ marginTop: 0 }}>Needs attention</div>
           <div className="card">
-            {dormant.length === 0 && orphans.length === 0 && contradictions.length === 0 && orphaned.length === 0 && (
+            {dormant.length === 0 && orphans.length === 0 && contradictions.length === 0 && orphaned.length === 0 && duplicates.length === 0 && (
               <div className="row"><span className="muted">Nothing flagged — every thread is live and every entity connected.</span></div>
             )}
+            {duplicates.map((d) => (
+              <div className="row click" key={"dup" + d.key} onClick={() => go({ scope: "library", entityId: d.entities[0].id })}>
+                <span className="chip warn">duplicate?</span>
+                <span style={{ fontSize: 12.5 }}>
+                  {d.reason === "same-name"
+                    ? <><b>{d.entities.length}</b> entities named “{d.entities[0].title}” — likely the same thing, twice.</>
+                    : <>“{d.entities[0].title}” is already an alias of <b>{d.entities[1].title}</b> — likely a duplicate.</>}
+                </span>
+              </div>
+            ))}
             {contradictions.map((c) => (
               <div className="row click" key={"c" + c.relId} onClick={() => c.entityId && go({ scope: "library", entityId: c.entityId })}>
                 <span className="chip" style={{ borderColor: "var(--hostile)", background: "var(--hostileBg)", color: "var(--hostile)" }}>reopened</span>

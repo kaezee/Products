@@ -36,7 +36,12 @@ export function findIssues(stream: StreamRow[], types: RelationshipType[], nameO
       const a = byRel.get(s.relationship_id) ?? []; a.push(s); byRel.set(s.relationship_id, a);
     }
     for (const [relId, states] of byRel) {
-      const sorted = [...states].sort((a, b) => (a.manuscript_order! - b.manuscript_order!));
+      // order by in-world time when every state in this thread is dated, so a
+      // flashback that continues a thread AFTER it ended (chronologically) is
+      // still caught; otherwise by manuscript order.
+      const allDated = states.every((s) => s.story_time_ref != null);
+      const key = (s: StreamRow) => (allDated ? s.story_time_ref! : s.manuscript_order!);
+      const sorted = [...states].sort((a, b) => key(a) - key(b));
       const ti = sorted.findIndex((s) => terminalTypes.has(s.type_id));
       if (ti === -1) continue;
       const term = sorted[ti];

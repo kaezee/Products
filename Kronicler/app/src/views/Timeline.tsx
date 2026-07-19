@@ -456,8 +456,8 @@ export function Timeline({ worldId, go }: { worldId: string; go: (n: Nav) => voi
   );
 }
 
-// A note on the timeline canvas: drag it anywhere by the grip, edit its text,
-// choose whether it's attached (pinned to a chapter / band / future — a
+// A note on the timeline canvas: grab it ANYWHERE to drag it around, double-click
+// the text to edit, pick whether it's attached (chapter / band / future — a
 // connector shows) or free, or delete it.
 function PinnedNote({ note, left, top, pinned, bands, chapters, onDragStart, onPin, onEdit, onDelete }: {
   note: Note;
@@ -468,29 +468,34 @@ function PinnedNote({ note, left, top, pinned, bands, chapters, onDragStart, onP
   onEdit: (body: string) => void;
   onDelete: () => void;
 }) {
+  const [editing, setEditing] = useState(false);
   const [body, setBody] = useState(note.body || note.plan_ref || "");
-  const timer = useRef<number | undefined>(undefined);
   const pinVal = note.chapter_ids?.[0] ? "c:" + note.chapter_ids[0] : note.band_id ? "b:" + note.band_id : note.plan_ref ? "future" : "free";
-  function edit(v: string) {
-    setBody(v);
-    window.clearTimeout(timer.current);
-    timer.current = window.setTimeout(() => onEdit(v), 600);
-  }
+  function commit() { setEditing(false); if (body !== note.body) onEdit(body); }
+  const stop = (e: React.MouseEvent) => e.stopPropagation();
   return (
-    <div className={"tl-pinnote" + (pinned ? "" : " free")} style={{ left, top }} onMouseDown={(e) => e.stopPropagation()}>
+    // the whole card is a drag handle; interactive bits stop the drag
+    <div className={"tl-pinnote" + (pinned ? "" : " free")} style={{ left, top }}
+      onMouseDown={(e) => { if (!editing) onDragStart(e); }}>
       <div className="tl-pin-top">
-        <span className="tl-pin-grip" title="Drag to move" onMouseDown={onDragStart}>⠿</span>
-        <select className="tl-pick" value={pinVal} onMouseDown={(e) => e.stopPropagation()} onChange={(e) => onPin(e.target.value)}>
+        <span className="tl-pin-grip">⠿</span>
+        <select className="tl-pick" value={pinVal} onMouseDown={stop} onClick={stop} onChange={(e) => onPin(e.target.value)}>
           {chapters.map((c) => <option key={c.id} value={"c:" + c.id}>📖 ch {c.manuscript_order}</option>)}
           {bands.map((b) => <option key={b.id} value={"b:" + b.id}>▦ {b.name}</option>)}
           <option value="future">🗓 future</option>
           <option value="free">○ free (no line)</option>
         </select>
-        <span className="tl-bandx" title="Delete note" onClick={onDelete}>✕</span>
+        <span className="tl-bandx" title="Delete note" onMouseDown={stop} onClick={onDelete}>✕</span>
       </div>
-      <input className="tl-pin-body" value={body} placeholder="a note…" onMouseDown={(e) => e.stopPropagation()}
-        onChange={(e) => edit(e.target.value)}
-        onBlur={() => { window.clearTimeout(timer.current); if (body !== note.body) onEdit(body); }} />
+      {editing ? (
+        <input className="tl-pin-body" autoFocus value={body} placeholder="a note…" onMouseDown={stop}
+          onChange={(e) => setBody(e.target.value)} onBlur={commit}
+          onKeyDown={(e) => { if (e.key === "Enter") commit(); }} />
+      ) : (
+        <div className="tl-pin-body-view" title="Double-click to edit" onDoubleClick={() => setEditing(true)}>
+          {body || <span className="muted">double-click to write…</span>}
+        </div>
+      )}
     </div>
   );
 }

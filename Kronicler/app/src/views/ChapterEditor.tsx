@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   getRelationshipTypes, getChapterVersions, getChapterEntities,
   linkChapterEntity, saveChapterBody, getStream,
-  getEntities, createEntity, updateEntity, updateChapterTitle,
+  getEntities, createEntity, updateEntity, updateChapterTitle, setChapterStoryTime,
 } from "../lib/api";
 import type { Chapter, Entity, RelationshipType, ChapterVersion, ChapterEntity, StreamRow } from "../lib/types";
 import { detectMentions } from "../lib/mentions";
@@ -38,6 +38,7 @@ export function ChapterEditor(props: {
   // select → act: promote a selected word to a new entity, or an alias.
   const [title, setTitle] = useState(chapter.title);
   const [editingTitle, setEditingTitle] = useState(false);
+  const [storyTime, setStoryTime] = useState(chapter.story_time_ref?.toString() ?? "");
   const [dismissed, setDismissed] = useState<Set<string>>(new Set());
   const [entMode, setEntMode] = useState<null | "new" | "alias">(null);
   const [selWord, setSelWord] = useState("");
@@ -202,6 +203,17 @@ export function ChapterEditor(props: {
           <h2 style={{ fontFamily: "var(--serif)", fontWeight: 500, margin: 0, cursor: "text" }}
             title="Double-click to rename" onDoubleClick={() => setEditingTitle(true)}>{title}</h2>
         )}
+        <span className="spacer" />
+        <span className="muted" style={{ fontSize: 11 }}>🕐 in-world</span>
+        <input value={storyTime} placeholder="e.g. 2087" title="In-world time — a number that places this chapter on the chronological axis (year, day-count, any increasing scale). Powers the Timeline's In-world order."
+          onChange={(e) => setStoryTime(e.target.value.replace(/[^0-9-]/g, ""))}
+          onBlur={async () => {
+            const v = storyTime.trim() === "" ? null : parseInt(storyTime, 10);
+            const val = v === null || Number.isNaN(v) ? null : v;
+            if (val === (chapter.story_time_ref ?? null)) return;
+            try { await setChapterStoryTime(chapter.id, val); } catch (x) { setErr(String(x)); }
+          }}
+          style={{ width: 84, fontSize: 12, fontVariantNumeric: "tabular-nums" }} />
       </div>
 
       {err && <p className="err">{err}</p>}

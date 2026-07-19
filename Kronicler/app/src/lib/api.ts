@@ -180,6 +180,14 @@ export async function setChapterBand(chapterId: string, bandId: string | null): 
   if (error) throw error;
 }
 
+// The chapter's in-world time — a sortable integer (a year, a day-count, any
+// increasing scale) that places it on the CHRONOLOGICAL axis, independent of its
+// narrative (manuscript) position. This is what makes flashbacks sort right.
+export async function setChapterStoryTime(chapterId: string, storyTime: number | null): Promise<void> {
+  const { error } = await supabase.from("chapters").update({ story_time_ref: storyTime }).eq("id", chapterId);
+  if (error) throw error;
+}
+
 export async function getRelationshipTypes(worldId: string): Promise<RelationshipType[]> {
   const { data, error } = await supabase
     .from("relationship_types")

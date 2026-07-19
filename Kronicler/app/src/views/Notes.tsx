@@ -33,7 +33,7 @@ export function Notes({ worldId }: { worldId: string }) {
   async function reload() {
     try {
       const [n, e, t, c] = await Promise.all([getNotes(worldId), getEntities(worldId), getRelationshipTypes(worldId), getChapters(worldId)]);
-      setNotes(n); setEntities(e); setTypes(t); setChapters(c);
+      setNotes(n.filter((x) => !x.on_timeline)); setEntities(e); setTypes(t); setChapters(c);
     } catch (x) { setErr(String(x)); }
   }
   useEffect(() => { void reload(); /* eslint-disable-next-line */ }, [worldId]);

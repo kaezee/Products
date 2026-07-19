@@ -38,6 +38,7 @@ export interface Note {
   chapter_ids: string[];
   plan_ref: string | null;
   band_id: string | null;
+  on_timeline: boolean;
   x: number;
   y: number;
   w: number | null;

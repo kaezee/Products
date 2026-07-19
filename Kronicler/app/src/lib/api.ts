@@ -5,7 +5,7 @@ import type {
 
 // ── Notes (the planning board) ───────────────────────────────────────────
 
-const NOTE_COLS = "id, world_id, body, is_secret, entity_ids, chapter_ids, plan_ref, band_id, x, y, w, h";
+const NOTE_COLS = "id, world_id, body, is_secret, entity_ids, chapter_ids, plan_ref, band_id, on_timeline, x, y, w, h";
 
 export async function getNotes(worldId: string): Promise<Note[]> {
   const { data, error } = await supabase
@@ -16,16 +16,16 @@ export async function getNotes(worldId: string): Promise<Note[]> {
   return (data ?? []) as Note[];
 }
 
-export async function createNote(worldId: string, x: number, y: number): Promise<Note> {
+export async function createNote(worldId: string, x: number, y: number, onTimeline = false): Promise<Note> {
   const { data, error } = await supabase
-    .from("notes").insert({ world_id: worldId, x, y }).select(NOTE_COLS).single();
+    .from("notes").insert({ world_id: worldId, x, y, on_timeline: onTimeline }).select(NOTE_COLS).single();
   if (error) throw error;
   return data as Note;
 }
 
 export async function updateNote(
   id: string,
-  patch: Partial<Pick<Note, "body" | "is_secret" | "entity_ids" | "chapter_ids" | "plan_ref" | "band_id" | "x" | "y" | "w" | "h">>,
+  patch: Partial<Pick<Note, "body" | "is_secret" | "entity_ids" | "chapter_ids" | "plan_ref" | "band_id" | "on_timeline" | "x" | "y" | "w" | "h">>,
 ): Promise<void> {
   const { error } = await supabase.from("notes").update(patch).eq("id", id);
   if (error) throw error;

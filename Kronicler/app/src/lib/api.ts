@@ -418,6 +418,41 @@ export async function setConnectionRoles(
   }
 }
 
+// ── Export (durability: get your whole world out) ────────────────────────
+// A complete, self-contained snapshot of one world — every live row across all
+// its tables — as a plain object ready to serialise to JSON.
+export async function exportWorld(worldId: string, worldName: string): Promise<object> {
+  const grab = async (table: string, col = "world_id") => {
+    let q = supabase.from(table).select("*").eq(col, worldId);
+    if (table !== "relationship_participants" && table !== "relationship_states" && table !== "chapter_entities") q = q.is("deleted_at", null);
+    const { data, error } = await q;
+    if (error) throw error;
+    return data ?? [];
+  };
+  const [entities, chapters, bands, notes, types, rels] = await Promise.all([
+    grab("entities"), grab("chapters"), grab("bands"), grab("notes"), grab("relationship_types"), grab("relationships"),
+  ]);
+  const relIds = rels.map((r: { id: string }) => r.id);
+  const chIds = chapters.map((c: { id: string }) => c.id);
+  let relationship_participants: unknown[] = [], relationship_states: unknown[] = [], chapter_entities: unknown[] = [];
+  if (relIds.length) {
+    const p = await supabase.from("relationship_participants").select("*").in("relationship_id", relIds);
+    if (p.error) throw p.error; relationship_participants = p.data ?? [];
+    const s = await supabase.from("relationship_states").select("*").in("relationship_id", relIds);
+    if (s.error) throw s.error; relationship_states = s.data ?? [];
+  }
+  if (chIds.length) {
+    const c = await supabase.from("chapter_entities").select("*").in("chapter_id", chIds);
+    if (c.error) throw c.error; chapter_entities = c.data ?? [];
+  }
+  return {
+    format: "kronicler-world-backup", version: 1, exported_at: new Date().toISOString(),
+    world: { id: worldId, name: worldName },
+    entities, chapters, chapter_entities, bands, notes,
+    relationship_types: types, relationships: rels, relationship_participants, relationship_states,
+  };
+}
+
 // ── Trash / restore (soft-deleted rows are recoverable) ──────────────────
 
 export async function getDeletedEntities(worldId: string): Promise<Entity[]> {

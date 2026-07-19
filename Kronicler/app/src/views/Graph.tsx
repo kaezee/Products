@@ -3,6 +3,7 @@ import type { Entity, StreamRow } from "../lib/types";
 import type { Nav } from "../App";
 import { computeLayout } from "../lib/layout";
 import { VALENCE_COLOR } from "../lib/valence";
+import { sideLabel } from "../lib/direction";
 
 const W = 720, H = 420;
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
@@ -171,11 +172,16 @@ export function Graph({ entities, latest, ego, setEgo, go }: {
           </div>
           <div style={{ fontSize: 12, color: "var(--sub)", display: "flex", flexDirection: "column", gap: 5, marginBottom: 11 }}>
             {selStates.slice(0, 4).map((s) => {
-              const other = s.participants.find((p) => p.entity_id !== sel);
+              const others = s.participants.filter((p) => p.entity_id !== sel).map((p) => p.title.split(" ")[0]).join(" · ");
+              const side = sel ? sideLabel(s, sel) : { label: s.type_label, incoming: false };
               return (
                 <div key={s.state_id}>
-                  <span style={{ color: VALENCE_COLOR[s.valence], fontWeight: 650 }}>{s.type_label}</span>
-                  {" · "}{other?.title.split(" ")[0]} <span className="faint">ch. {s.manuscript_order ?? "—"}</span>
+                  {side.incoming ? (
+                    <>{others} <span className="faint" style={{ fontStyle: "italic" }}>{side.label} ↩</span></>
+                  ) : (
+                    <><span style={{ color: VALENCE_COLOR[s.valence], fontWeight: 650 }}>{side.label}</span>{" · "}{others}</>
+                  )}
+                  {" "}<span className="faint">ch. {s.manuscript_order ?? "—"}</span>
                 </div>
               );
             })}

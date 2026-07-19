@@ -1,5 +1,5 @@
 import type { StreamRow, RelationshipType } from "./types";
-import { isBelief } from "./knowledge";
+import { isBelief, believersOf } from "./knowledge";
 
 // The chapter Brief (PRD §7.5): everything true as a chapter opens, computed
 // from relationship_states — never authored. Warnings appear where they prevent
@@ -12,19 +12,20 @@ export interface Brief {
   arcByRel: Map<string, StreamRow[]>; // full history per entering relationship
   secrets: StreamRow[];  // concealments a present character must not reference
   dormant: StreamRow[];  // quiet threads you could touch in this scene
+  beliefs: { row: StreamRow; truth: StreamRow | null }[]; // present characters who believe (maybe wrongly)
 }
 
 export function computeBrief(
-  rows: StreamRow[],
+  allRows: StreamRow[],
   castIds: string[],
   chapterOrder: number,
   typesById: Map<string, RelationshipType>,
 ): Brief {
   const cast = new Set(castIds);
 
-  // The Brief is the truth of the scene — beliefs (what characters wrongly think)
-  // never enter it.
-  rows = rows.filter((r) => !isBelief(r));
+  // The truth of the scene comes from non-belief states; beliefs are handled
+  // separately (below) so we can show who's mistaken in the room.
+  const rows = allRows.filter((r) => !isBelief(r));
 
   // latest state per relationship strictly BEFORE this chapter opens
   const latestByRel = new Map<string, StreamRow>();
@@ -65,5 +66,18 @@ export function computeBrief(
     arcByRel.set(r.relationship_id, hist);
   }
 
-  return { entering, arcByRel, secrets, dormant };
+  // Beliefs held by someone present, current as this chapter opens — each paired
+  // with the truth so the panel can show where they're mistaken (dramatic irony
+  // live in the scene).
+  const beliefByRel = new Map<string, StreamRow>();
+  for (const r of allRows) {
+    if (!isBelief(r)) continue;
+    if (r.manuscript_order != null && r.manuscript_order >= chapterOrder) continue;
+    if (!believersOf(r).some((id) => cast.has(id))) continue;
+    const cur = beliefByRel.get(r.relationship_id);
+    if (!cur || (r.manuscript_order ?? -Infinity) > (cur.manuscript_order ?? -Infinity)) beliefByRel.set(r.relationship_id, r);
+  }
+  const beliefs = [...beliefByRel.values()].map((row) => ({ row, truth: latestByRel.get(row.relationship_id) ?? null }));
+
+  return { entering, arcByRel, secrets, dormant, beliefs };
 }

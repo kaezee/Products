@@ -70,6 +70,30 @@ export function BriefPanel(props: {
         })}
       </div>
 
+      {brief.beliefs.length > 0 && (
+        <>
+          <div className="label">🎭 Believed in the room</div>
+          <div className="card">
+            {brief.beliefs.map(({ row, truth }) => {
+              const clash = truth && truth.type_id !== row.type_id;
+              const believers = (row.known_by?.believed_by ?? []).map(nameOf).join(", ");
+              const plural = believers.includes(",");
+              return (
+                <div className="row" key={row.state_id} style={{ padding: "8px 12px", alignItems: "flex-start", gap: 8 }}>
+                  <span style={{ fontSize: 13 }}>🧠</span>
+                  <span style={{ fontSize: 12.5 }}>
+                    <span style={{ color: "var(--obligation)", fontWeight: 650 }}>{believers}</span>
+                    <span className="muted"> believe{plural ? "" : "s"} </span>
+                    {people(row)} <span style={{ color: VALENCE_COLOR[row.valence], fontWeight: 600 }}>{row.type_label}</span>
+                    {clash && <span style={{ color: "var(--hostile)" }}> — but it's actually {truth!.type_label}</span>}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </>
+      )}
+
       {brief.dormant.length > 0 && (
         <>
           <div className="label">Threads you could touch here</div>

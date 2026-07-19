@@ -30,6 +30,9 @@ export function Timeline({ worldId, go }: { worldId: string; go: (n: Nav) => voi
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [view, setView] = useState<View>({ tx: 24, ty: 24, s: 1 });
   const [panning, setPanning] = useState(false);
+  const [selecting, setSelecting] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const anchorRef = useRef<string | null>(null);
   const boardRef = useRef<HTMLDivElement>(null);
   const panRef = useRef<{ x: number; y: number; tx: number; ty: number } | null>(null);
 
@@ -158,6 +161,37 @@ export function Timeline({ worldId, go }: { worldId: string; go: (n: Nav) => voi
     setChapters((prev) => prev.map((c) => c.id === chapterId ? { ...c, band_id: bandId } : c));
     try { await setChapterBand(chapterId, bandId); } catch (x) { setErr(String(x)); }
   }
+  function onChapterClick(c: Chapter, e: React.MouseEvent) {
+    if (!selecting) { go({ scope: "manuscript", chapterId: c.id }); return; }
+    e.stopPropagation();
+    if (e.shiftKey && anchorRef.current) {
+      const ai = ordered.findIndex((x) => x.id === anchorRef.current);
+      const ci = ordered.findIndex((x) => x.id === c.id);
+      if (ai >= 0 && ci >= 0) {
+        const [lo, hi] = ai < ci ? [ai, ci] : [ci, ai];
+        setSelected((prev) => { const n = new Set(prev); for (let i = lo; i <= hi; i++) n.add(ordered[i].id); return n; });
+      }
+    } else {
+      setSelected((prev) => { const n = new Set(prev); n.has(c.id) ? n.delete(c.id) : n.add(c.id); return n; });
+      anchorRef.current = c.id;
+    }
+  }
+  async function assignMany(bandId: string | null) {
+    const ids = [...selected];
+    if (ids.length === 0) return;
+    setChapters((prev) => prev.map((c) => selected.has(c.id) ? { ...c, band_id: bandId } : c));
+    setSelected(new Set()); anchorRef.current = null;
+    try { await Promise.all(ids.map((id) => setChapterBand(id, bandId))); } catch (x) { setErr(String(x)); }
+  }
+  async function newBandFromSelection() {
+    if (selected.size === 0) return;
+    try {
+      const order = bands.length ? Math.max(...bands.map((b) => b.band_order)) + 1 : 0;
+      const b = await createBand(worldId, `Season ${bands.length + 1}`, order);
+      setBands((p) => [...p, b]);
+      await assignMany(b.id);
+    } catch (x) { setErr(String(x)); }
+  }
   async function addNote() {
     try {
       const n = await createNote(worldId, 40, 40);
@@ -197,10 +231,10 @@ export function Timeline({ worldId, go }: { worldId: string; go: (n: Nav) => voi
   );
   const chapterStop = (c: Chapter, left: number, tint: string) => (
     <div key={c.id}>
-      <div className="tl-card" style={{ left: left + 6 }} onClick={() => go({ scope: "manuscript", chapterId: c.id })}>
+      <div className={"tl-card" + (selected.has(c.id) ? " sel" : "")} style={{ left: left + 6 }} onClick={(e) => onChapterClick(c, e)}>
         <div className="tl-card-top">
-          <span className="tl-ch-no">{String(c.manuscript_order).padStart(2, "0")}</span>
-          {picker(c.band_id, (id) => assignChapter(c.id, id))}
+          <span className="tl-ch-no">{selecting ? (selected.has(c.id) ? "☑" : "☐") : String(c.manuscript_order).padStart(2, "0")}</span>
+          {selecting ? <span className="tl-ch-no">{String(c.manuscript_order).padStart(2, "0")}</span> : picker(c.band_id, (id) => assignChapter(c.id, id))}
         </div>
         <div className="tl-ch-title">{c.title}</div>
       </div>
@@ -215,9 +249,27 @@ export function Timeline({ worldId, go }: { worldId: string; go: (n: Nav) => voi
         <h2 className="scope-title" style={{ margin: 0 }}>Timeline</h2>
         <span className="faint" style={{ fontSize: 11 }}>drag to pan · scroll to zoom · click a band to open/close · notes pin below the line</span>
         <span className="spacer" />
+        <button className={selecting ? "primary" : ""} onClick={() => { setSelecting((v) => !v); setSelected(new Set()); anchorRef.current = null; }}>
+          {selecting ? "Done selecting" : "☑ Select"}
+        </button>
         <button onClick={addNote}>+ Note</button>
         <button onClick={addBand}>+ Band</button>
       </div>
+
+      {selecting && (
+        <div className="tl-selbar">
+          <span style={{ fontWeight: 600 }}>{selected.size} selected</span>
+          <span className="faint" style={{ fontSize: 11 }}>click chapters to pick · shift-click for a range</span>
+          <span className="spacer" />
+          <select className="sel" value="" disabled={selected.size === 0} onChange={(e) => e.target.value && assignMany(e.target.value === "__none" ? null : e.target.value)}>
+            <option value="">assign to band…</option>
+            {bands.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
+            <option value="__none">— unband</option>
+          </select>
+          <button disabled={selected.size === 0} onClick={newBandFromSelection}>＋ New band</button>
+          <button disabled={selected.size === 0} onClick={() => { setSelected(new Set()); anchorRef.current = null; }}>Clear</button>
+        </div>
+      )}
 
       {ordered.length === 0 && notes.length === 0 ? (
         <div className="card"><div className="row"><span className="muted">No chapters yet — write some in the Manuscript, then group them into bands here.</span></div></div>

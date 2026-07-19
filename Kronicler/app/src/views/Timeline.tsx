@@ -133,6 +133,8 @@ export function Timeline({ worldId, go }: { worldId: string; go: (n: Nav) => voi
     return { note: n, px: base - 64, py: NOTE_TOP + s * STACK, ax };
   });
   const emptyBands = bands.filter((b) => !ordered.some((c) => c.band_id === b.id));
+  const unbandedIds = ordered.filter((c) => !(c.band_id && bandIds.has(c.band_id))).map((c) => c.id);
+  const firstUnbandedSeg = segs.find((s) => s.kind === "chapter");
   const maxY = noteEls.reduce((m, e) => Math.max(m, e.py), NOTE_TOP);
   const maxX = noteEls.reduce((m, e) => Math.max(m, e.px + 128), futureX + 60);
   const contentW = Math.max(maxX + 40, 360);
@@ -321,9 +323,6 @@ export function Timeline({ worldId, go }: { worldId: string; go: (n: Nav) => voi
             {characters.map((e) => <option key={e.id} value={e.id}>◇ {e.title}</option>)}
           </select>
         )}
-        <button className={selecting ? "primary" : ""} onClick={() => { setSelecting((v) => !v); setSelected(new Set()); anchorRef.current = null; }}>
-          {selecting ? "Done selecting" : "☑ Select"}
-        </button>
         <button onClick={addNote}>+ Note</button>
         <button onClick={addBand}>+ Band</button>
       </div>
@@ -349,6 +348,7 @@ export function Timeline({ worldId, go }: { worldId: string; go: (n: Nav) => voi
           </select>
           <button disabled={selected.size === 0} onClick={newBandFromSelection}>＋ New band</button>
           <button disabled={selected.size === 0} onClick={() => { setSelected(new Set()); anchorRef.current = null; }}>Clear</button>
+          <button onClick={() => { setSelecting(false); setSelected(new Set()); anchorRef.current = null; }}>Done</button>
         </div>
       )}
 
@@ -360,6 +360,15 @@ export function Timeline({ worldId, go }: { worldId: string; go: (n: Nav) => voi
           <div className="notes-canvas" style={{ transform: `translate(${view.tx}px, ${view.ty}px) scale(${view.s})`, transformOrigin: "0 0" }}>
             <div className="tl-inner" style={{ width: contentW, height: contentH }}>
               <div className="tl-axis" style={{ width: contentW - 20, top: AXIS_Y }} />
+
+              {/* contextual: a pile of unsorted chapters → offer to band them, right where they are */}
+              {!selecting && unbandedIds.length >= 5 && firstUnbandedSeg && (
+                <div className="tl-unsorted" style={{ left: firstUnbandedSeg.x + 6 }}
+                  onMouseDown={(e) => e.stopPropagation()}
+                  onClick={() => { setSelecting(true); setSelected(new Set(unbandedIds)); anchorRef.current = null; }}>
+                  ☐ {unbandedIds.length} unsorted — band them
+                </div>
+              )}
 
               {segs.map((seg) => {
                 if (seg.kind === "chapter") return chapterStop(seg.chapter, seg.x, "var(--lineStrong)");

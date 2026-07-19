@@ -42,6 +42,7 @@ export function Timeline({ worldId, go }: { worldId: string; go: (n: Nav) => voi
   const anchorRef = useRef<string | null>(null);
   const boardRef = useRef<HTMLDivElement>(null);
   const panRef = useRef<{ x: number; y: number; tx: number; ty: number } | null>(null);
+  const noteDragRef = useRef<{ id: string; offX: number; offY: number } | null>(null);
 
   async function reload() {
     try {
@@ -110,25 +111,32 @@ export function Timeline({ worldId, go }: { worldId: string; go: (n: Nav) => voi
     .sort((a, b) => a.order - b.order);
   const dimCh = (id: string) => followId !== "" && !appears.has(id);
 
-  // place notes below the line (stacked when they share an anchor)
-  const belowNotes: { note: Note; x: number; top: number }[] = [];
-  const stackAt = new Map<number, number>();
-  let futureCount = 0;
-  const place = (note: Note, ax: number) => {
-    const key = Math.round(ax / 8);
-    const s = stackAt.get(key) ?? 0; stackAt.set(key, s + 1);
-    belowNotes.push({ note, x: ax, top: NOTE_TOP + s * STACK });
-  };
-  for (const n of notes) {
+  // Timeline notes: freely draggable (their x/y is where they sit). A note keeps
+  // an optional anchor (chapter / band / future); when anchored, a connector runs
+  // from the note to that point on the line. Legacy notes at the default (40,40)
+  // fall back to a tidy stacked position under their anchor until first dragged.
+  const anchorXof = (n: Note): number | null => {
     const chId = n.chapter_ids?.[0];
-    if (chId && chapterX.has(chId)) { place(n, chapterX.get(chId)!); continue; }
-    if (n.band_id && bandCenterX.has(n.band_id)) { place(n, bandCenterX.get(n.band_id)!); continue; }
-    if (n.plan_ref) { place(n, futureX + futureCount * 138 + 64); futureCount++; }
-  }
+    if (chId && chapterX.has(chId)) return chapterX.get(chId)!;
+    if (n.band_id && bandCenterX.has(n.band_id)) return bandCenterX.get(n.band_id)!;
+    if (n.plan_ref) return futureX + 40;
+    return null;
+  };
+  const stackAt = new Map<number, number>();
+  const noteEls = notes.filter((n) => n.on_timeline).map((n) => {
+    const ax = anchorXof(n);
+    const positioned = !(n.x === 40 && n.y === 40);
+    if (positioned) return { note: n, px: n.x, py: n.y, ax };
+    const base = ax ?? futureX + 40;
+    const key = Math.round(base / 8);
+    const s = stackAt.get(key) ?? 0; stackAt.set(key, s + 1);
+    return { note: n, px: base - 64, py: NOTE_TOP + s * STACK, ax };
+  });
   const emptyBands = bands.filter((b) => !ordered.some((c) => c.band_id === b.id));
-  const maxTop = belowNotes.reduce((m, b) => Math.max(m, b.top), NOTE_TOP);
-  const contentW = Math.max(futureX + (futureCount ? futureCount * 138 + 60 : 40), 360);
-  const contentH = maxTop + NOTE_H + 10;
+  const maxY = noteEls.reduce((m, e) => Math.max(m, e.py), NOTE_TOP);
+  const maxX = noteEls.reduce((m, e) => Math.max(m, e.px + 128), futureX + 60);
+  const contentW = Math.max(maxX + 40, 360);
+  const contentH = maxY + NOTE_H + 20;
 
   // ── pan / zoom ──────────────────────────────────────────────────────────
   function startPan(e: React.MouseEvent) {
@@ -137,12 +145,33 @@ export function Timeline({ worldId, go }: { worldId: string; go: (n: Nav) => voi
     panRef.current = { x: e.clientX, y: e.clientY, tx: view.tx, ty: view.ty };
     setPanning(true);
   }
-  function onMove(e: React.MouseEvent) {
-    if (!panRef.current) return;
-    const p = panRef.current;
-    setView((v) => ({ ...v, tx: p.tx + (e.clientX - p.x), ty: p.ty + (e.clientY - p.y) }));
+  function toWorld(cx: number, cy: number) {
+    const r = boardRef.current!.getBoundingClientRect();
+    return { x: (cx - r.left - view.tx) / view.s, y: (cy - r.top - view.ty) / view.s };
   }
-  function endPan() { panRef.current = null; setPanning(false); }
+  function startNoteDrag(note: Note, curX: number, curY: number, e: React.MouseEvent) {
+    e.preventDefault(); e.stopPropagation();
+    const w = toWorld(e.clientX, e.clientY);
+    noteDragRef.current = { id: note.id, offX: w.x - curX, offY: w.y - curY };
+  }
+  function onMove(e: React.MouseEvent) {
+    if (noteDragRef.current) {
+      const d = noteDragRef.current, w = toWorld(e.clientX, e.clientY);
+      const nx = Math.round(w.x - d.offX), ny = Math.round(w.y - d.offY);
+      setNotes((prev) => prev.map((n) => n.id === d.id ? { ...n, x: nx, y: ny } : n));
+    } else if (panRef.current) {
+      const p = panRef.current;
+      setView((v) => ({ ...v, tx: p.tx + (e.clientX - p.x), ty: p.ty + (e.clientY - p.y) }));
+    }
+  }
+  function endPan() {
+    const nd = noteDragRef.current; noteDragRef.current = null;
+    panRef.current = null; setPanning(false);
+    if (nd) {
+      const n = notes.find((x) => x.id === nd.id);
+      if (n) updateNote(n.id, { x: n.x, y: n.y }).catch((x) => setErr(String(x)));
+    }
+  }
   function zoomAt(cx: number, cy: number, factor: number) {
     setView((v) => {
       const s = Math.min(MAX_SCALE, Math.max(MIN_SCALE, v.s * factor));
@@ -222,10 +251,14 @@ export function Timeline({ worldId, go }: { worldId: string; go: (n: Nav) => voi
   }
   async function addNote() {
     try {
-      const n = await createNote(worldId, 40, 40);
+      // drop it near the centre of the current view, on the timeline
+      const r = boardRef.current?.getBoundingClientRect();
+      const c = r ? toWorld(r.left + r.width / 2 - 64 * view.s, r.top + r.height * 0.55) : { x: 80, y: 200 };
+      const px = Math.round(c.x), py = Math.max(NOTE_TOP, Math.round(c.y));
+      const n = await createNote(worldId, px, py, true);
       const anchor: Partial<Note> = ordered[0] ? { chapter_ids: [ordered[0].id] } : { plan_ref: "planned" };
       await updateNote(n.id, { body: "New note", ...anchor });
-      setNotes((p) => [...p, { ...n, body: "New note", ...anchor } as Note]);
+      setNotes((p) => [...p, { ...n, body: "New note", on_timeline: true, ...anchor } as Note]);
     } catch (x) { setErr(String(x)); }
   }
   function patchNoteLocal(id: string, patch: Partial<Note>) {
@@ -234,7 +267,8 @@ export function Timeline({ worldId, go }: { worldId: string; go: (n: Nav) => voi
   async function pinNote(noteId: string, sel: string) {
     const patch: Partial<Note> = sel.startsWith("c:") ? { chapter_ids: [sel.slice(2)], band_id: null, plan_ref: null }
       : sel.startsWith("b:") ? { band_id: sel.slice(2), chapter_ids: [], plan_ref: null }
-        : { plan_ref: "planned", chapter_ids: [], band_id: null };
+        : sel === "free" ? { chapter_ids: [], band_id: null, plan_ref: null }
+          : { plan_ref: "planned", chapter_ids: [], band_id: null };
     patchNoteLocal(noteId, patch);
     try { await updateNote(noteId, patch); } catch (x) { setErr(String(x)); }
   }
@@ -378,14 +412,21 @@ export function Timeline({ worldId, go }: { worldId: string; go: (n: Nav) => voi
                 </svg>
               )}
 
-              {/* pinned notes, below the line */}
-              {belowNotes.map(({ note, x: nx, top }) => (
-                <div key={note.id}>
-                  <div className="tl-connector" style={{ left: nx, top: AXIS_Y, height: top - AXIS_Y }} />
-                  <div className="tl-dot tl-dot-note" style={{ left: nx - DOTC, top: AXIS_Y - 5 }} />
-                  <PinnedNote note={note} left={nx - 64} top={top} bands={bands} chapters={ordered}
-                    onPin={(sel) => pinNote(note.id, sel)} onEdit={(b) => editNoteBody(note.id, b)} onDelete={() => deleteNote(note.id)} />
-                </div>
+              {/* connectors from anchored notes to their point on the line */}
+              <svg width={contentW} height={contentH} style={{ position: "absolute", left: 0, top: 0, pointerEvents: "none", overflow: "visible" }}>
+                {noteEls.filter((e) => e.ax != null).map((e) => (
+                  <g key={e.note.id}>
+                    <line x1={e.ax!} y1={AXIS_Y} x2={e.px + 64} y2={e.py} stroke="var(--muted)" strokeWidth={1} strokeDasharray="2 3" opacity={0.7} />
+                    <circle cx={e.ax!} cy={AXIS_Y} r={4} fill="var(--sub)" />
+                  </g>
+                ))}
+              </svg>
+
+              {/* draggable timeline notes */}
+              {noteEls.map(({ note, px, py, ax }) => (
+                <PinnedNote key={note.id} note={note} left={px} top={py} pinned={ax != null} bands={bands} chapters={ordered}
+                  onDragStart={(e) => startNoteDrag(note, px, py, e)}
+                  onPin={(sel) => pinNote(note.id, sel)} onEdit={(b) => editNoteBody(note.id, b)} onDelete={() => deleteNote(note.id)} />
               ))}
             </div>
           </div>
@@ -415,35 +456,40 @@ export function Timeline({ worldId, go }: { worldId: string; go: (n: Nav) => voi
   );
 }
 
-// A note pinned below the spine: edit its text, re-pin it (chapter / band /
-// future), or delete it.
-function PinnedNote({ note, left, top, bands, chapters, onPin, onEdit, onDelete }: {
+// A note on the timeline canvas: drag it anywhere by the grip, edit its text,
+// choose whether it's attached (pinned to a chapter / band / future — a
+// connector shows) or free, or delete it.
+function PinnedNote({ note, left, top, pinned, bands, chapters, onDragStart, onPin, onEdit, onDelete }: {
   note: Note;
-  left: number; top: number;
+  left: number; top: number; pinned: boolean;
   bands: Band[]; chapters: Chapter[];
+  onDragStart: (e: React.MouseEvent) => void;
   onPin: (sel: string) => void;
   onEdit: (body: string) => void;
   onDelete: () => void;
 }) {
   const [body, setBody] = useState(note.body || note.plan_ref || "");
   const timer = useRef<number | undefined>(undefined);
-  const pinVal = note.chapter_ids?.[0] ? "c:" + note.chapter_ids[0] : note.band_id ? "b:" + note.band_id : "future";
+  const pinVal = note.chapter_ids?.[0] ? "c:" + note.chapter_ids[0] : note.band_id ? "b:" + note.band_id : note.plan_ref ? "future" : "free";
   function edit(v: string) {
     setBody(v);
     window.clearTimeout(timer.current);
     timer.current = window.setTimeout(() => onEdit(v), 600);
   }
   return (
-    <div className="tl-pinnote" style={{ left, top }} onMouseDown={(e) => e.stopPropagation()}>
+    <div className={"tl-pinnote" + (pinned ? "" : " free")} style={{ left, top }} onMouseDown={(e) => e.stopPropagation()}>
       <div className="tl-pin-top">
-        <select className="tl-pick" value={pinVal} onChange={(e) => onPin(e.target.value)}>
+        <span className="tl-pin-grip" title="Drag to move" onMouseDown={onDragStart}>⠿</span>
+        <select className="tl-pick" value={pinVal} onMouseDown={(e) => e.stopPropagation()} onChange={(e) => onPin(e.target.value)}>
           {chapters.map((c) => <option key={c.id} value={"c:" + c.id}>📖 ch {c.manuscript_order}</option>)}
           {bands.map((b) => <option key={b.id} value={"b:" + b.id}>▦ {b.name}</option>)}
           <option value="future">🗓 future</option>
+          <option value="free">○ free (no line)</option>
         </select>
         <span className="tl-bandx" title="Delete note" onClick={onDelete}>✕</span>
       </div>
-      <input className="tl-pin-body" value={body} placeholder="a note…" onChange={(e) => edit(e.target.value)}
+      <input className="tl-pin-body" value={body} placeholder="a note…" onMouseDown={(e) => e.stopPropagation()}
+        onChange={(e) => edit(e.target.value)}
         onBlur={() => { window.clearTimeout(timer.current); if (body !== note.body) onEdit(body); }} />
     </div>
   );

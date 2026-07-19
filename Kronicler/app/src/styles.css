@@ -191,7 +191,11 @@ textarea { font-family: var(--serif); }
 .tl-connector { position: absolute; width: 1px; background: repeating-linear-gradient(var(--line), var(--line) 2px, transparent 2px, transparent 5px); }
 .tl-dot-note { background: var(--sub) !important; border-color: var(--sub) !important; }
 .tl-pinnote { position: absolute; width: 128px; box-sizing: border-box; border: 1px solid var(--line); border-radius: 9px; background: var(--wash); padding: 5px 8px; box-shadow: var(--pop); }
-.tl-pin-top { display: flex; align-items: center; justify-content: space-between; gap: 4px; margin-bottom: 3px; }
+.tl-pinnote.free { border-style: dashed; background: var(--surface); }
+.tl-pin-grip { cursor: grab; color: var(--faint); font-size: 11px; }
+.tl-pin-grip:active { cursor: grabbing; }
+.tl-pin-top { display: flex; align-items: center; gap: 4px; margin-bottom: 3px; }
+.tl-pin-top .tl-pick { flex: 1; }
 .tl-pin-body { width: 100%; border: none; background: transparent; font-family: var(--serif); font-size: 12px; padding: 0; }
 .tl-pin-body:focus { outline: none; }
 

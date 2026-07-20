@@ -8,6 +8,7 @@ import type { Band, Chapter, Note, Entity, StreamRow } from "../lib/types";
 import type { Nav } from "../App";
 import { VALENCE_COLOR } from "../lib/valence";
 import { isBelief } from "../lib/knowledge";
+import { TimelineVertical } from "./TimelineVertical";
 
 // The Timeline: a pan/zoom canvas with a horizontal time spine. Chapters ride
 // ABOVE the line, grouped into bands (a season/novel collapses to one block,
@@ -33,6 +34,7 @@ export function Timeline({ worldId, go }: { worldId: string; go: (n: Nav) => voi
   const [followId, setFollowId] = useState<string>("");
   const [appears, setAppears] = useState<Set<string>>(new Set());
   const [timeAxis, setTimeAxis] = useState<"narrative" | "world">("narrative");
+  const [layout, setLayout] = useState<"horizontal" | "vertical">("horizontal");
   const [err, setErr] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
@@ -327,23 +329,33 @@ export function Timeline({ worldId, go }: { worldId: string; go: (n: Nav) => voi
     <div className="fi">
       <div className="row" style={{ borderBottom: "none", padding: 0, marginBottom: 12, gap: 10 }}>
         <h2 className="scope-title" style={{ margin: 0 }}>Timeline</h2>
-        <span className="faint" style={{ fontSize: 11 }}>drag to pan · scroll to zoom · click an arc to open/close · notes pin below the line</span>
+        <span className="faint" style={{ fontSize: 11 }}>{layout === "vertical" ? "the chronicle — time runs down, stories are lanes" : "drag to pan · scroll to zoom · click an arc to open/close · notes pin below the line"}</span>
         <span className="spacer" />
-        <div className="seg" style={{ fontSize: 11 }} title="Narrative = chapter order (as written). In-world = chronological, by each chapter's in-world time (flashbacks move).">
-          <span className={timeAxis === "narrative" ? "on" : ""} onClick={() => setTimeAxis("narrative")}>Narrative</span>
-          <span className={timeAxis === "world" ? "on" : ""} onClick={() => setTimeAxis("world")}>🕐 In-world</span>
+        <div className="seg" style={{ fontSize: 11 }} title="Horizontal = the story line (arcs, notes, character arcs). Vertical = the chronicle, laid out by in-world date with stories as lanes.">
+          <span className={layout === "horizontal" ? "on" : ""} onClick={() => setLayout("horizontal")}>⇄ Line</span>
+          <span className={layout === "vertical" ? "on" : ""} onClick={() => setLayout("vertical")}>⇅ Chronicle</span>
         </div>
-        {characters.length > 0 && (
+        {layout === "horizontal" && (
+          <div className="seg" style={{ fontSize: 11 }} title="Narrative = chapter order (as written). In-world = chronological, by each chapter's in-world time (flashbacks move).">
+            <span className={timeAxis === "narrative" ? "on" : ""} onClick={() => setTimeAxis("narrative")}>Narrative</span>
+            <span className={timeAxis === "world" ? "on" : ""} onClick={() => setTimeAxis("world")}>🕐 In-world</span>
+          </div>
+        )}
+        {layout === "horizontal" && characters.length > 0 && (
           <select className={"sel" + (followId ? " " : "")} value={followId} onChange={(e) => setFollowId(e.target.value)}
             style={followId ? { borderColor: "var(--bond)", color: "var(--bond)" } : undefined} title="Trace one character's arc across the line">
             <option value="">Follow a character…</option>
             {characters.map((e) => <option key={e.id} value={e.id}>◇ {e.title}</option>)}
           </select>
         )}
-        <button onClick={addNote}>+ Note</button>
-        <button onClick={addBand}>+ Arc</button>
+        {layout === "horizontal" && <button onClick={addNote}>+ Note</button>}
+        {layout === "horizontal" && <button onClick={addBand}>+ Arc</button>}
       </div>
 
+      {layout === "vertical" ? (
+        <TimelineVertical bands={bands} chapters={chapters} go={go} />
+      ) : (
+      <>
       {followId && (
         <div className="tl-selbar" style={{ borderColor: "var(--bond)" }}>
           <span style={{ fontWeight: 600, color: "var(--bond)" }}>◇ {characters.find((c) => c.id === followId)?.title}</span>
@@ -477,6 +489,8 @@ export function Timeline({ worldId, go }: { worldId: string; go: (n: Nav) => voi
             </span>
           ))}
         </div>
+      )}
+      </>
       )}
     </div>
   );

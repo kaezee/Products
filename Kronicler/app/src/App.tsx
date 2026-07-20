@@ -7,7 +7,7 @@ import { AuthGate } from "./auth/AuthGate";
 import { Library } from "./views/Library";
 import { Relationships } from "./views/Relationships";
 import { Manuscript } from "./views/Manuscript";
-import { Timeline } from "./views/Timeline";
+import { WorldTimeline } from "./views/WorldTimeline";
 import { Notes } from "./views/Notes";
 import { Overview } from "./views/Overview";
 import { Settings } from "./views/Settings";
@@ -187,7 +187,7 @@ function Workspace({ session }: { session: Session }) {
               ) : nav.scope === "manuscript" ? (
                 <Manuscript key={worldId + (nav.chapterId ?? "")} worldId={worldId} focusChapterId={nav.chapterId} go={go} />
               ) : nav.scope === "timeline" ? (
-                <Timeline key={worldId} worldId={worldId} go={go} />
+                <WorldTimeline key={worldId} worldId={worldId} go={go} />
               ) : nav.scope === "notes" ? (
                 <Notes key={worldId} worldId={worldId} />
               ) : nav.scope === "settings" ? (

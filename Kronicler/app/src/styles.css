@@ -165,6 +165,31 @@ textarea { font-family: var(--serif); }
 .tl-bandname:focus { outline: none; background: rgba(255,255,255,.5); }
 .tl-bandx { cursor: pointer; opacity: .5; font-size: 11px; }
 .tl-bandx:hover { opacity: 1; }
+
+/* ── World Timeline (the year-ruler + series/volume bars) ── */
+.wt-chart { display: flex; gap: 0; align-items: flex-start; }
+.wt-parking { flex: 0 0 90px; border-right: 1px dashed var(--lineStrong); padding-right: 12px; margin-right: 16px; display: flex; flex-direction: column; gap: 8px; }
+.wt-parklab { font-size: 10px; font-weight: 650; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.wt-block { width: 76px; min-height: 46px; border-radius: 8px; background: var(--inset); border: 1px solid var(--lineStrong); font-size: 10px; color: var(--sub); padding: 5px; text-align: center; cursor: pointer; font-variant-numeric: tabular-nums; line-height: 1.25; }
+.wt-block:hover { border-color: var(--bond); }
+.wt-plot { flex: 1; position: relative; min-width: 540px; overflow-x: auto; padding-bottom: 8px; }
+.wt-ruler { position: relative; height: 38px; border-bottom: 2px solid var(--ink); margin-bottom: 2px; }
+.wt-major { position: absolute; transform: translateX(-50%); top: 6px; font-family: var(--serif); font-size: 19px; color: var(--ink); font-variant-numeric: tabular-nums; }
+.wt-lanes { position: relative; }
+.wt-grid { position: absolute; top: 0; bottom: 0; width: 0; border-left: 1px solid var(--line); }
+.wt-lane { position: relative; }
+.wt-serieslab { position: absolute; top: 0; left: 0; font-family: var(--serif); font-size: 14px; font-weight: 600; color: var(--ink); background: var(--paper); padding-right: 8px; z-index: 2; }
+.wt-seriesbar { position: absolute; height: 5px; border-radius: 3px; background: var(--ink); opacity: .8; }
+.wt-vol { position: absolute; height: 7px; border-radius: 4px; }
+.wt-vollab { position: absolute; font-size: 11.5px; white-space: nowrap; font-weight: 600; }
+.wt-tick { position: absolute; width: 10px; height: 10px; border-radius: 2px; background: var(--surface); border: 1px solid var(--lineStrong); transform: translateX(-50%); cursor: pointer; }
+.wt-tick:hover { border-color: var(--bond); }
+.wt-note { position: absolute; font-size: 10.5px; color: var(--bond); background: var(--bondBg); border: 1px solid var(--bondLine); border-radius: 6px; padding: 0 5px; white-space: nowrap; }
+.wt-volunset { position: absolute; left: 0; display: flex; gap: 6px; align-items: center; }
+.wt-volname { border: none; background: transparent; font-family: var(--serif); font-weight: 600; font-size: 13px; width: 130px; padding: 0; }
+.wt-yr { width: 64px; font-size: 11px; padding: 3px 6px; }
+.wt-x { cursor: pointer; color: var(--faint); font-size: 11px; margin-left: 6px; }
+.wt-x:hover { color: var(--hostile); }
 /* vertical chronicle */
 .tv-scroll { overflow: auto; max-height: calc(100vh - 210px); border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
 .tv-card { position: absolute; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; box-shadow: var(--pop); padding: 5px 8px 6px; box-sizing: border-box; cursor: pointer; overflow: hidden; }

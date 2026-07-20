@@ -2,8 +2,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   getRelationshipTypes, getChapterVersions, getChapterEntities,
   linkChapterEntity, saveChapterBody, getStream,
-  getEntities, createEntity, updateEntity, updateChapterTitle, setChapterStoryTime,
+  getEntities, createEntity, updateEntity, updateChapterTitle, setChapterDate,
 } from "../lib/api";
+import { parseStoryTime } from "../lib/time";
 import type { Chapter, Entity, RelationshipType, ChapterVersion, ChapterEntity, StreamRow } from "../lib/types";
 import { detectMentions } from "../lib/mentions";
 import { computeBrief } from "../lib/brief";
@@ -38,7 +39,7 @@ export function ChapterEditor(props: {
   // select → act: promote a selected word to a new entity, or an alias.
   const [title, setTitle] = useState(chapter.title);
   const [editingTitle, setEditingTitle] = useState(false);
-  const [storyTime, setStoryTime] = useState(chapter.story_time_ref?.toString() ?? "");
+  const [storyDate, setStoryDate] = useState(chapter.story_time_label ?? (chapter.story_time_ref?.toString() ?? ""));
   const [dismissed, setDismissed] = useState<Set<string>>(new Set());
   const [entMode, setEntMode] = useState<null | "new" | "alias">(null);
   const [selWord, setSelWord] = useState("");
@@ -211,16 +212,17 @@ export function ChapterEditor(props: {
             title="Double-click to rename" onDoubleClick={() => setEditingTitle(true)}>{title}</h2>
         )}
         <span className="spacer" />
-        <span className="muted" style={{ fontSize: 11 }}>🕐 in-world</span>
-        <input value={storyTime} placeholder="e.g. 2087" title="In-world time — a number that places this chapter on the chronological axis (year, day-count, any increasing scale). Powers the Timeline's In-world order."
-          onChange={(e) => setStoryTime(e.target.value.replace(/[^0-9-]/g, ""))}
+        <span className="muted" style={{ fontSize: 11 }}>🕐 in-world date</span>
+        <input value={storyDate} placeholder="e.g. 1150 AE"
+          title="When this chapter happens in the story's world — any calendar ('1150 AE', 'Year 2', '500 BCE'). The Timeline's In-world order sorts by the number in it, so an earlier date makes this a flashback/prologue."
+          onChange={(e) => setStoryDate(e.target.value)}
           onBlur={async () => {
-            const v = storyTime.trim() === "" ? null : parseInt(storyTime, 10);
-            const val = v === null || Number.isNaN(v) ? null : v;
-            if (val === (chapter.story_time_ref ?? null)) return;
-            try { await setChapterStoryTime(chapter.id, val); } catch (x) { setErr(String(x)); }
+            const label = storyDate.trim() || null;
+            const ref = label ? parseStoryTime(label) : null;
+            if (label === (chapter.story_time_label ?? null) && ref === (chapter.story_time_ref ?? null)) return;
+            try { await setChapterDate(chapter.id, ref, label); } catch (x) { setErr(String(x)); }
           }}
-          style={{ width: 84, fontSize: 12, fontVariantNumeric: "tabular-nums" }} />
+          style={{ width: 120, fontSize: 12 }} />
       </div>
 
       {err && <p className="err">{err}</p>}

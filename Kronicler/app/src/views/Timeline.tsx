@@ -307,11 +307,12 @@ export function Timeline({ worldId, go }: { worldId: string; go: (n: Nav) => voi
   );
   const chapterStop = (c: Chapter, left: number, tint: string) => {
     const dim = dimCh(c.id);
+    const dateStr = c.story_time_label ?? (c.story_time_ref != null ? String(c.story_time_ref) : null);
     return (
       <div key={c.id} style={dim ? { opacity: 0.28 } : undefined}>
         <div className={"tl-card" + (selected.has(c.id) ? " sel" : "")} style={{ left: left + 6 }} onClick={(e) => onChapterClick(c, e)}>
           <div className="tl-card-top">
-            <span className="tl-ch-no">{selecting ? (selected.has(c.id) ? "☑" : "☐") : String(c.manuscript_order).padStart(2, "0")}{timeAxis === "world" && c.story_time_ref != null ? ` · 🕐${c.story_time_ref}` : ""}</span>
+            <span className="tl-ch-no" title={dateStr ? `in-world: ${dateStr}` : undefined}>{selecting ? (selected.has(c.id) ? "☑" : "☐") : String(c.manuscript_order).padStart(2, "0")}{dateStr ? ` · 🕐${dateStr}` : ""}</span>
             {selecting ? <span className="tl-ch-no">{String(c.manuscript_order).padStart(2, "0")}</span> : picker(c.band_id, (id) => assignChapter(c.id, id))}
           </div>
           <div className="tl-ch-title" title={c.title}>{c.title}</div>

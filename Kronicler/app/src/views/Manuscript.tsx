@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   getChapters, getEntities, createChapter, reorderChapters, updateChapterTitle, softDeleteChapter,
-  getBands, createBand, updateBand, softDeleteBand, setChapterBand,
+  getBands, createBand, updateBand, softDeleteBand, setChapterBand, setChapterDate,
 } from "../lib/api";
 import type { Chapter, Entity, Band } from "../lib/types";
+import { parseStoryTime } from "../lib/time";
 import { ChapterEditor } from "./ChapterEditor";
 import { ImportDocx } from "./ImportDocx";
 import type { Nav } from "../App";
@@ -95,6 +96,14 @@ export function Manuscript({ worldId, focusChapterId, go }: { worldId: string; f
     } catch (x) { setErr(String(x)); await reload(); }
   }
 
+  async function setDate(chapterId: string, raw: string) {
+    const label = raw.trim() || null;
+    const ref = label ? parseStoryTime(label) : null;
+    const cur = (chapters ?? []).find((c) => c.id === chapterId);
+    if (label === (cur?.story_time_label ?? null) && ref === (cur?.story_time_ref ?? null)) return;
+    setChapters((prev) => (prev ?? []).map((c) => c.id === chapterId ? { ...c, story_time_label: label, story_time_ref: ref } : c));
+    try { await setChapterDate(chapterId, ref, label); } catch (x) { setErr(String(x)); await reload(); }
+  }
   async function assignArc(chapterId: string, bandId: string | null) {
     setChapters((prev) => (prev ?? []).map((c) => c.id === chapterId ? { ...c, band_id: bandId } : c));
     try { await setChapterBand(chapterId, bandId); } catch (x) { setErr(String(x)); await reload(); }
@@ -164,6 +173,13 @@ export function Manuscript({ worldId, focusChapterId, go }: { worldId: string; f
         ) : (
           <span className="title-serif" style={{ flex: 1 }}>{c.title}</span>
         )}
+        <input key={"d" + c.id + (c.story_time_label ?? "") + (c.story_time_ref ?? "")}
+          className="tl-pick" defaultValue={c.story_time_label ?? (c.story_time_ref != null ? String(c.story_time_ref) : "")}
+          placeholder="🕐 date" title="In-world date (e.g. 1150 AE) — sets this chapter's place in chronological order"
+          onClick={(e) => e.stopPropagation()}
+          onKeyDown={(e) => { e.stopPropagation(); if (e.key === "Enter") (e.target as HTMLInputElement).blur(); if (e.key === "Escape") (e.target as HTMLInputElement).blur(); }}
+          onBlur={(e) => setDate(c.id, e.target.value)}
+          style={{ width: 82, fontSize: 11, color: "var(--sub)" }} />
         {bands.length > 0 && (
           <select className="tl-pick" value={c.band_id && bandIds.has(c.band_id) ? c.band_id : ""}
             title="Which arc this chapter belongs to"

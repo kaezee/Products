@@ -51,6 +51,7 @@ export interface Chapter {
   title: string;
   manuscript_order: number;
   story_time_ref: number | null;
+  story_time_label: string | null;
   body: string;
   band_id: string | null;
 }

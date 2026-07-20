@@ -14,7 +14,7 @@ import { isBelief } from "../lib/knowledge";
 // clicks open/close). Notes pin BELOW the line to a chapter, a band, or the
 // future. Bands can carry an in-world time frame ("Year 2000–2100").
 
-const COL = 158, BAND_W = 214, GAP = 14, DOTC = 5.5;
+const COL = 132, BAND_W = 200, GAP = 14, DOTC = 5.5;
 const AXIS_Y = 150, NOTE_TOP = 172, NOTE_H = 58, STACK = 66;
 const BAND_TINTS = ["#8a6fb0", "#5b8ab0", "#b08a4a", "#5f9a6a", "#b06a6a", "#7a7ab0"];
 const MIN_SCALE = 0.2, MAX_SCALE = 2, FIT_PAD = 50;
@@ -314,7 +314,7 @@ export function Timeline({ worldId, go }: { worldId: string; go: (n: Nav) => voi
             <span className="tl-ch-no">{selecting ? (selected.has(c.id) ? "☑" : "☐") : String(c.manuscript_order).padStart(2, "0")}{timeAxis === "world" && c.story_time_ref != null ? ` · 🕐${c.story_time_ref}` : ""}</span>
             {selecting ? <span className="tl-ch-no">{String(c.manuscript_order).padStart(2, "0")}</span> : picker(c.band_id, (id) => assignChapter(c.id, id))}
           </div>
-          <div className="tl-ch-title">{c.title}</div>
+          <div className="tl-ch-title" title={c.title}>{c.title}</div>
         </div>
         <div className="tl-stem" style={{ left: left + COL / 2 }} />
         <div className="tl-dot" style={{ left: left + COL / 2 - DOTC, background: tint, borderColor: tint }} />

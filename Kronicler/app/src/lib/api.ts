@@ -148,7 +148,7 @@ export async function getChapters(worldId: string): Promise<Chapter[]> {
 export async function getBands(worldId: string): Promise<Band[]> {
   const { data, error } = await supabase
     .from("bands")
-    .select("id, world_id, name, band_order, color, time_frame, story")
+    .select("id, world_id, name, band_order, color, time_frame, story, start_ref, end_ref")
     .eq("world_id", worldId).is("deleted_at", null)
     .order("band_order", { ascending: true });
   if (error) throw error;
@@ -158,12 +158,12 @@ export async function getBands(worldId: string): Promise<Band[]> {
 export async function createBand(worldId: string, name: string, bandOrder: number): Promise<Band> {
   const { data, error } = await supabase
     .from("bands").insert({ world_id: worldId, name, band_order: bandOrder })
-    .select("id, world_id, name, band_order, color, time_frame, story").single();
+    .select("id, world_id, name, band_order, color, time_frame, story, start_ref, end_ref").single();
   if (error) throw error;
   return data as Band;
 }
 
-export async function updateBand(id: string, patch: Partial<Pick<Band, "name" | "band_order" | "color" | "time_frame" | "story">>): Promise<void> {
+export async function updateBand(id: string, patch: Partial<Pick<Band, "name" | "band_order" | "color" | "time_frame" | "story" | "start_ref" | "end_ref">>): Promise<void> {
   const { error } = await supabase.from("bands").update(patch).eq("id", id);
   if (error) throw error;
 }

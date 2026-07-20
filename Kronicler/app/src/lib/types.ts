@@ -77,7 +77,9 @@ export interface Band {
   band_order: number;
   color: string | null;
   time_frame: string | null;
-  story: string | null;
+  story: string | null;      // the SERIES this volume belongs to (lane)
+  start_ref: number | null;  // in-world year the volume span begins
+  end_ref: number | null;    // in-world year it ends
 }
 
 export interface ChapterVersion {

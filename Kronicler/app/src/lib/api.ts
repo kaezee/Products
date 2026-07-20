@@ -136,7 +136,7 @@ export async function softDeleteEntity(id: string): Promise<void> {
 export async function getChapters(worldId: string): Promise<Chapter[]> {
   const { data, error } = await supabase
     .from("chapters")
-    .select("id, world_id, title, manuscript_order, story_time_ref, body, band_id")
+    .select("id, world_id, title, manuscript_order, story_time_ref, story_time_label, body, band_id")
     .eq("world_id", worldId)
     .is("deleted_at", null)
     .order("manuscript_order", { ascending: true });
@@ -185,6 +185,15 @@ export async function setChapterBand(chapterId: string, bandId: string | null): 
 // narrative (manuscript) position. This is what makes flashbacks sort right.
 export async function setChapterStoryTime(chapterId: string, storyTime: number | null): Promise<void> {
   const { error } = await supabase.from("chapters").update({ story_time_ref: storyTime }).eq("id", chapterId);
+  if (error) throw error;
+}
+
+// The in-world DATE: a display label ("1150 AE") plus the sortable integer key
+// parsed from it (see lib/time). Writes both at once so they never drift.
+export async function setChapterDate(chapterId: string, storyTimeRef: number | null, label: string | null): Promise<void> {
+  const { error } = await supabase.from("chapters")
+    .update({ story_time_ref: storyTimeRef, story_time_label: label })
+    .eq("id", chapterId);
   if (error) throw error;
 }
 
@@ -242,7 +251,7 @@ export async function createChapter(
   const { data, error } = await supabase
     .from("chapters")
     .insert({ world_id: worldId, title, manuscript_order: manuscriptOrder, body })
-    .select("id, world_id, title, manuscript_order, story_time_ref, body, band_id")
+    .select("id, world_id, title, manuscript_order, story_time_ref, story_time_label, body, band_id")
     .single();
   if (error) throw error;
   return data;
@@ -482,7 +491,7 @@ export async function restoreEntity(id: string): Promise<void> {
 export async function getDeletedChapters(worldId: string): Promise<Chapter[]> {
   const { data, error } = await supabase
     .from("chapters")
-    .select("id, world_id, title, manuscript_order, story_time_ref, body, band_id, deleted_at")
+    .select("id, world_id, title, manuscript_order, story_time_ref, story_time_label, body, band_id, deleted_at")
     .eq("world_id", worldId)
     .not("deleted_at", "is", null)
     .order("deleted_at", { ascending: false });

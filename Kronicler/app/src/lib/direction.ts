@@ -27,10 +27,15 @@ const INVERSE: Record<string, string> = {
 };
 
 // The suggested inverse for a forward word: a string (possibly "" for one-way),
-// or null when we have no opinion (writer decides).
+// or null when we have no opinion (writer decides). We check the whole phrase
+// first (so "is a" stays one-way), then retry with a leading copula/article
+// stripped, so a natural phrasing like "is daughter" resolves via "daughter".
 export function suggestInverse(forward: string): string | null {
   const key = forward.trim().toLowerCase();
-  return key in INVERSE ? INVERSE[key] : null;
+  if (key in INVERSE) return INVERSE[key];
+  const stripped = key.replace(/^(is|are|was|were)\s+(a|an|the)?\s*/, "").trim();
+  if (stripped && stripped !== key && stripped in INVERSE) return INVERSE[stripped];
+  return null;
 }
 
 // Direction is a two-party concept; a group (3+ participants) always reads by

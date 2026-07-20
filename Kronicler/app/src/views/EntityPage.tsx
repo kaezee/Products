@@ -14,31 +14,52 @@ import { isBelief } from "../lib/knowledge";
 import { ArcSparkline } from "./ArcSparkline";
 
 // The direction picker shared by the add-form and the edit-panel: "both ways"
-// (symmetric) vs "directional", with an optional other-side word.
-function DirectionPicker({ forward, mode, inverse, onMode, onInverse, onInverseCommit }: {
+// (symmetric) vs "directional", with an optional other-side word. When the
+// names are known it shows a live plain-English preview of BOTH readings, so a
+// writer can see at a glance which way round it points (and catch a backwards one).
+function DirectionPicker({ forward, mode, inverse, selfName, otherName, onMode, onInverse, onInverseCommit }: {
   forward: string;
   mode: "mutual" | "directed";
   inverse: string;
+  selfName?: string;
+  otherName?: string;
   onMode: (m: "mutual" | "directed") => void;
   onInverse: (s: string) => void;
   onInverseCommit?: (s: string) => void;
 }) {
   const suggestion = suggestInverse(forward);
+  const a = selfName || "this one", b = otherName || "the other";
+  const rev = inverse.trim();
   return (
-    <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap", fontSize: 12 }}>
-      <span className="seg" style={{ fontSize: 11 }}>
-        <span className={mode === "mutual" ? "on" : ""} onClick={() => onMode("mutual")}>↔ both ways</span>
-        <span className={mode === "directed" ? "on" : ""} onClick={() => onMode("directed")}>→ directional</span>
-      </span>
-      {mode === "directed" && (
-        <>
-          <span className="muted">other side reads:</span>
-          <input value={inverse} onChange={(e) => onInverse(e.target.value)}
-            onBlur={(e) => onInverseCommit?.(e.target.value)}
-            onKeyDown={(e) => { if (e.key === "Enter") onInverseCommit?.((e.target as HTMLInputElement).value); }}
-            placeholder={suggestion ? suggestion : "blank = one-way"} style={{ width: 130 }} />
-          {!inverse.trim() && <span className="faint" style={{ fontSize: 11 }}>one-way — not shown in reverse</span>}
-        </>
+    <div style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: 12 }}>
+      <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+        <span className="seg" style={{ fontSize: 11 }}>
+          <span className={mode === "mutual" ? "on" : ""} onClick={() => onMode("mutual")}>↔ both ways</span>
+          <span className={mode === "directed" ? "on" : ""} onClick={() => onMode("directed")}>→ one direction</span>
+        </span>
+        {mode === "directed" && (
+          <>
+            <span className="muted">reversed, it reads:</span>
+            <input value={inverse} onChange={(e) => onInverse(e.target.value)}
+              onBlur={(e) => onInverseCommit?.(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") onInverseCommit?.((e.target as HTMLInputElement).value); }}
+              placeholder={suggestion ? suggestion : "blank = one-way"} style={{ width: 130 }} />
+            {suggestion && !rev && <span className="faint" style={{ fontSize: 11 }}>suggested: {suggestion}</span>}
+          </>
+        )}
+      </div>
+      {/* live preview of how each page will read it */}
+      {selfName && otherName && (
+        mode === "mutual" ? (
+          <span className="faint" style={{ fontSize: 11.5 }}>
+            reads the same both ways: <b>{a}</b> {forward || "…"} <b>{b}</b>, and <b>{b}</b> {forward || "…"} <b>{a}</b>.
+          </span>
+        ) : (
+          <span className="faint" style={{ fontSize: 11.5, lineHeight: 1.6 }}>
+            On <b>{a}</b>’s page: {forward || "…"} <b>{b}</b>.<br />
+            On <b>{b}</b>’s page: {rev ? <>{rev} <b>{a}</b></> : <span style={{ fontStyle: "italic" }}>nothing (one-way — the reverse isn’t stated)</span>}.
+          </span>
+        )
       )}
     </div>
   );
@@ -46,9 +67,10 @@ function DirectionPicker({ forward, mode, inverse, onMode, onInverse, onInverseC
 
 // The edit panel for an existing connection: change its type, swap who it joins,
 // and set how each side reads (direction).
-function EditConnection({ latest, selfId, otherId, others, types, onChangeType, onSwap, onApplyDirection, onDone }: {
+function EditConnection({ latest, selfId, selfName, otherId, others, types, onChangeType, onSwap, onApplyDirection, onDone }: {
   latest: StreamRow;
   selfId: string;
+  selfName: string;
   otherId: string | null;
   others: Entity[];
   types: RelationshipType[];
@@ -57,6 +79,8 @@ function EditConnection({ latest, selfId, otherId, others, types, onChangeType, 
   onApplyDirection: (relId: string, roles: { entityId: string; role: string | null }[]) => void;
   onDone: () => void;
 }) {
+  const otherName = otherId ? others.find((o) => o.id === otherId)?.title
+    ?? latest.participants.find((p) => p.entity_id === otherId)?.title : undefined;
   const otherRole = otherId ? latest.participants.find((p) => p.entity_id === otherId)?.role ?? null : null;
   const startDirectional = latest.participants.some((p) => !!p.role);
   const [mode, setMode] = useState<"mutual" | "directed">(startDirectional ? "directed" : "mutual");
@@ -87,6 +111,7 @@ function EditConnection({ latest, selfId, otherId, others, types, onChangeType, 
       {latest.participants.length === 2 ? (
         <>
           <DirectionPicker forward={latest.type_label} mode={mode} inverse={inverse}
+            selfName={selfName} otherName={otherName}
             onMode={(m) => { setMode(m); apply(m, inverse); }}
             onInverse={setInverse}
             onInverseCommit={(s) => apply("directed", s)} />
@@ -310,7 +335,7 @@ export function EntityPage({ entity, onBack, onChanged, startEditing }: {
                   </>
                 )}
                 {history.length > 1 && <ArcSparkline history={history} />}
-                <span className="muted">{latest.manuscript_order != null ? `ch. ${latest.manuscript_order}` : "standing"}</span>
+                <span className="muted" title="Not tied to a specific chapter — a standing fact, true throughout">{latest.manuscript_order != null ? `ch. ${latest.manuscript_order}` : "no chapter"}</span>
                 <span className="rowact" title="Edit this connection" onClick={() => setEditingRel(isEditing ? null : relId)}
                   style={{ cursor: "pointer", color: isEditing ? "var(--bond)" : "var(--muted)", fontSize: 12, padding: "0 2px" }}>edit</span>
                 <span className="rowact" title="Remove connection" onClick={() => removeConnection(relId, latest.type_label)}
@@ -318,7 +343,7 @@ export function EntityPage({ entity, onBack, onChanged, startEditing }: {
               </div>
 
               {isEditing && (
-                <EditConnection latest={latest} selfId={ent.id} otherId={otherId} others={others} types={types}
+                <EditConnection latest={latest} selfId={ent.id} selfName={ent.title} otherId={otherId} others={others} types={types}
                   onChangeType={changeType} onSwap={swapPerson} onApplyDirection={applyDirection}
                   onDone={() => setEditingRel(null)} />
               )}
@@ -330,7 +355,7 @@ export function EntityPage({ entity, onBack, onChanged, startEditing }: {
                     return (
                       <div key={h.state_id} style={{ marginBottom: 6, fontSize: 12.5 }}>
                         <span style={{ color: VALENCE_COLOR[h.valence], fontWeight: 600 }}>{h.type_label}</span>
-                        <span className="muted"> · {h.manuscript_order != null ? `ch. ${h.manuscript_order}` : "standing"}</span>
+                        <span className="muted" title="Not tied to a specific chapter"> · {h.manuscript_order != null ? `ch. ${h.manuscript_order}` : "no chapter"}</span>
                         {concealed > 0 && <span style={{ color: "var(--hostile)", fontSize: 11 }}> · concealed ×{concealed}</span>}
                         {h.note && <span className="note"> — {h.note}</span>}
                       </div>
@@ -489,6 +514,7 @@ function AddConnection({ worldId, selfId, selfTitle, others, types, onAdded, onC
       </div>
       {!isGroup && forward.length > 0 && (
         <DirectionPicker forward={forward} mode={mode} inverse={inverse}
+          selfName={selfTitle} otherName={picked[0] ? others.find((o) => o.id === picked[0])?.title : undefined}
           onMode={(m) => { setDirTouched(true); setMode(m); }}
           onInverse={(s) => { setDirTouched(true); setInverse(s); }} />
       )}

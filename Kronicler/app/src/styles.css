@@ -165,6 +165,10 @@ textarea { font-family: var(--serif); }
 .tl-bandname:focus { outline: none; background: rgba(255,255,255,.5); }
 .tl-bandx { cursor: pointer; opacity: .5; font-size: 11px; }
 .tl-bandx:hover { opacity: 1; }
+/* vertical chronicle */
+.tv-scroll { overflow: auto; max-height: calc(100vh - 210px); border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+.tv-card { position: absolute; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; box-shadow: var(--pop); padding: 5px 8px 6px; box-sizing: border-box; cursor: pointer; overflow: hidden; }
+.tv-card:hover { border-color: var(--lineStrong); }
 .tl-card { position: absolute; top: 40px; width: 120px; height: 52px; border: 1px solid var(--line); border-radius: 9px; background: var(--surface); padding: 6px 9px; box-sizing: border-box; cursor: pointer; box-shadow: var(--pop); overflow: hidden; }
 .tl-card:hover { border-color: var(--lineStrong); }
 .tl-card.sel { border-color: var(--bond); box-shadow: 0 0 0 2px var(--bondBg); background: var(--bondBg); }

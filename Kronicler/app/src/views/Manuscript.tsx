@@ -117,6 +117,12 @@ export function Manuscript({ worldId, focusChapterId, go }: { worldId: string; f
     setBands((prev) => prev.map((z) => z.id === b.id ? { ...z, name } : z));
     try { await updateBand(b.id, { name }); } catch (x) { setErr(String(x)); }
   }
+  async function setArcStory(b: Band, raw: string) {
+    const story = raw.trim() || null;
+    if (story === (b.story ?? null)) return;
+    setBands((prev) => prev.map((z) => z.id === b.id ? { ...z, story } : z));
+    try { await updateBand(b.id, { story }); } catch (x) { setErr(String(x)); }
+  }
   async function removeArc(b: Band) {
     if (!confirm(`Delete arc "${b.name}"? Its chapters stay in the manuscript, just no arc — nothing is lost.`)) return;
     try { await softDeleteBand(b.id); setBands((p) => p.filter((z) => z.id !== b.id)); } catch (x) { setErr(String(x)); }
@@ -210,9 +216,14 @@ export function Manuscript({ worldId, focusChapterId, go }: { worldId: string; f
         <span onClick={() => toggle(b.id)} style={{ cursor: "pointer", color: tint, width: 12, fontSize: 12 }}>{isCollapsed ? "▸" : "▾"}</span>
         <span className="dot" style={{ background: tint }} />
         <input value={b.name} onChange={(e) => renameArc(b, e.target.value)}
-          style={{ fontFamily: "var(--serif)", fontSize: 14.5, fontWeight: 600, color: tint, border: "none", background: "transparent", padding: 0, width: 220 }} />
+          style={{ fontFamily: "var(--serif)", fontSize: 14.5, fontWeight: 600, color: tint, border: "none", background: "transparent", padding: 0, width: 190 }} />
         <span className="faint" style={{ fontSize: 11.5 }}>{count} chapter{count === 1 ? "" : "s"}{isCollapsed ? " · click ▸ to open" : ""}</span>
         <span className="spacer" />
+        <input key={"s" + b.id + (b.story ?? "")} className="tl-pick" defaultValue={b.story ?? ""}
+          placeholder="＋ story / spin-off…" title="Which story this arc belongs to — becomes a lane on the vertical timeline. Leave blank for the main story."
+          onBlur={(e) => setArcStory(b, e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter" || e.key === "Escape") (e.target as HTMLInputElement).blur(); }}
+          style={{ width: 150, fontSize: 11.5, color: "var(--sub)" }} />
         <span className="rowact" title="Delete arc" onClick={() => removeArc(b)}
           style={{ cursor: "pointer", color: "var(--faint)", fontSize: 13, padding: "0 2px" }}>✕</span>
       </div>

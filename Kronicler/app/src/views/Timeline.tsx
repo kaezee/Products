@@ -15,7 +15,7 @@ import { TimelineVertical } from "./TimelineVertical";
 // clicks open/close). Notes pin BELOW the line to a chapter, a band, or the
 // future. Bands can carry an in-world time frame ("Year 2000–2100").
 
-const COL = 132, BAND_W = 200, GAP = 14, DOTC = 5.5;
+const COL = 108, BAND_W = 150, GAP = 14, DOTC = 5.5;
 const AXIS_Y = 150, NOTE_TOP = 172, NOTE_H = 58, STACK = 66;
 const BAND_TINTS = ["#8a6fb0", "#5b8ab0", "#b08a4a", "#5f9a6a", "#b06a6a", "#7a7ab0"];
 const MIN_SCALE = 0.2, MAX_SCALE = 2, FIT_PAD = 50;
@@ -230,10 +230,6 @@ export function Timeline({ worldId, go }: { worldId: string; go: (n: Nav) => voi
     if (!confirm(`Delete arc "${b.name}"? Its chapters stay on the line, just unsorted — nothing is lost.`)) return;
     try { await softDeleteBand(b.id); setBands((p) => p.filter((z) => z.id !== b.id)); } catch (x) { setErr(String(x)); }
   }
-  async function assignChapter(chapterId: string, bandId: string | null) {
-    setChapters((prev) => prev.map((c) => c.id === chapterId ? { ...c, band_id: bandId } : c));
-    try { await setChapterBand(chapterId, bandId); } catch (x) { setErr(String(x)); }
-  }
   function onChapterClick(c: Chapter, e: React.MouseEvent) {
     if (!selecting) { go({ scope: "manuscript", chapterId: c.id }); return; }
     e.stopPropagation();
@@ -299,23 +295,16 @@ export function Timeline({ worldId, go }: { worldId: string; go: (n: Nav) => voi
   if (err) return <p className="err">{err}</p>;
   if (loading) return <p className="muted">Loading timeline…</p>;
 
-  const picker = (value: string | null, onPick: (id: string | null) => void) => (
-    <select className="tl-pick" value={value ?? ""}
-      onMouseDown={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()}
-      onChange={(e) => onPick(e.target.value || null)}>
-      <option value="">no arc</option>
-      {bands.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
-    </select>
-  );
   const chapterStop = (c: Chapter, left: number, tint: string) => {
     const dim = dimCh(c.id);
     const dateStr = c.story_time_label ?? (c.story_time_ref != null ? String(c.story_time_ref) : null);
     return (
       <div key={c.id} style={dim ? { opacity: 0.28 } : undefined}>
-        <div className={"tl-card" + (selected.has(c.id) ? " sel" : "")} style={{ left: left + 6 }} onClick={(e) => onChapterClick(c, e)}>
+        <div className={"tl-card" + (selected.has(c.id) ? " sel" : "")} style={{ left: left + 6 }} onClick={(e) => onChapterClick(c, e)}
+          title={`${c.title}${dateStr ? ` · 🕐 ${dateStr}` : ""}`}>
           <div className="tl-card-top">
-            <span className="tl-ch-no" title={dateStr ? `in-world: ${dateStr}` : undefined}>{selecting ? (selected.has(c.id) ? "☑" : "☐") : String(c.manuscript_order).padStart(2, "0")}{dateStr ? ` · 🕐${dateStr}` : ""}</span>
-            {selecting ? <span className="tl-ch-no">{String(c.manuscript_order).padStart(2, "0")}</span> : picker(c.band_id, (id) => assignChapter(c.id, id))}
+            <span className="tl-ch-no">{selecting ? (selected.has(c.id) ? "☑ " : "☐ ") : ""}{String(c.manuscript_order).padStart(2, "0")}</span>
+            {dateStr && <span className="tl-ch-date">🕐{dateStr}</span>}
           </div>
           <div className="tl-ch-title" title={c.title}>{c.title}</div>
         </div>
@@ -327,9 +316,8 @@ export function Timeline({ worldId, go }: { worldId: string; go: (n: Nav) => voi
 
   return (
     <div className="fi">
-      <div className="row" style={{ borderBottom: "none", padding: 0, marginBottom: 12, gap: 10 }}>
+      <div className="row" style={{ borderBottom: "none", padding: 0, marginBottom: 12, gap: 10, flexWrap: "wrap" }}>
         <h2 className="scope-title" style={{ margin: 0 }}>Timeline</h2>
-        <span className="faint" style={{ fontSize: 11 }}>{layout === "vertical" ? "the chronicle — time runs down, stories are lanes" : "drag to pan · scroll to zoom · click an arc to open/close · notes pin below the line"}</span>
         <span className="spacer" />
         <div className="seg" style={{ fontSize: 11 }} title="Horizontal = the story line (arcs, notes, character arcs). Vertical = the chronicle, laid out by in-world date with stories as lanes.">
           <span className={layout === "horizontal" ? "on" : ""} onClick={() => setLayout("horizontal")}>⇄ Line</span>
@@ -356,6 +344,7 @@ export function Timeline({ worldId, go }: { worldId: string; go: (n: Nav) => voi
         <TimelineVertical bands={bands} chapters={chapters} go={go} />
       ) : (
       <>
+      <div className="faint" style={{ fontSize: 11, marginBottom: 8 }}>drag to pan · scroll to zoom · click an arc to open/close · notes pin below the line</div>
       {followId && (
         <div className="tl-selbar" style={{ borderColor: "var(--bond)" }}>
           <span style={{ fontWeight: 600, color: "var(--bond)" }}>◇ {characters.find((c) => c.id === followId)?.title}</span>

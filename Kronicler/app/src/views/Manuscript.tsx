@@ -177,7 +177,10 @@ export function Manuscript({ worldId, focusChapterId, go }: { worldId: string; f
             onKeyDown={(e) => { e.stopPropagation(); if (e.key === "Enter") commitRename(c.id); if (e.key === "Escape") setRenameId(null); }}
             onBlur={() => commitRename(c.id)} />
         ) : (
-          <span className="title-serif" style={{ flex: 1 }}>{c.title}</span>
+          <span className="title-serif" style={{ flex: 1 }}>
+            {c.title}
+            {c.planned && <span className="chip" style={{ marginLeft: 8, fontSize: 10, padding: "2px 7px", borderColor: "var(--bondLine)", color: "var(--bond)" }} title="A planned beat — not written yet. Open it and write to make it a real chapter.">✎ planned</span>}
+          </span>
         )}
         <input key={"d" + c.id + (c.story_time_label ?? "") + (c.story_time_ref ?? "")}
           className="tl-pick" defaultValue={c.story_time_label ?? (c.story_time_ref != null ? String(c.story_time_ref) : "")}

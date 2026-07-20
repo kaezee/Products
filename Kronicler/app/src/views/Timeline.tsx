@@ -300,10 +300,10 @@ export function Timeline({ worldId, go }: { worldId: string; go: (n: Nav) => voi
     const dateStr = c.story_time_label ?? (c.story_time_ref != null ? String(c.story_time_ref) : null);
     return (
       <div key={c.id} style={dim ? { opacity: 0.28 } : undefined}>
-        <div className={"tl-card" + (selected.has(c.id) ? " sel" : "")} style={{ left: left + 6 }} onClick={(e) => onChapterClick(c, e)}
-          title={`${c.title}${dateStr ? ` · 🕐 ${dateStr}` : ""}`}>
+        <div className={"tl-card" + (selected.has(c.id) ? " sel" : "")} style={{ left: left + 6, borderStyle: c.planned ? "dashed" : "solid" }} onClick={(e) => onChapterClick(c, e)}
+          title={`${c.planned ? "Planned — " : ""}${c.title}${dateStr ? ` · 🕐 ${dateStr}` : ""}`}>
           <div className="tl-card-top">
-            <span className="tl-ch-no">{selecting ? (selected.has(c.id) ? "☑ " : "☐ ") : ""}{String(c.manuscript_order).padStart(2, "0")}</span>
+            <span className="tl-ch-no">{selecting ? (selected.has(c.id) ? "☑ " : "☐ ") : ""}{c.planned ? "✎ plan" : String(c.manuscript_order).padStart(2, "0")}</span>
             {dateStr && <span className="tl-ch-date">🕐{dateStr}</span>}
           </div>
           <div className="tl-ch-title" title={c.title}>{c.title}</div>
@@ -341,7 +341,7 @@ export function Timeline({ worldId, go }: { worldId: string; go: (n: Nav) => voi
       </div>
 
       {layout === "vertical" ? (
-        <TimelineVertical bands={bands} chapters={chapters} go={go} />
+        <TimelineVertical worldId={worldId} bands={bands} chapters={chapters} go={go} onChanged={reload} />
       ) : (
       <>
       <div className="faint" style={{ fontSize: 11, marginBottom: 8 }}>drag to pan · scroll to zoom · click an arc to open/close · notes pin below the line</div>

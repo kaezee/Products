@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   getRelationshipTypes, getChapterVersions, getChapterEntities,
   linkChapterEntity, saveChapterBody, getStream,
-  getEntities, createEntity, updateEntity, updateChapterTitle, setChapterDate,
+  getEntities, createEntity, updateEntity, updateChapterTitle, setChapterDate, setChapterPlanned,
 } from "../lib/api";
 import { parseStoryTime } from "../lib/time";
 import type { Chapter, Entity, RelationshipType, ChapterVersion, ChapterEntity, StreamRow } from "../lib/types";
@@ -56,6 +56,7 @@ export function ChapterEditor(props: {
   const [err, setErr] = useState<string | null>(null);
 
   const saveTimer = useRef<number | undefined>(undefined);
+  const clearedPlanned = useRef(false);
 
   const reloadSide = useCallback(() => {
     getRelationshipTypes(worldId).then(setTypes).catch((x) => setErr(String(x)));
@@ -74,6 +75,11 @@ export function ChapterEditor(props: {
       try {
         await saveChapterBody(chapter.id, next);
         setSaveState("saved");
+        // writing a planned beat turns it into a real chapter
+        if (chapter.planned && !clearedPlanned.current && next.trim()) {
+          clearedPlanned.current = true;
+          setChapterPlanned(chapter.id, false).catch(() => {});
+        }
         getChapterVersions(chapter.id).then(setVersions).catch(() => {});
       } catch (x) {
         setErr(String(x));

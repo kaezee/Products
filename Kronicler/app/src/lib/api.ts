@@ -1,6 +1,6 @@
 import { supabase } from "./supabase";
 import type {
-  World, Entity, Chapter, Band, RelationshipType, StreamRow, ChapterVersion, ChapterEntity, Note,
+  World, Entity, Chapter, Band, RelationshipType, StreamRow, ChapterVersion, ChapterEntity, Note, TimelineMarker,
 } from "./types";
 
 // ── Notes (the planning board) ───────────────────────────────────────────
@@ -136,7 +136,7 @@ export async function softDeleteEntity(id: string): Promise<void> {
 export async function getChapters(worldId: string): Promise<Chapter[]> {
   const { data, error } = await supabase
     .from("chapters")
-    .select("id, world_id, title, manuscript_order, story_time_ref, story_time_label, body, band_id")
+    .select("id, world_id, title, manuscript_order, story_time_ref, story_time_label, body, band_id, planned")
     .eq("world_id", worldId)
     .is("deleted_at", null)
     .order("manuscript_order", { ascending: true });
@@ -177,6 +177,32 @@ export async function softDeleteBand(id: string): Promise<void> {
 
 export async function setChapterBand(chapterId: string, bandId: string | null): Promise<void> {
   const { error } = await supabase.from("chapters").update({ band_id: bandId }).eq("id", chapterId);
+  if (error) throw error;
+}
+
+// ── Timeline markers (date lines, era/events, time-skip dividers) ─────────
+const MARKER_COLS = "id, world_id, kind, label, story_time_ref, story_time_label, story, color";
+export async function getMarkers(worldId: string): Promise<TimelineMarker[]> {
+  const { data, error } = await supabase
+    .from("timeline_markers").select(MARKER_COLS)
+    .eq("world_id", worldId).is("deleted_at", null);
+  if (error) throw error;
+  return (data ?? []) as TimelineMarker[];
+}
+export async function createMarker(worldId: string, m: Partial<TimelineMarker> & { kind: TimelineMarker["kind"] }): Promise<TimelineMarker> {
+  const { data, error } = await supabase
+    .from("timeline_markers")
+    .insert({ world_id: worldId, kind: m.kind, label: m.label ?? null, story_time_ref: m.story_time_ref ?? null, story_time_label: m.story_time_label ?? null, story: m.story ?? null, color: m.color ?? null })
+    .select(MARKER_COLS).single();
+  if (error) throw error;
+  return data as TimelineMarker;
+}
+export async function updateMarker(id: string, patch: Partial<Pick<TimelineMarker, "label" | "story_time_ref" | "story_time_label" | "story" | "color">>): Promise<void> {
+  const { error } = await supabase.from("timeline_markers").update(patch).eq("id", id);
+  if (error) throw error;
+}
+export async function softDeleteMarker(id: string): Promise<void> {
+  const { error } = await supabase.from("timeline_markers").update({ deleted_at: new Date().toISOString() }).eq("id", id);
   if (error) throw error;
 }
 
@@ -247,14 +273,21 @@ export async function createChapter(
   title: string,
   manuscriptOrder: number,
   body = "",
+  extra: { planned?: boolean; band_id?: string | null; story_time_ref?: number | null; story_time_label?: string | null } = {},
 ): Promise<Chapter> {
   const { data, error } = await supabase
     .from("chapters")
-    .insert({ world_id: worldId, title, manuscript_order: manuscriptOrder, body })
-    .select("id, world_id, title, manuscript_order, story_time_ref, story_time_label, body, band_id")
+    .insert({ world_id: worldId, title, manuscript_order: manuscriptOrder, body, ...extra })
+    .select("id, world_id, title, manuscript_order, story_time_ref, story_time_label, body, band_id, planned")
     .single();
   if (error) throw error;
   return data;
+}
+
+// A planned chapter is a placeholder beat; writing it clears the flag.
+export async function setChapterPlanned(chapterId: string, planned: boolean): Promise<void> {
+  const { error } = await supabase.from("chapters").update({ planned }).eq("id", chapterId);
+  if (error) throw error;
 }
 
 export async function updateChapterTitle(chapterId: string, title: string): Promise<void> {
@@ -446,8 +479,8 @@ export async function exportWorld(worldId: string, worldName: string): Promise<o
     if (error) throw error;
     return data ?? [];
   };
-  const [entities, chapters, bands, notes, types, rels] = await Promise.all([
-    grab("entities"), grab("chapters"), grab("bands"), grab("notes"), grab("relationship_types"), grab("relationships"),
+  const [entities, chapters, bands, notes, types, rels, timeline_markers] = await Promise.all([
+    grab("entities"), grab("chapters"), grab("bands"), grab("notes"), grab("relationship_types"), grab("relationships"), grab("timeline_markers"),
   ]);
   const relIds = rels.map((r: { id: string }) => r.id);
   const chIds = chapters.map((c: { id: string }) => c.id);
@@ -465,7 +498,7 @@ export async function exportWorld(worldId: string, worldName: string): Promise<o
   return {
     format: "kronicler-world-backup", version: 1, exported_at: new Date().toISOString(),
     world: { id: worldId, name: worldName },
-    entities, chapters, chapter_entities, bands, notes,
+    entities, chapters, chapter_entities, bands, notes, timeline_markers,
     relationship_types: types, relationships: rels, relationship_participants, relationship_states,
   };
 }
@@ -491,7 +524,7 @@ export async function restoreEntity(id: string): Promise<void> {
 export async function getDeletedChapters(worldId: string): Promise<Chapter[]> {
   const { data, error } = await supabase
     .from("chapters")
-    .select("id, world_id, title, manuscript_order, story_time_ref, story_time_label, body, band_id, deleted_at")
+    .select("id, world_id, title, manuscript_order, story_time_ref, story_time_label, body, band_id, planned, deleted_at")
     .eq("world_id", worldId)
     .not("deleted_at", "is", null)
     .order("deleted_at", { ascending: false });

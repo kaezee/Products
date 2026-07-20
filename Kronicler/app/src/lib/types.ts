@@ -54,6 +54,20 @@ export interface Chapter {
   story_time_label: string | null;
   body: string;
   band_id: string | null;
+  planned: boolean;
+}
+
+// A timeline-only marker: a labelled date line, an era/event, or a time-skip
+// divider. Never part of the manuscript — pure planning annotation.
+export interface TimelineMarker {
+  id: string;
+  world_id: string;
+  kind: "date" | "event" | "timeskip";
+  label: string | null;
+  story_time_ref: number | null;
+  story_time_label: string | null;
+  story: string | null;
+  color: string | null;
 }
 
 export interface Band {

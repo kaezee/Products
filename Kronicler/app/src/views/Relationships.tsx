@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { getStream, getEntities, getRelationshipTypes } from "../lib/api";
+import { getStream, getEntities, getRelationshipTypes, softDeleteRelationship } from "../lib/api";
 import type { StreamRow, Entity, RelationshipType } from "../lib/types";
 import type { Nav } from "../App";
 import { VALENCE_COLOR } from "../lib/valence";
@@ -77,6 +77,14 @@ export function Relationships({ worldId, go }: { worldId: string; go: (n: Nav) =
     [filtered],
   );
 
+  async function removeRelationship(relId: string, label: string) {
+    if (!confirm(`Remove the "${label}" relationship and its whole history? It's soft-deleted — recoverable, nothing is truly lost.`)) return;
+    try {
+      await softDeleteRelationship(relId);
+      setRows((prev) => (prev ?? []).filter((r) => r.relationship_id !== relId));
+    } catch (x) { setErr(String(x)); }
+  }
+
   if (err) return <p className="err">{err}</p>;
   if (!rows) return <p className="muted">Loading…</p>;
 
@@ -145,7 +153,10 @@ export function Relationships({ worldId, go }: { worldId: string; go: (n: Nav) =
                   )}
                   <span className="note" style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.note}</span>
                   {concealed > 0 && <span style={{ color: "var(--hostile)", fontSize: 11 }}>concealed ×{concealed}</span>}
-                  <span className="muted" style={{ whiteSpace: "nowrap" }}>{s.manuscript_order != null ? `ch. ${s.manuscript_order}` : "standing"}</span>
+                  <span className="muted" style={{ whiteSpace: "nowrap" }} title="Not tied to a specific chapter — a standing fact, true throughout">{s.manuscript_order != null ? `ch. ${s.manuscript_order}` : "no chapter"}</span>
+                  <span className="rowact" title="Remove this relationship"
+                    onClick={() => removeRelationship(s.relationship_id, s.type_label)}
+                    style={{ cursor: "pointer", color: "var(--faint)", fontSize: 13, padding: "0 2px" }}>✕</span>
                 </div>
               );
             })}

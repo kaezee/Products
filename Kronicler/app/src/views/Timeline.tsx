@@ -217,7 +217,7 @@ export function Timeline({ worldId, go }: { worldId: string; go: (n: Nav) => voi
   }
   async function addBand() {
     const order = bands.length ? Math.max(...bands.map((b) => b.band_order)) + 1 : 0;
-    try { const b = await createBand(worldId, `Band ${bands.length + 1}`, order); setBands((p) => [...p, b]); }
+    try { const b = await createBand(worldId, `Arc ${bands.length + 1}`, order); setBands((p) => [...p, b]); }
     catch (x) { setErr(String(x)); }
   }
   async function patchBand(b: Band, patch: Partial<Band>) {
@@ -225,7 +225,7 @@ export function Timeline({ worldId, go }: { worldId: string; go: (n: Nav) => voi
     try { await updateBand(b.id, patch); } catch (x) { setErr(String(x)); }
   }
   async function removeBand(b: Band) {
-    if (!confirm(`Delete band "${b.name}"? Its chapters stay on the line, just unbanded — nothing is lost.`)) return;
+    if (!confirm(`Delete arc "${b.name}"? Its chapters stay on the line, just unsorted — nothing is lost.`)) return;
     try { await softDeleteBand(b.id); setBands((p) => p.filter((z) => z.id !== b.id)); } catch (x) { setErr(String(x)); }
   }
   async function assignChapter(chapterId: string, bandId: string | null) {
@@ -258,7 +258,7 @@ export function Timeline({ worldId, go }: { worldId: string; go: (n: Nav) => voi
     if (selected.size === 0) return;
     try {
       const order = bands.length ? Math.max(...bands.map((b) => b.band_order)) + 1 : 0;
-      const b = await createBand(worldId, `Season ${bands.length + 1}`, order);
+      const b = await createBand(worldId, `Arc ${bands.length + 1}`, order);
       setBands((p) => [...p, b]);
       await assignMany(b.id);
     } catch (x) { setErr(String(x)); }
@@ -301,7 +301,7 @@ export function Timeline({ worldId, go }: { worldId: string; go: (n: Nav) => voi
     <select className="tl-pick" value={value ?? ""}
       onMouseDown={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()}
       onChange={(e) => onPick(e.target.value || null)}>
-      <option value="">unbanded</option>
+      <option value="">no arc</option>
       {bands.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
     </select>
   );
@@ -326,7 +326,7 @@ export function Timeline({ worldId, go }: { worldId: string; go: (n: Nav) => voi
     <div className="fi">
       <div className="row" style={{ borderBottom: "none", padding: 0, marginBottom: 12, gap: 10 }}>
         <h2 className="scope-title" style={{ margin: 0 }}>Timeline</h2>
-        <span className="faint" style={{ fontSize: 11 }}>drag to pan · scroll to zoom · click a band to open/close · notes pin below the line</span>
+        <span className="faint" style={{ fontSize: 11 }}>drag to pan · scroll to zoom · click an arc to open/close · notes pin below the line</span>
         <span className="spacer" />
         <div className="seg" style={{ fontSize: 11 }} title="Narrative = chapter order (as written). In-world = chronological, by each chapter's in-world time (flashbacks move).">
           <span className={timeAxis === "narrative" ? "on" : ""} onClick={() => setTimeAxis("narrative")}>Narrative</span>
@@ -340,7 +340,7 @@ export function Timeline({ worldId, go }: { worldId: string; go: (n: Nav) => voi
           </select>
         )}
         <button onClick={addNote}>+ Note</button>
-        <button onClick={addBand}>+ Band</button>
+        <button onClick={addBand}>+ Arc</button>
       </div>
 
       {followId && (
@@ -358,18 +358,18 @@ export function Timeline({ worldId, go }: { worldId: string; go: (n: Nav) => voi
           <span className="faint" style={{ fontSize: 11 }}>click chapters to pick · shift-click for a range</span>
           <span className="spacer" />
           <select className="sel" value="" disabled={selected.size === 0} onChange={(e) => e.target.value && assignMany(e.target.value === "__none" ? null : e.target.value)}>
-            <option value="">assign to band…</option>
+            <option value="">assign to arc…</option>
             {bands.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
-            <option value="__none">— unband</option>
+            <option value="__none">— no arc</option>
           </select>
-          <button disabled={selected.size === 0} onClick={newBandFromSelection}>＋ New band</button>
+          <button disabled={selected.size === 0} onClick={newBandFromSelection}>＋ New arc</button>
           <button disabled={selected.size === 0} onClick={() => { setSelected(new Set()); anchorRef.current = null; }}>Clear</button>
           <button onClick={() => { setSelecting(false); setSelected(new Set()); anchorRef.current = null; }}>Done</button>
         </div>
       )}
 
       {ordered.length === 0 && notes.length === 0 ? (
-        <div className="card"><div className="row"><span className="muted">No chapters yet — write some in the Manuscript, then group them into bands here.</span></div></div>
+        <div className="card"><div className="row"><span className="muted">No chapters yet — write some in the Manuscript, then group them into arcs here.</span></div></div>
       ) : (
         <div ref={boardRef} className={"notes-board" + (panning ? " panning" : "")}
           onMouseDown={startPan} onMouseMove={onMove} onMouseUp={endPan} onMouseLeave={endPan}>
@@ -382,7 +382,7 @@ export function Timeline({ worldId, go }: { worldId: string; go: (n: Nav) => voi
                 <div className="tl-unsorted" style={{ left: firstUnbandedSeg.x + 6 }}
                   onMouseDown={(e) => e.stopPropagation()}
                   onClick={() => { setSelecting(true); setSelected(new Set(unbandedIds)); anchorRef.current = null; }}>
-                  ☐ {unbandedIds.length} unsorted — band them
+                  ☐ {unbandedIds.length} unsorted — group into an arc
                 </div>
               )}
 
@@ -404,7 +404,7 @@ export function Timeline({ worldId, go }: { worldId: string; go: (n: Nav) => voi
                           onMouseDown={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()}
                           onChange={(e) => patchBand(band, { time_frame: e.target.value })} />
                       )}
-                      <span className="tl-bandx" title="Delete band" onMouseDown={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); removeBand(band); }}>✕</span>
+                      <span className="tl-bandx" title="Delete arc" onMouseDown={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); removeBand(band); }}>✕</span>
                     </div>
                     {exp ? (
                       chs.map((c, i) => chapterStop(c, sx + i * COL, tint))
@@ -468,7 +468,7 @@ export function Timeline({ worldId, go }: { worldId: string; go: (n: Nav) => voi
 
       {emptyBands.length > 0 && (
         <div className="row" style={{ borderBottom: "none", padding: "10px 2px 0", gap: 8, flexWrap: "wrap" }}>
-          <span className="faint" style={{ fontSize: 11 }}>empty bands (assign chapters to place them on the line):</span>
+          <span className="faint" style={{ fontSize: 11 }}>empty arcs (assign chapters to place them on the line):</span>
           {emptyBands.map((b) => (
             <span key={b.id} className="chip" style={{ borderColor: tintOf(b), color: tintOf(b) }}>
               <input className="tl-bandname" value={b.name} style={{ width: 90, color: "inherit" }} onChange={(e) => patchBand(b, { name: e.target.value })} />

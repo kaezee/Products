@@ -8,7 +8,6 @@ import type { Band, Chapter, Note, Entity, StreamRow } from "../lib/types";
 import type { Nav } from "../App";
 import { VALENCE_COLOR } from "../lib/valence";
 import { isBelief } from "../lib/knowledge";
-import { TimelineVertical } from "./TimelineVertical";
 
 // The Timeline: a pan/zoom canvas with a horizontal time spine. Chapters ride
 // ABOVE the line, grouped into bands (a season/novel collapses to one block,
@@ -34,7 +33,6 @@ export function Timeline({ worldId, go }: { worldId: string; go: (n: Nav) => voi
   const [followId, setFollowId] = useState<string>("");
   const [appears, setAppears] = useState<Set<string>>(new Set());
   const [timeAxis, setTimeAxis] = useState<"narrative" | "world">("narrative");
-  const [layout, setLayout] = useState<"horizontal" | "vertical">("horizontal");
   const [err, setErr] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
@@ -261,17 +259,21 @@ export function Timeline({ worldId, go }: { worldId: string; go: (n: Nav) => voi
       await assignMany(b.id);
     } catch (x) { setErr(String(x)); }
   }
-  async function addNote() {
+  // Double-click empty canvas → drop a free note right there (write anything in
+  // it — a beat, a reminder, "time-skip"). Grab and drag it anywhere afterwards.
+  async function addNoteAt(clientX: number, clientY: number) {
     try {
-      // drop it near the centre of the current view, on the timeline
-      const r = boardRef.current?.getBoundingClientRect();
-      const c = r ? toWorld(r.left + r.width / 2 - 64 * view.s, r.top + r.height * 0.55) : { x: 80, y: 200 };
-      const px = Math.round(c.x), py = Math.max(NOTE_TOP, Math.round(c.y));
+      const w = toWorld(clientX, clientY);
+      const px = Math.round(w.x - 64), py = Math.max(NOTE_TOP, Math.round(w.y - 20));
       const n = await createNote(worldId, px, py, true);
-      const anchor: Partial<Note> = ordered[0] ? { chapter_ids: [ordered[0].id] } : { plan_ref: "planned" };
-      await updateNote(n.id, { body: "New note", ...anchor });
-      setNotes((p) => [...p, { ...n, body: "New note", on_timeline: true, ...anchor } as Note]);
+      const anchor: Partial<Note> = { chapter_ids: [], band_id: null, plan_ref: null };
+      await updateNote(n.id, { body: "", ...anchor });
+      setNotes((p) => [...p, { ...n, x: px, y: py, body: "", on_timeline: true, ...anchor } as Note]);
     } catch (x) { setErr(String(x)); }
+  }
+  function onBoardDoubleClick(e: React.MouseEvent) {
+    if ((e.target as HTMLElement).closest(".tl-card, .tl-summary, .tl-bandbar, .tl-pinnote, .tl-unsorted, select, input, button")) return;
+    void addNoteAt(e.clientX, e.clientY);
   }
   function patchNoteLocal(id: string, patch: Partial<Note>) {
     setNotes((prev) => prev.map((n) => n.id === id ? { ...n, ...patch } : n));
@@ -319,32 +321,21 @@ export function Timeline({ worldId, go }: { worldId: string; go: (n: Nav) => voi
       <div className="row" style={{ borderBottom: "none", padding: 0, marginBottom: 12, gap: 10, flexWrap: "wrap" }}>
         <h2 className="scope-title" style={{ margin: 0 }}>Timeline</h2>
         <span className="spacer" />
-        <div className="seg" style={{ fontSize: 11 }} title="Horizontal = the story line (arcs, notes, character arcs). Vertical = the chronicle, laid out by in-world date with stories as lanes.">
-          <span className={layout === "horizontal" ? "on" : ""} onClick={() => setLayout("horizontal")}>⇄ Line</span>
-          <span className={layout === "vertical" ? "on" : ""} onClick={() => setLayout("vertical")}>⇅ Chronicle</span>
+        <div className="seg" style={{ fontSize: 11 }} title="Narrative = chapter order (as written). In-world = chronological, by each chapter's in-world time (flashbacks move).">
+          <span className={timeAxis === "narrative" ? "on" : ""} onClick={() => setTimeAxis("narrative")}>Narrative</span>
+          <span className={timeAxis === "world" ? "on" : ""} onClick={() => setTimeAxis("world")}>🕐 In-world</span>
         </div>
-        {layout === "horizontal" && (
-          <div className="seg" style={{ fontSize: 11 }} title="Narrative = chapter order (as written). In-world = chronological, by each chapter's in-world time (flashbacks move).">
-            <span className={timeAxis === "narrative" ? "on" : ""} onClick={() => setTimeAxis("narrative")}>Narrative</span>
-            <span className={timeAxis === "world" ? "on" : ""} onClick={() => setTimeAxis("world")}>🕐 In-world</span>
-          </div>
-        )}
-        {layout === "horizontal" && characters.length > 0 && (
+        {characters.length > 0 && (
           <select className={"sel" + (followId ? " " : "")} value={followId} onChange={(e) => setFollowId(e.target.value)}
             style={followId ? { borderColor: "var(--bond)", color: "var(--bond)" } : undefined} title="Trace one character's arc across the line">
             <option value="">Follow a character…</option>
             {characters.map((e) => <option key={e.id} value={e.id}>◇ {e.title}</option>)}
           </select>
         )}
-        {layout === "horizontal" && <button onClick={addNote}>+ Note</button>}
-        {layout === "horizontal" && <button onClick={addBand}>+ Arc</button>}
+        <button onClick={addBand}>+ Arc</button>
       </div>
 
-      {layout === "vertical" ? (
-        <TimelineVertical worldId={worldId} bands={bands} chapters={chapters} go={go} onChanged={reload} />
-      ) : (
-      <>
-      <div className="faint" style={{ fontSize: 11, marginBottom: 8 }}>drag to pan · scroll to zoom · click an arc to open/close · notes pin below the line</div>
+      <div className="faint" style={{ fontSize: 11, marginBottom: 8 }}>double-click anywhere to drop a note · drag to pan · scroll to zoom · click an arc to open/close</div>
       {followId && (
         <div className="tl-selbar" style={{ borderColor: "var(--bond)" }}>
           <span style={{ fontWeight: 600, color: "var(--bond)" }}>◇ {characters.find((c) => c.id === followId)?.title}</span>
@@ -370,11 +361,8 @@ export function Timeline({ worldId, go }: { worldId: string; go: (n: Nav) => voi
         </div>
       )}
 
-      {ordered.length === 0 && notes.length === 0 ? (
-        <div className="card"><div className="row"><span className="muted">No chapters yet — write some in the Manuscript, then group them into arcs here.</span></div></div>
-      ) : (
         <div ref={boardRef} className={"notes-board" + (panning ? " panning" : "")}
-          onMouseDown={startPan} onMouseMove={onMove} onMouseUp={endPan} onMouseLeave={endPan}>
+          onMouseDown={startPan} onMouseMove={onMove} onMouseUp={endPan} onMouseLeave={endPan} onDoubleClick={onBoardDoubleClick}>
           <div className="notes-canvas" style={{ transform: `translate(${view.tx}px, ${view.ty}px) scale(${view.s})`, transformOrigin: "0 0" }}>
             <div className="tl-inner" style={{ width: contentW, height: contentH }}>
               <div className="tl-axis" style={{ width: contentW - 20, top: AXIS_Y }} />
@@ -466,7 +454,6 @@ export function Timeline({ worldId, go }: { worldId: string; go: (n: Nav) => voi
             <button title="Zoom in" onClick={() => zoomButton(1)}>+</button>
           </div>
         </div>
-      )}
 
       {emptyBands.length > 0 && (
         <div className="row" style={{ borderBottom: "none", padding: "10px 2px 0", gap: 8, flexWrap: "wrap" }}>
@@ -478,8 +465,6 @@ export function Timeline({ worldId, go }: { worldId: string; go: (n: Nav) => voi
             </span>
           ))}
         </div>
-      )}
-      </>
       )}
     </div>
   );

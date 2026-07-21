@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   getSegments, createSegment, updateSegment, softDeleteSegment, setChapterSegment,
-  getChapters,
+  getChapters, getMarkers, createMarker, softDeleteMarker,
 } from "../lib/api";
-import type { Segment, Chapter } from "../lib/types";
+import type { Segment, Chapter, TimelineMarker } from "../lib/types";
 import type { Nav } from "../App";
 import { parseStoryTime } from "../lib/time";
 
@@ -15,7 +15,7 @@ import { parseStoryTime } from "../lib/time";
 // segment. Chapters not on the line wait in the collapsible right sidebar, where
 // you can bulk-select and drop them into a segment.
 
-const BAR_H = 8, LABEL_H = 16, CH_ROW = 34, CH_SQ = 30, PAD_Y = 14;
+const BAR_H = 8, LABEL_H = 16, CH_ROW = 34, CH_SQ = 30, PAD_Y = 28;
 const MIN_PPY = 0.002, MAX_PPY = 240;
 const KIND_TINT: Record<string, string> = { series: "#8a6fb0", book: "#5b8ab0", season: "#5b8ab0", volume: "#5f9a6a" };
 
@@ -25,6 +25,7 @@ type Span = [number, number];
 export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) => void }) {
   const [segments, setSegments] = useState<Segment[]>([]);
   const [chapters, setChapters] = useState<Chapter[]>([]);
+  const [markers, setMarkers] = useState<TimelineMarker[]>([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
   const [view, setView] = useState<View>({ start: 0, ppy: 1, ty: 0 });
@@ -33,6 +34,9 @@ export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) =
   const [sideOpen, setSideOpen] = useState(true);
   const [sel, setSel] = useState<Set<string>>(new Set());
   const [bulkSeg, setBulkSeg] = useState("");
+  const [noteOpen, setNoteOpen] = useState(false);
+  const [noteYear, setNoteYear] = useState(""); const [noteText, setNoteText] = useState("");
+  const viewRef = useRef(view); viewRef.current = view;
 
   const [adding, setAdding] = useState(false);
   const [fName, setFName] = useState(""); const [fKind, setFKind] = useState("series");
@@ -44,8 +48,8 @@ export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) =
 
   async function reload() {
     try {
-      const [s, c] = await Promise.all([getSegments(worldId), getChapters(worldId)]);
-      setSegments(s); setChapters(c);
+      const [s, c, m] = await Promise.all([getSegments(worldId), getChapters(worldId), getMarkers(worldId)]);
+      setSegments(s); setChapters(c); setMarkers(m);
     } catch (x) { setErr(String(x)); } finally { setLoading(false); }
   }
   useEffect(() => { setLoading(true); setFitDone(false); void reload(); /* eslint-disable-next-line */ }, [worldId]);
@@ -123,26 +127,43 @@ export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) =
   const localX = (clientX: number) => clientX - (boardRef.current?.getBoundingClientRect().left ?? 0);
   const ticks = useMemo(() => niceTicks(yearOf(0), yearOf(nowW), Math.max(3, Math.round(nowW / 130))), [view, nowW]);
 
+  // one stable wheel listener (reads live view via ref → no re-subscribe jank).
+  // Trackpad two-finger scroll pans; ⌘/ctrl-scroll (or pinch) zooms smoothly.
   useEffect(() => {
-    const el = boardRef.current; if (!el || loading) return;
+    const el = boardRef.current; if (!el) return;
     const onWheel = (e: WheelEvent) => {
       e.preventDefault();
-      const lx = localX(e.clientX), yr = yearOf(lx);
-      const f = e.deltaY < 0 ? 1.15 : 1 / 1.15;
-      setView((v) => { const ppy = Math.min(MAX_PPY, Math.max(MIN_PPY, v.ppy * f)); return { ...v, ppy, start: yr - lx / ppy }; });
+      const v = viewRef.current;
+      if (e.ctrlKey || e.metaKey) {
+        const lx = localX(e.clientX), yr = v.start + lx / v.ppy;
+        const ppy = clamp(v.ppy * Math.exp(-e.deltaY * 0.01), MIN_PPY, MAX_PPY);
+        setView({ ...v, ppy, start: yr - lx / ppy });
+      } else {
+        setView({ ...v, start: v.start + e.deltaX / v.ppy, ty: v.ty - e.deltaY });
+      }
     };
     el.addEventListener("wheel", onWheel, { passive: false });
     const ro = new ResizeObserver(() => setNowW(el.clientWidth));
     ro.observe(el);
     return () => { el.removeEventListener("wheel", onWheel); ro.disconnect(); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loading, view.ppy, view.start]);
+  }, []);
+
+  function zoomBy(factor: number) {
+    setView((v) => { const lx = nowW / 2, yr = v.start + lx / v.ppy; const ppy = clamp(v.ppy * factor, MIN_PPY, MAX_PPY); return { ...v, ppy, start: yr - lx / ppy }; });
+  }
+  function fitView() {
+    const w = boardRef.current?.clientWidth ?? nowW;
+    if (!domain) { setView({ start: 0, ppy: 1, ty: 0 }); return; }
+    const span = (domain.hi - domain.lo) * 1.15 || 100;
+    setView({ start: domain.lo - (domain.hi - domain.lo) * 0.07 - 2, ppy: clamp(w / span, MIN_PPY, MAX_PPY), ty: 0 });
+  }
 
   function onDown(e: React.MouseEvent) {
     const t = e.target as HTMLElement;
     const handle = t.closest("[data-edge]") as HTMLElement | null;
     if (handle) { resizeRef.current = { id: handle.dataset.seg!, edge: handle.dataset.edge as "start" | "end" }; e.preventDefault(); return; }
-    if (t.closest(".wt2-seglab, .wt2-ch, button, input, select")) return;
+    if (t.closest(".wt2-seglab, .wt2-ch, .wt2-note, button, input, select")) return;
     panRef.current = { x: e.clientX, y: e.clientY, start: view.start, ty: view.ty };
   }
   function onMove(e: React.MouseEvent) {
@@ -159,7 +180,7 @@ export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) =
     if (r) { const s = segments.find((z) => z.id === r.id); if (s) updateSegment(s.id, { start_ref: s.start_ref, end_ref: s.end_ref }).catch((x) => setErr(String(x))); }
   }
   function onDouble(e: React.MouseEvent) {
-    if ((e.target as HTMLElement).closest(".wt2-seglab, .wt2-ch, button, input, select")) return;
+    if ((e.target as HTMLElement).closest(".wt2-seglab, .wt2-ch, .wt2-note, button, input, select")) return;
     const yr = Math.round(yearOf(localX(e.clientX)));
     setFName(""); setFKind("series"); setFParent(""); setFStart(String(yr)); setFEnd(String(yr + 100)); setAdding(true);
   }
@@ -183,6 +204,15 @@ export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) =
     catch (x) { setErr(String(x)); }
   }
   const toggleSel = (id: string) => setSel((p) => { const n = new Set(p); n.has(id) ? n.delete(id) : n.add(id); return n; });
+  async function addNote() {
+    if (!noteText.trim()) { setNoteOpen(false); return; }
+    try {
+      const yr = noteYear.trim() ? parseStoryTime(noteYear) : null;
+      await createMarker(worldId, { kind: "note", label: noteText.trim(), story_time_ref: yr, story_time_label: noteYear.trim() || null });
+      setNoteText(""); setNoteYear(""); setNoteOpen(false); setErr(null); await reload();
+    } catch (x) { setErr(String(x)); }
+  }
+  async function delMarker(id: string) { try { await softDeleteMarker(id); await reload(); } catch (x) { setErr(String(x)); } }
 
   if (err) return <p className="err">{err}</p>;
   if (loading) return <p className="muted">Loading world timeline…</p>;
@@ -193,8 +223,14 @@ export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) =
     <div className="fi">
       <div className="row" style={{ borderBottom: "none", padding: 0, marginBottom: 4, gap: 8, flexWrap: "wrap" }}>
         <h2 className="scope-title" style={{ margin: 0 }}>World Timeline</h2>
-        <span className="faint" style={{ fontSize: 11 }}>double-click to draw a segment · drag anywhere to pan · scroll to zoom time · drag a bar's ends to resize</span>
+        <span className="faint" style={{ fontSize: 11 }}>drag or scroll to pan · ⌘/ctrl-scroll (or pinch) to zoom · double-click to draw a segment · drag a bar's ends to resize</span>
         <span className="spacer" />
+        <span className="seg" style={{ fontSize: 13 }}>
+          <span onClick={() => zoomBy(1 / 1.35)} title="Zoom out">−</span>
+          <span onClick={fitView} title="Fit everything" style={{ fontSize: 12 }}>Fit</span>
+          <span onClick={() => zoomBy(1.35)} title="Zoom in">+</span>
+        </span>
+        <button onClick={() => { setNoteText(""); setNoteYear(String(Math.round(yearOf(nowW / 2)))); setNoteOpen(true); }}>+ Note</button>
         <button onClick={() => { const yr = Math.round(yearOf(nowW / 2)); setFName(""); setFKind("series"); setFParent(""); setFStart(String(yr)); setFEnd(String(yr + 100)); setAdding(true); }}>+ Segment</button>
       </div>
 
@@ -215,6 +251,16 @@ export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) =
         </div>
       )}
 
+      {noteOpen && (
+        <div className="card" style={{ padding: 10, marginBottom: 10, display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+          <span className="wt2-kind" style={{ color: "var(--obligation)" }}>note</span>
+          <input autoFocus placeholder="Note — a thought, an event, a reminder…" value={noteText} onChange={(e) => setNoteText(e.target.value)} style={{ width: 280 }} />
+          <input placeholder="🕐 year (blank = no time)" value={noteYear} onChange={(e) => setNoteYear(e.target.value)} style={{ width: 150 }} title="A year pins it on the ruler; leave blank to keep it in the sidebar." />
+          <button className="primary" onClick={addNote}>Add</button>
+          <button onClick={() => setNoteOpen(false)}>Cancel</button>
+        </div>
+      )}
+
       <div className="wt2-wrap">
         <div ref={boardRef} className="wt2-board" onMouseDown={onDown} onMouseMove={onMove} onMouseUp={onUp} onMouseLeave={onUp} onDoubleClick={onDouble}>
           <div className="wt2-ruler">
@@ -225,7 +271,13 @@ export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) =
           </div>
 
           <div className="wt2-content" style={{ transform: `translateY(${view.ty}px)` }}>
-            {segments.length === 0 && (
+            {markers.filter((m) => m.story_time_ref != null).map((m) => (
+              <div key={m.id} className="wt2-note" style={{ left: xOf(m.story_time_ref!) }} title={`${m.label ?? ""} · ${m.story_time_label ?? m.story_time_ref}`}>
+                <span className="wt2-notedot" />
+                <span className="wt2-notelab">✎ {trunc(m.label ?? "note", 22)}<span className="wt2-x" onClick={() => delMarker(m.id)}>✕</span></span>
+              </div>
+            ))}
+            {segments.length === 0 && markers.length === 0 && (
               <div className="wt2-empty">Double-click anywhere on the ruler to draw your first segment — a series, a book, an era. Then bulk-add chapters from the sidebar.</div>
             )}
             {rows.map(({ seg, depth, y, hasCh }) => {
@@ -292,6 +344,18 @@ export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) =
                 <span className="wt2-open" onClick={(e) => { e.stopPropagation(); go({ scope: "manuscript", chapterId: c.id }); }}>↗</span>
               </div>
             ))}
+            {markers.some((m) => m.story_time_ref == null) && (
+              <>
+                <div className="wt2-sidelab" style={{ marginTop: 16 }}>Notes · no time</div>
+                <div className="wt2-sidesub">give one a year to pin it on the ruler</div>
+                {markers.filter((m) => m.story_time_ref == null).map((m) => (
+                  <div key={m.id} className="wt2-sideitem" title={m.label ?? ""}>
+                    <span>✎ {trunc(m.label ?? "note", 20)}</span>
+                    <span className="wt2-open" onClick={() => delMarker(m.id)}>✕</span>
+                  </div>
+                ))}
+              </>
+            )}
           </div>
         ) : (
           <div className="wt2-side collapsed" onClick={() => setSideOpen(true)} title="Show chapters">
@@ -304,6 +368,7 @@ export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) =
 }
 
 const trunc = (s: string, n = 12) => (s.length > n ? s.slice(0, n) + "…" : s);
+const clamp = (n: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, n));
 
 function niceTicks(min: number, max: number, count: number): number[] {
   const span = max - min; if (span <= 0) return [Math.round(min)];

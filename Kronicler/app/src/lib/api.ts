@@ -1,6 +1,6 @@
 import { supabase } from "./supabase";
 import type {
-  World, Entity, Chapter, Band, RelationshipType, StreamRow, ChapterVersion, ChapterEntity, Note, TimelineMarker,
+  World, Entity, Chapter, Band, RelationshipType, StreamRow, ChapterVersion, ChapterEntity, Note, TimelineMarker, Segment,
 } from "./types";
 
 // ── Notes (the planning board) ───────────────────────────────────────────
@@ -136,7 +136,7 @@ export async function softDeleteEntity(id: string): Promise<void> {
 export async function getChapters(worldId: string): Promise<Chapter[]> {
   const { data, error } = await supabase
     .from("chapters")
-    .select("id, world_id, title, manuscript_order, story_time_ref, story_time_label, body, band_id, planned")
+    .select("id, world_id, title, manuscript_order, story_time_ref, story_time_label, body, band_id, segment_id, planned")
     .eq("world_id", worldId)
     .is("deleted_at", null)
     .order("manuscript_order", { ascending: true });
@@ -177,6 +177,37 @@ export async function softDeleteBand(id: string): Promise<void> {
 
 export async function setChapterBand(chapterId: string, bandId: string | null): Promise<void> {
   const { error } = await supabase.from("chapters").update({ band_id: bandId }).eq("id", chapterId);
+  if (error) throw error;
+}
+
+// ── World Timeline segments (the recursive Series/Book/Volume tree) ────────
+const SEG_COLS = "id, world_id, parent_id, kind, name, color, seg_order, start_ref, end_ref";
+export async function getSegments(worldId: string): Promise<Segment[]> {
+  const { data, error } = await supabase
+    .from("segments").select(SEG_COLS)
+    .eq("world_id", worldId).is("deleted_at", null)
+    .order("seg_order", { ascending: true });
+  if (error) throw error;
+  return (data ?? []) as Segment[];
+}
+export async function createSegment(worldId: string, s: Partial<Segment>): Promise<Segment> {
+  const { data, error } = await supabase.from("segments")
+    .insert({ world_id: worldId, parent_id: s.parent_id ?? null, kind: s.kind ?? "segment", name: s.name ?? "New segment",
+      color: s.color ?? null, seg_order: s.seg_order ?? 0, start_ref: s.start_ref ?? null, end_ref: s.end_ref ?? null })
+    .select(SEG_COLS).single();
+  if (error) throw error;
+  return data as Segment;
+}
+export async function updateSegment(id: string, patch: Partial<Pick<Segment, "parent_id" | "kind" | "name" | "color" | "seg_order" | "start_ref" | "end_ref">>): Promise<void> {
+  const { error } = await supabase.from("segments").update(patch).eq("id", id);
+  if (error) throw error;
+}
+export async function softDeleteSegment(id: string): Promise<void> {
+  const { error } = await supabase.from("segments").update({ deleted_at: new Date().toISOString() }).eq("id", id);
+  if (error) throw error;
+}
+export async function setChapterSegment(chapterId: string, segmentId: string | null): Promise<void> {
+  const { error } = await supabase.from("chapters").update({ segment_id: segmentId }).eq("id", chapterId);
   if (error) throw error;
 }
 
@@ -278,7 +309,7 @@ export async function createChapter(
   const { data, error } = await supabase
     .from("chapters")
     .insert({ world_id: worldId, title, manuscript_order: manuscriptOrder, body, ...extra })
-    .select("id, world_id, title, manuscript_order, story_time_ref, story_time_label, body, band_id, planned")
+    .select("id, world_id, title, manuscript_order, story_time_ref, story_time_label, body, band_id, segment_id, planned")
     .single();
   if (error) throw error;
   return data;
@@ -524,7 +555,7 @@ export async function restoreEntity(id: string): Promise<void> {
 export async function getDeletedChapters(worldId: string): Promise<Chapter[]> {
   const { data, error } = await supabase
     .from("chapters")
-    .select("id, world_id, title, manuscript_order, story_time_ref, story_time_label, body, band_id, planned, deleted_at")
+    .select("id, world_id, title, manuscript_order, story_time_ref, story_time_label, body, band_id, segment_id, planned, deleted_at")
     .eq("world_id", worldId)
     .not("deleted_at", "is", null)
     .order("deleted_at", { ascending: false });

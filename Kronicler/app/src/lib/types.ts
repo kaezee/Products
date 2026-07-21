@@ -54,7 +54,23 @@ export interface Chapter {
   story_time_label: string | null;
   body: string;
   band_id: string | null;
+  segment_id: string | null;
   planned: boolean;
+}
+
+// A node in the World Timeline tree: Series / Book / Season / Volume / anything,
+// nested to any depth via parent_id. start_ref/end_ref are the drawn span; the
+// effective span is auto-fit to its chapters + children (computed in the view).
+export interface Segment {
+  id: string;
+  world_id: string;
+  parent_id: string | null;
+  kind: string;
+  name: string;
+  color: string | null;
+  seg_order: number;
+  start_ref: number | null;
+  end_ref: number | null;
 }
 
 // A timeline-only marker: a labelled date line, an era/event, or a time-skip

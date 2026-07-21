@@ -1,258 +1,298 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  getBands, createBand, updateBand, softDeleteBand,
-  getChapters, getNotes, createNote, updateNote, softDeleteNote,
+  getSegments, createSegment, updateSegment, softDeleteSegment,
+  getChapters,
 } from "../lib/api";
-import type { Band, Chapter, Note } from "../lib/types";
+import type { Segment, Chapter } from "../lib/types";
 import type { Nav } from "../App";
 import { parseStoryTime } from "../lib/time";
 
-// The World Timeline: one stretchy year-ruler for the whole world. SERIES stack
-// as lanes; a VOLUME (band) is a bar sized by its year range; CHAPTERS ride
-// inside a volume as ticks at their in-world date; NOTES attach to a volume.
-// Undated / unplaced things park on the left. Everything here is composed BY the
-// writer — add series, volumes, notes by hand; nothing is auto-generated.
+// The World Timeline: an infinite, zoomable year-ruler. SEGMENTS (Series / Book /
+// Season / Volume — nested to any depth, writer's labels) are span-bars whose
+// reach auto-fits their chapters + children. CHAPTERS ride as small squares at
+// their in-world date. Drag to pan, scroll to zoom (level-of-detail reveals
+// deeper detail as you zoom in). Double-click empty space to draw a new segment.
+// Undated chapters wait in the right sidebar. Composed entirely by the writer.
 
-const TINTS = ["#8a6fb0", "#5b8ab0", "#b08a4a", "#5f9a6a", "#b06a6a", "#7a7ab0"];
-const LANE_HEAD = 24, VOL_ROW = 34, LANE_PAD = 14;
-const MAIN = "Main series";
+const BAR_H = 8, LABEL_H = 16, CH_ROW = 34, CH_SQ = 30, PAD_Y = 12;
+const MIN_PPY = 0.002, MAX_PPY = 220;   // pixels-per-year zoom bounds
+const KIND_TINT: Record<string, string> = { series: "#8a6fb0", book: "#5b8ab0", season: "#5b8ab0", volume: "#5f9a6a" };
 
-type Adding = null | "series" | "volume" | "note";
+interface View { start: number; ppy: number }   // year at x=0, pixels per year
+type Span = [number, number] | null;
 
 export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) => void }) {
-  const [bands, setBands] = useState<Band[]>([]);
+  const [segments, setSegments] = useState<Segment[]>([]);
   const [chapters, setChapters] = useState<Chapter[]>([]);
-  const [notes, setNotes] = useState<Note[]>([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
+  const [view, setView] = useState<View>({ start: 0, ppy: 1 });
+  const [fitDone, setFitDone] = useState(false);
 
-  const [adding, setAdding] = useState<Adding>(null);
-  const [fName, setFName] = useState("");
-  const [fSeries, setFSeries] = useState("");
-  const [fStart, setFStart] = useState("");
-  const [fEnd, setFEnd] = useState("");
-  const [fVol, setFVol] = useState("");
-  const [fBody, setFBody] = useState("");
+  const [adding, setAdding] = useState<{ start: number } | null>(null);
+  const [fName, setFName] = useState(""); const [fKind, setFKind] = useState("series");
+  const [fParent, setFParent] = useState(""); const [fStart, setFStart] = useState(""); const [fEnd, setFEnd] = useState("");
+
+  const boardRef = useRef<HTMLDivElement>(null);
+  const panRef = useRef<{ x: number; start: number } | null>(null);
+  const resizeRef = useRef<{ id: string; edge: "start" | "end" } | null>(null);
+  const [nowW, setNowW] = useState(900);
 
   async function reload() {
     try {
-      const [b, c, n] = await Promise.all([getBands(worldId), getChapters(worldId), getNotes(worldId)]);
-      setBands(b.sort((x, y) => x.band_order - y.band_order)); setChapters(c); setNotes(n);
+      const [s, c] = await Promise.all([getSegments(worldId), getChapters(worldId)]);
+      setSegments(s); setChapters(c);
     } catch (x) { setErr(String(x)); } finally { setLoading(false); }
   }
-  useEffect(() => { setLoading(true); void reload(); /* eslint-disable-next-line */ }, [worldId]);
+  useEffect(() => { setLoading(true); setFitDone(false); void reload(); /* eslint-disable-next-line */ }, [worldId]);
 
-  const seriesOf = (b: Band) => (b.story?.trim() ? b.story.trim() : MAIN);
-  const tintOf = (b: Band) => b.color || TINTS[bands.indexOf(b) % TINTS.length];
-  // a volume's resolved span: explicit range, else the span of its dated chapters
-  const rangeOf = (b: Band): [number, number] | null => {
-    if (b.start_ref != null && b.end_ref != null) return [Math.min(b.start_ref, b.end_ref), Math.max(b.start_ref, b.end_ref)];
-    const ds = chapters.filter((c) => c.band_id === b.id && c.story_time_ref != null).map((c) => c.story_time_ref!);
-    if (ds.length) return [Math.min(...ds), Math.max(...ds)];
-    if (b.start_ref != null) return [b.start_ref, b.start_ref];
-    return null;
-  };
+  const childrenOf = useMemo(() => {
+    const m = new Map<string | null, Segment[]>();
+    for (const s of segments) { const k = s.parent_id; (m.get(k) ?? m.set(k, []).get(k)!).push(s); }
+    for (const arr of m.values()) arr.sort((a, b) => a.seg_order - b.seg_order);
+    return m;
+  }, [segments]);
 
-  const knownSeries = useMemo(() => [...new Set(bands.map(seriesOf))], [bands]);
+  const chaptersBySeg = useMemo(() => {
+    const m = new Map<string, Chapter[]>();
+    for (const c of chapters) if (c.segment_id) (m.get(c.segment_id) ?? m.set(c.segment_id, []).get(c.segment_id)!).push(c);
+    return m;
+  }, [chapters]);
 
-  // domain of the ruler = min/max across every placed thing, padded a little
+  // effective span: hug this segment's dated chapters AND its children, else the
+  // drawn manual range. Recursive, memoised per render.
+  const spanOf = useMemo(() => {
+    const cache = new Map<string, Span>();
+    const compute = (s: Segment, seen: Set<string>): Span => {
+      if (cache.has(s.id)) return cache.get(s.id)!;
+      if (seen.has(s.id)) return null; seen.add(s.id);
+      const vals: number[] = [];
+      for (const c of chaptersBySeg.get(s.id) ?? []) if (c.story_time_ref != null) vals.push(c.story_time_ref);
+      for (const ch of childrenOf.get(s.id) ?? []) { const cs = compute(ch, seen); if (cs) vals.push(cs[0], cs[1]); }
+      let span: Span = vals.length ? [Math.min(...vals), Math.max(...vals)] : null;
+      if (!span && s.start_ref != null) span = [s.start_ref, s.end_ref ?? s.start_ref];
+      if (span && s.start_ref != null) span = [Math.min(span[0], s.start_ref), Math.max(span[1], s.end_ref ?? s.start_ref)];
+      cache.set(s.id, span); return span;
+    };
+    return (s: Segment) => compute(s, new Set());
+  }, [chaptersBySeg, childrenOf]);
+
+  // flatten the tree in DFS order, tracking depth + a stacked y for each node
+  const rows = useMemo(() => {
+    const out: { seg: Segment; depth: number; y: number; hasCh: boolean }[] = [];
+    let y = PAD_Y;
+    const walk = (parent: string | null, depth: number) => {
+      for (const s of childrenOf.get(parent) ?? []) {
+        const hasCh = (chaptersBySeg.get(s.id) ?? []).some((c) => c.story_time_ref != null);
+        out.push({ seg: s, depth, y, hasCh });
+        y += LABEL_H + BAR_H + 6 + (hasCh ? CH_ROW : 0);
+        walk(s.id, depth + 1);
+      }
+    };
+    walk(null, 0);
+    return { list: out, height: y + PAD_Y };
+  }, [childrenOf, chaptersBySeg]);
+
+  const looseDated = useMemo(() => chapters.filter((c) => !c.segment_id && c.story_time_ref != null), [chapters]);
+  const undated = useMemo(() => chapters.filter((c) => c.story_time_ref == null), [chapters]);
+
+  // world domain (for the initial fit)
   const domain = useMemo(() => {
     const vals: number[] = [];
-    for (const b of bands) { const r = rangeOf(b); if (r) vals.push(r[0], r[1]); }
-    for (const c of chapters) if (c.story_time_ref != null) vals.push(c.story_time_ref);
-    if (vals.length === 0) return null;
+    for (const s of segments) { const sp = spanOf(s); if (sp) vals.push(sp[0], sp[1]); }
+    for (const c of looseDated) vals.push(c.story_time_ref!);
+    if (!vals.length) return null;
     let lo = Math.min(...vals), hi = Math.max(...vals);
-    if (lo === hi) { lo -= 1; hi += 1; }
-    const pad = (hi - lo) * 0.06;
-    return { lo: lo - pad, hi: hi + pad };
+    if (lo === hi) { lo -= 5; hi += 5; }
+    return { lo, hi };
+  }, [segments, looseDated, spanOf]);
+
+  // fit the view once data + width are known
+  useEffect(() => {
+    if (fitDone || loading) return;
+    const w = boardRef.current?.clientWidth ?? nowW; setNowW(w);
+    if (domain) {
+      const span = (domain.hi - domain.lo) * 1.15 || 100;
+      const ppy = Math.min(MAX_PPY, Math.max(MIN_PPY, w / span));
+      setView({ start: domain.lo - (domain.hi - domain.lo) * 0.07 - 2, ppy });
+    }
+    setFitDone(true);
+  }, [domain, loading, fitDone, nowW]);
+
+  const xOf = (year: number) => (year - view.start) * view.ppy;
+  const yearOf = (px: number) => view.start + px / view.ppy;
+  const localX = (clientX: number) => clientX - (boardRef.current?.getBoundingClientRect().left ?? 0);
+
+  const ticks = useMemo(() => niceTicks(yearOf(0), yearOf(nowW), Math.max(3, Math.round(nowW / 130))), [view, nowW]);
+
+  // ── pan / zoom ────────────────────────────────────────────────────────────
+  useEffect(() => {
+    const el = boardRef.current; if (!el || loading) return;
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      const lx = localX(e.clientX), yr = yearOf(lx);
+      const f = e.deltaY < 0 ? 1.15 : 1 / 1.15;
+      setView((v) => { const ppy = Math.min(MAX_PPY, Math.max(MIN_PPY, v.ppy * f)); return { ppy, start: yr - lx / ppy }; });
+    };
+    el.addEventListener("wheel", onWheel, { passive: false });
+    const ro = new ResizeObserver(() => setNowW(el.clientWidth));
+    ro.observe(el);
+    return () => { el.removeEventListener("wheel", onWheel); ro.disconnect(); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [bands, chapters]);
+  }, [loading, view.ppy, view.start]);
 
-  const xPct = (y: number) => domain ? Math.max(0, Math.min(100, ((y - domain.lo) / (domain.hi - domain.lo)) * 100)) : 0;
-  const ticks = useMemo(() => domain ? niceTicks(domain.lo, domain.hi, 6) : [], [domain]);
+  function onDown(e: React.MouseEvent) {
+    const t = e.target as HTMLElement;
+    const handle = t.closest("[data-edge]") as HTMLElement | null;
+    if (handle) { resizeRef.current = { id: handle.dataset.seg!, edge: handle.dataset.edge as "start" | "end" }; e.preventDefault(); return; }
+    if (t.closest(".wt2-seg, .wt2-ch, button, input, select")) return;
+    panRef.current = { x: e.clientX, start: view.start };
+  }
+  function onMove(e: React.MouseEvent) {
+    if (resizeRef.current) {
+      const yr = Math.round(yearOf(localX(e.clientX))); const r = resizeRef.current;
+      setSegments((prev) => prev.map((s) => s.id === r.id
+        ? { ...s, ...(r.edge === "start" ? { start_ref: yr } : { end_ref: yr }) } : s));
+    } else if (panRef.current) {
+      const p = panRef.current; setView((v) => ({ ...v, start: p.start - (e.clientX - p.x) / v.ppy }));
+    }
+  }
+  function onUp() {
+    const r = resizeRef.current; resizeRef.current = null; panRef.current = null;
+    if (r) { const s = segments.find((z) => z.id === r.id); if (s) updateSegment(s.id, { start_ref: s.start_ref, end_ref: s.end_ref }).catch((x) => setErr(String(x))); }
+  }
+  function onDouble(e: React.MouseEvent) {
+    if ((e.target as HTMLElement).closest(".wt2-seg, .wt2-ch, button, input, select")) return;
+    const yr = Math.round(yearOf(localX(e.clientX)));
+    setFName(""); setFKind("series"); setFParent(""); setFStart(String(yr)); setFEnd(String(yr + 100));
+    setAdding({ start: yr });
+  }
 
-  // group volumes into series lanes, ordered by earliest start
-  const lanes = useMemo(() => {
-    const map = new Map<string, Band[]>();
-    for (const b of bands) { const k = seriesOf(b); (map.get(k) ?? map.set(k, []).get(k)!).push(b); }
-    const startOf = (b: Band) => rangeOf(b)?.[0] ?? Infinity;
-    return [...map.entries()]
-      .map(([name, vols]) => ({ name, vols: vols.sort((a, b) => startOf(a) - startOf(b)) }))
-      .sort((a, b) => (a.name === MAIN ? -1 : b.name === MAIN ? 1 : Math.min(...a.vols.map(startOf)) - Math.min(...b.vols.map(startOf))));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [bands, chapters]);
-
-  const parkedChapters = useMemo(
-    () => chapters.filter((c) => !(c.band_id && bands.some((b) => b.id === c.band_id))),
-    [chapters, bands],
-  );
-
-  // ── actions (all writer-driven) ──────────────────────────────────────────
-  const nextOrder = () => (bands.length ? Math.max(...bands.map((b) => b.band_order)) + 1 : 0);
-  function resetForm() { setFName(""); setFSeries(""); setFStart(""); setFEnd(""); setFVol(""); setFBody(""); setAdding(null); setErr(null); }
-  async function submit() {
+  async function submitAdd() {
+    if (!fName.trim()) { setErr("Name the segment."); return; }
     try {
-      if (adding === "series") {
-        if (!fName.trim()) { setErr("Name the series."); return; }
-        const b = await createBand(worldId, "Volume 1", nextOrder());
-        await updateBand(b.id, { story: fName.trim() });
-      } else if (adding === "volume") {
-        if (!fName.trim()) { setErr("Name the volume."); return; }
-        const b = await createBand(worldId, fName.trim(), nextOrder());
-        await updateBand(b.id, {
-          story: fSeries.trim() || null,
-          start_ref: fStart.trim() ? parseStoryTime(fStart) : null,
-          end_ref: fEnd.trim() ? parseStoryTime(fEnd) : null,
-        });
-      } else if (adding === "note") {
-        if (!fBody.trim()) { setErr("Write the note."); return; }
-        const n = await createNote(worldId, 40, 40, true);
-        await updateNote(n.id, { body: fBody.trim(), band_id: fVol || null, chapter_ids: [], plan_ref: null });
-      }
-      resetForm(); await reload();
+      const sibs = segments.filter((s) => (s.parent_id ?? "") === fParent);
+      await createSegment(worldId, {
+        parent_id: fParent || null, kind: fKind.trim() || "segment", name: fName.trim(),
+        seg_order: sibs.length, start_ref: fStart.trim() ? parseStoryTime(fStart) : null, end_ref: fEnd.trim() ? parseStoryTime(fEnd) : null,
+      });
+      setAdding(null); setErr(null); await reload();
     } catch (x) { setErr(String(x)); }
   }
-  async function setRange(b: Band, patch: Partial<Pick<Band, "start_ref" | "end_ref" | "name">>) {
-    setBands((prev) => prev.map((z) => z.id === b.id ? { ...z, ...patch } : z));
-    try { await updateBand(b.id, patch); } catch (x) { setErr(String(x)); }
+  async function delSeg(s: Segment) {
+    if (!confirm(`Delete "${s.name}" and its nested segments? Chapters stay in the manuscript. Recoverable.`)) return;
+    try { await softDeleteSegment(s.id); await reload(); } catch (x) { setErr(String(x)); }
   }
-  async function delVolume(b: Band) {
-    if (!confirm(`Delete volume "${b.name}"? Its chapters stay in the manuscript. Recoverable.`)) return;
-    try { await softDeleteBand(b.id); await reload(); } catch (x) { setErr(String(x)); }
-  }
-  async function delNote(id: string) { try { await softDeleteNote(id); await reload(); } catch (x) { setErr(String(x)); } }
 
   if (err) return <p className="err">{err}</p>;
   if (loading) return <p className="muted">Loading world timeline…</p>;
 
-  const addBtn = (k: Exclude<Adding, null>, label: string) => (
-    <button className={adding === k ? "primary" : ""} onClick={() => { resetForm(); setAdding(k); }}>{label}</button>
-  );
+  const tintOf = (s: Segment) => s.color || KIND_TINT[s.kind] || "#7a7ab0";
 
   return (
     <div className="fi">
-      <div className="row" style={{ borderBottom: "none", padding: 0, marginBottom: 6, gap: 8, flexWrap: "wrap" }}>
+      <div className="row" style={{ borderBottom: "none", padding: 0, marginBottom: 4, gap: 8, flexWrap: "wrap" }}>
         <h2 className="scope-title" style={{ margin: 0 }}>World Timeline</h2>
+        <span className="faint" style={{ fontSize: 11 }}>double-click to draw a segment · drag to pan · scroll to zoom · drag a bar's ends to resize</span>
         <span className="spacer" />
-        {addBtn("series", "+ Series")}
-        {addBtn("volume", "+ Volume")}
-        {addBtn("note", "+ Note")}
+        <button onClick={() => { const yr = Math.round(yearOf(nowW / 2)); setFName(""); setFKind("series"); setFParent(""); setFStart(String(yr)); setFEnd(String(yr + 100)); setAdding({ start: yr }); }}>+ Segment</button>
       </div>
-      <p className="scope-sub" style={{ marginBottom: 12 }}>The whole world on one clock. You compose it — add a series, give a volume its years, hang notes and chapters where they belong.</p>
 
       {adding && (
-        <div className="card" style={{ padding: 10, marginBottom: 12, display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-          {adding === "series" && <input autoFocus placeholder="Series name (e.g. The Age of Rot)" value={fName} onChange={(e) => setFName(e.target.value)} style={{ width: 240 }} />}
-          {adding === "volume" && <>
-            <input autoFocus placeholder="Volume name" value={fName} onChange={(e) => setFName(e.target.value)} style={{ width: 160 }} />
-            <input list="wt-series" placeholder="series…" value={fSeries} onChange={(e) => setFSeries(e.target.value)} style={{ width: 150 }} />
-            <datalist id="wt-series">{knownSeries.filter((s) => s !== MAIN).map((s) => <option key={s} value={s} />)}</datalist>
-            <input placeholder="start yr" value={fStart} onChange={(e) => setFStart(e.target.value)} style={{ width: 90 }} />
-            <span className="muted">→</span>
-            <input placeholder="end yr" value={fEnd} onChange={(e) => setFEnd(e.target.value)} style={{ width: 90 }} />
-          </>}
-          {adding === "note" && <>
-            <input autoFocus placeholder="Note…" value={fBody} onChange={(e) => setFBody(e.target.value)} style={{ width: 260 }} />
-            <select className="sel" value={fVol} onChange={(e) => setFVol(e.target.value)} style={{ width: 180 }}>
-              <option value="">attach to a volume…</option>
-              {bands.map((b) => <option key={b.id} value={b.id}>{seriesOf(b)} · {b.name}</option>)}
-            </select>
-          </>}
-          <button className="primary" onClick={submit}>Add</button>
-          <button onClick={resetForm}>Cancel</button>
+        <div className="card" style={{ padding: 10, marginBottom: 10, display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+          <input autoFocus placeholder="Name (e.g. Against the Rot)" value={fName} onChange={(e) => setFName(e.target.value)} style={{ width: 200 }} />
+          <input list="wt2-kinds" value={fKind} onChange={(e) => setFKind(e.target.value)} style={{ width: 110 }} title="What is it — your label" />
+          <datalist id="wt2-kinds"><option value="series" /><option value="book" /><option value="season" /><option value="volume" /></datalist>
+          <select className="sel" value={fParent} onChange={(e) => setFParent(e.target.value)} style={{ width: 170 }}>
+            <option value="">top level (no parent)</option>
+            {segments.map((s) => <option key={s.id} value={s.id}>↳ inside {s.name}</option>)}
+          </select>
+          <input placeholder="start yr" value={fStart} onChange={(e) => setFStart(e.target.value)} style={{ width: 84 }} />
+          <span className="muted">→</span>
+          <input placeholder="end yr" value={fEnd} onChange={(e) => setFEnd(e.target.value)} style={{ width: 84 }} />
+          <button className="primary" onClick={submitAdd}>Add</button>
+          <button onClick={() => setAdding(null)}>Cancel</button>
         </div>
       )}
 
-      {!domain ? (
-        <div className="card" style={{ padding: 18 }}>
-          <p style={{ margin: 0, fontWeight: 600 }}>Your world clock is empty.</p>
-          <p className="muted" style={{ marginTop: 6 }}>Add a <b>series</b>, then a <b>volume</b> with a start and end year — it'll draw as a bar on the ruler. Chapters you've dated and filed into a volume show up as ticks inside it.</p>
-        </div>
-      ) : (
-        <div className="wt-chart">
-          {/* parking bay for undated / unfiled chapters */}
-          <div className="wt-parking">
-            <div className="wt-parklab">unplaced</div>
-            {parkedChapters.length === 0 && <span className="faint" style={{ fontSize: 11 }}>—</span>}
-            {parkedChapters.map((c) => (
-              <div key={c.id} className="wt-block" onClick={() => go({ scope: "manuscript", chapterId: c.id })} title={`${c.title} — open to date it / file it in a volume`}>
-                {c.planned ? "✎" : String(c.manuscript_order).padStart(2, "0")}<br /><span style={{ fontSize: 9.5 }}>{c.title.length > 14 ? c.title.slice(0, 14) + "…" : c.title}</span>
+      <div className="wt2-wrap">
+        <div ref={boardRef} className="wt2-board" onMouseDown={onDown} onMouseMove={onMove} onMouseUp={onUp} onMouseLeave={onUp} onDoubleClick={onDouble}>
+          {/* ruler */}
+          <div className="wt2-ruler">
+            {ticks.map((t) => <span key={t} className="wt2-tick" style={{ left: xOf(t) }}>{t}</span>)}
+          </div>
+          {/* gridlines + content */}
+          <div className="wt2-plot" style={{ height: Math.max(rows.height, 160) }}>
+            {ticks.map((t) => <div key={"g" + t} className="wt2-grid" style={{ left: xOf(t) }} />)}
+
+            {segments.length === 0 && (
+              <div className="wt2-empty">Double-click anywhere on the ruler to draw your first segment (a series, a book, an era…).</div>
+            )}
+
+            {/* loose dated chapters (no segment yet) */}
+            {looseDated.map((c) => (
+              <div key={c.id} className="wt2-ch loose" style={{ left: xOf(c.story_time_ref!) - CH_SQ / 2, top: PAD_Y }}
+                title={`${c.title} · ${c.story_time_label ?? c.story_time_ref} — not in a segment yet`} onClick={() => go({ scope: "manuscript", chapterId: c.id })}>
+                <b>{c.planned ? "✎" : String(c.manuscript_order).padStart(2, "0")}</b><span>{trunc(c.title)}</span>
               </div>
             ))}
-          </div>
 
-          {/* plot: ruler + gridlines + series lanes */}
-          <div className="wt-plot">
-            <div className="wt-ruler">
-              {ticks.map((t) => (
-                <span key={t} className="wt-major" style={{ left: xPct(t) + "%" }}>{t}</span>
-              ))}
-            </div>
-            <div className="wt-lanes">
-              {ticks.map((t) => <div key={"g" + t} className="wt-grid" style={{ left: xPct(t) + "%" }} />)}
-
-              {lanes.map((lane) => (
-                <div key={lane.name} className="wt-lane" style={{ height: LANE_HEAD + lane.vols.length * VOL_ROW + LANE_PAD }}>
-                  <div className="wt-serieslab">{lane.name}</div>
-                  {(() => {
-                    const rs = lane.vols.map(rangeOf).filter(Boolean) as [number, number][];
-                    if (!rs.length) return null;
-                    const lo = Math.min(...rs.map((r) => r[0])), hi = Math.max(...rs.map((r) => r[1]));
-                    return <div className="wt-seriesbar" style={{ left: xPct(lo) + "%", width: (xPct(hi) - xPct(lo)) + "%", top: LANE_HEAD - 4 }} />;
-                  })()}
-                  {lane.vols.map((v, i) => {
-                    const r = rangeOf(v), tint = tintOf(v), top = LANE_HEAD + i * VOL_ROW + 6;
-                    const chs = chapters.filter((c) => c.band_id === v.id);
-                    const vnotes = notes.filter((n) => n.band_id === v.id && n.on_timeline);
-                    if (!r) {
-                      return (
-                        <div key={v.id} className="wt-volunset" style={{ top }}>
-                          <input className="wt-volname" value={v.name} onChange={(e) => setRange(v, { name: e.target.value })} style={{ color: tint }} />
-                          <input className="wt-yr" placeholder="start" onBlur={(e) => e.target.value && setRange(v, { start_ref: parseStoryTime(e.target.value) })} />
-                          <span className="muted">→</span>
-                          <input className="wt-yr" placeholder="end" onBlur={(e) => e.target.value && setRange(v, { end_ref: parseStoryTime(e.target.value) })} />
-                          <span className="wt-x" onClick={() => delVolume(v)}>✕</span>
-                        </div>
-                      );
-                    }
-                    const left = xPct(r[0]), width = Math.max(xPct(r[1]) - xPct(r[0]), 1.5);
-                    return (
-                      <div key={v.id}>
-                        <span className="wt-vollab" style={{ left: left + "%", top: top - 15, color: tint }}>
-                          {v.name} <span className="faint" style={{ fontSize: 10 }}>{r[0]}–{r[1]}</span>
-                          <span className="wt-x" onClick={() => delVolume(v)}>✕</span>
-                        </span>
-                        <div className="wt-vol" style={{ left: left + "%", width: width + "%", top, background: tint }} title={`${v.name} · ${r[0]}–${r[1]}`} />
-                        {chs.map((c, ci) => {
-                          const cx = c.story_time_ref != null ? xPct(c.story_time_ref) : left + (width * (ci + 1)) / (chs.length + 1);
-                          return <div key={c.id} className="wt-tick" style={{ left: cx + "%", top: top - 2, borderStyle: c.planned ? "dashed" : "solid" }}
-                            title={`${c.planned ? "planned · " : ""}${c.title}${c.story_time_ref != null ? " · " + (c.story_time_label ?? c.story_time_ref) : ""}`}
-                            onClick={() => go({ scope: "manuscript", chapterId: c.id })} />;
-                        })}
-                        {vnotes.map((n, ni) => (
-                          <span key={n.id} className="wt-note" style={{ left: `calc(${left}% + ${ni * 16}px)`, top: top + 8 }} title={n.body}>
-                            ✎<span className="wt-x" onClick={() => delNote(n.id)}>✕</span>
-                          </span>
-                        ))}
-                      </div>
-                    );
-                  })}
+            {rows.list.map(({ seg, depth, y, hasCh }) => {
+              const sp0 = spanOf(seg), tint = tintOf(seg);
+              const dsp = domain ?? { lo: Math.round(view.start + 10), hi: Math.round(view.start + 110) };
+              const placeholder = !sp0;
+              const sp: [number, number] = sp0 ?? [dsp.lo, dsp.lo + Math.max(1, Math.round((dsp.hi - dsp.lo) * 0.15))];
+              const chs = (chaptersBySeg.get(seg.id) ?? []).filter((c) => c.story_time_ref != null);
+              const x1 = xOf(sp[0]), x2 = xOf(sp[1]), w = Math.max(x2 - x1, 2);
+              const wideEnough = w > 90;
+              return (
+                <div key={seg.id}>
+                  <span className="wt2-seglab" style={{ left: x1 + depth * 6, top: y, color: tint }}>
+                    <span className="wt2-kind">{seg.kind}</span> {seg.name}
+                    <span className="faint" style={{ fontSize: 10, marginLeft: 5 }}>{placeholder ? "drag to place →" : `${sp[0]}–${sp[1]}`}</span>
+                    <span className="wt2-x" onClick={() => delSeg(seg)}>✕</span>
+                  </span>
+                  <div className="wt2-seg" style={{ left: x1, width: w, top: y + LABEL_H, height: BAR_H, background: tint, opacity: placeholder ? 0.4 : 1 }}
+                    title={`${seg.name} · ${sp[0]}–${sp[1]}`}>
+                    <span className="wt2-edge" data-seg={seg.id} data-edge="start" style={{ left: -3 }} />
+                    <span className="wt2-edge" data-seg={seg.id} data-edge="end" style={{ right: -3 }} />
+                  </div>
+                  {hasCh && wideEnough && chs.map((c) => (
+                    <div key={c.id} className="wt2-ch" style={{ left: xOf(c.story_time_ref!) - CH_SQ / 2, top: y + LABEL_H + BAR_H + 5, borderColor: tint, borderStyle: c.planned ? "dashed" : "solid" }}
+                      title={`${c.planned ? "planned · " : ""}${c.title} · ${c.story_time_label ?? c.story_time_ref}`} onClick={() => go({ scope: "manuscript", chapterId: c.id })}>
+                      <b>{c.planned ? "✎" : String(c.manuscript_order).padStart(2, "0")}</b><span>{trunc(c.title)}</span>
+                    </div>
+                  ))}
+                  {hasCh && !wideEnough && <span className="wt2-collapsed" style={{ left: x1, top: y + LABEL_H + BAR_H + 5, color: tint }}>{chs.length}▪ · zoom in</span>}
                 </div>
-              ))}
-            </div>
+              );
+            })}
           </div>
         </div>
-      )}
+
+        {/* undated sidebar */}
+        <div className="wt2-side">
+          <div className="wt2-sidelab">Undated · {undated.length}</div>
+          <div className="wt2-sidesub">no in-world date yet — click to open &amp; date one</div>
+          {undated.length === 0 && <span className="faint" style={{ fontSize: 11 }}>All chapters are dated 🎉</span>}
+          {undated.map((c) => (
+            <div key={c.id} className="wt2-sideitem" onClick={() => go({ scope: "manuscript", chapterId: c.id })} title={c.title}>
+              {c.planned ? "✎" : String(c.manuscript_order).padStart(2, "0")} · {trunc(c.title, 22)}
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }
 
-// round, human tick values across [min,max]
+const trunc = (s: string, n = 12) => (s.length > n ? s.slice(0, n) + "…" : s);
+
 function niceTicks(min: number, max: number, count: number): number[] {
   const span = max - min; if (span <= 0) return [Math.round(min)];
-  const raw = span / count, mag = Math.pow(10, Math.floor(Math.log10(raw))), norm = raw / mag;
+  const raw = span / Math.max(1, count), mag = Math.pow(10, Math.floor(Math.log10(raw))), norm = raw / mag;
   const step = (norm < 1.5 ? 1 : norm < 3 ? 2 : norm < 7 ? 5 : 10) * mag;
   const out: number[] = [];
-  for (let t = Math.ceil(min / step) * step; t <= max + 1e-9; t += step) out.push(Math.round(t));
+  for (let t = Math.ceil(min / step) * step; t <= max + 1e-9; t += step) out.push(Math.round(t * 1000) / 1000);
   return [...new Set(out)];
 }

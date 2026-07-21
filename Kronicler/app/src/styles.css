@@ -166,30 +166,34 @@ textarea { font-family: var(--serif); }
 .tl-bandx { cursor: pointer; opacity: .5; font-size: 11px; }
 .tl-bandx:hover { opacity: 1; }
 
-/* ── World Timeline (the year-ruler + series/volume bars) ── */
-.wt-chart { display: flex; gap: 0; align-items: flex-start; }
-.wt-parking { flex: 0 0 90px; border-right: 1px dashed var(--lineStrong); padding-right: 12px; margin-right: 16px; display: flex; flex-direction: column; gap: 8px; }
-.wt-parklab { font-size: 10px; font-weight: 650; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
-.wt-block { width: 76px; min-height: 46px; border-radius: 8px; background: var(--inset); border: 1px solid var(--lineStrong); font-size: 10px; color: var(--sub); padding: 5px; text-align: center; cursor: pointer; font-variant-numeric: tabular-nums; line-height: 1.25; }
-.wt-block:hover { border-color: var(--bond); }
-.wt-plot { flex: 1; position: relative; min-width: 540px; overflow-x: auto; padding-bottom: 8px; }
-.wt-ruler { position: relative; height: 38px; border-bottom: 2px solid var(--ink); margin-bottom: 2px; }
-.wt-major { position: absolute; transform: translateX(-50%); top: 6px; font-family: var(--serif); font-size: 19px; color: var(--ink); font-variant-numeric: tabular-nums; }
-.wt-lanes { position: relative; }
-.wt-grid { position: absolute; top: 0; bottom: 0; width: 0; border-left: 1px solid var(--line); }
-.wt-lane { position: relative; }
-.wt-serieslab { position: absolute; top: 0; left: 0; font-family: var(--serif); font-size: 14px; font-weight: 600; color: var(--ink); background: var(--paper); padding-right: 8px; z-index: 2; }
-.wt-seriesbar { position: absolute; height: 5px; border-radius: 3px; background: var(--ink); opacity: .8; }
-.wt-vol { position: absolute; height: 7px; border-radius: 4px; }
-.wt-vollab { position: absolute; font-size: 11.5px; white-space: nowrap; font-weight: 600; }
-.wt-tick { position: absolute; width: 10px; height: 10px; border-radius: 2px; background: var(--surface); border: 1px solid var(--lineStrong); transform: translateX(-50%); cursor: pointer; }
-.wt-tick:hover { border-color: var(--bond); }
-.wt-note { position: absolute; font-size: 10.5px; color: var(--bond); background: var(--bondBg); border: 1px solid var(--bondLine); border-radius: 6px; padding: 0 5px; white-space: nowrap; }
-.wt-volunset { position: absolute; left: 0; display: flex; gap: 6px; align-items: center; }
-.wt-volname { border: none; background: transparent; font-family: var(--serif); font-weight: 600; font-size: 13px; width: 130px; padding: 0; }
-.wt-yr { width: 64px; font-size: 11px; padding: 3px 6px; }
-.wt-x { cursor: pointer; color: var(--faint); font-size: 11px; margin-left: 6px; }
-.wt-x:hover { color: var(--hostile); }
+/* ── World Timeline (zoomable year-ruler + nested segment bars) ── */
+.wt2-wrap { display: flex; gap: 14px; align-items: stretch; }
+.wt2-board { flex: 1; position: relative; min-width: 0; height: calc(100vh - 230px); min-height: 320px; overflow-y: auto; overflow-x: hidden; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); cursor: grab; user-select: none; }
+.wt2-board:active { cursor: grabbing; }
+.wt2-ruler { position: sticky; top: 0; height: 32px; background: var(--surface); border-bottom: 2px solid var(--ink); z-index: 5; }
+.wt2-tick { position: absolute; top: 5px; transform: translateX(-50%); font-family: var(--serif); font-size: 15px; color: var(--ink); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.wt2-plot { position: relative; }
+.wt2-grid { position: absolute; top: 0; bottom: 0; width: 0; border-left: 1px solid var(--line); }
+.wt2-empty { position: absolute; top: 44px; left: 20px; color: var(--muted); font-size: 13px; max-width: 380px; }
+.wt2-seglab { position: absolute; font-family: var(--serif); font-size: 13px; font-weight: 600; white-space: nowrap; z-index: 2; }
+.wt2-kind { font-family: var(--sans); font-size: 8.5px; text-transform: uppercase; letter-spacing: .05em; opacity: .65; font-weight: 700; margin-right: 3px; }
+.wt2-seg { position: absolute; border-radius: 4px; }
+.wt2-edge { position: absolute; top: -4px; width: 8px; height: 16px; border-radius: 3px; background: var(--surface); border: 1px solid var(--ink); cursor: ew-resize; opacity: 0; z-index: 4; }
+.wt2-seg:hover .wt2-edge { opacity: .9; }
+.wt2-unset { position: absolute; font-size: 12px; white-space: nowrap; }
+.wt2-ch { position: absolute; width: 30px; height: 30px; border-radius: 6px; background: var(--surface); border: 1px solid var(--lineStrong); display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; overflow: hidden; padding: 2px; z-index: 3; box-shadow: var(--shadow); }
+.wt2-ch:hover { border-color: var(--bond); }
+.wt2-ch.loose { border-style: dotted; }
+.wt2-ch b { font-size: 9px; font-variant-numeric: tabular-nums; line-height: 1; }
+.wt2-ch span { font-size: 6.5px; color: var(--muted); max-width: 26px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; line-height: 1.1; }
+.wt2-collapsed { position: absolute; font-size: 10px; white-space: nowrap; }
+.wt2-x { cursor: pointer; color: var(--faint); font-size: 11px; margin-left: 6px; }
+.wt2-x:hover { color: var(--hostile); }
+.wt2-side { flex: 0 0 192px; border-left: 1px solid var(--line); padding-left: 14px; max-height: calc(100vh - 230px); overflow-y: auto; }
+.wt2-sidelab { font-size: 10.5px; font-weight: 650; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.wt2-sidesub { font-size: 11px; color: var(--faint); margin: 3px 0 10px; }
+.wt2-sideitem { padding: 6px 8px; border: 1px solid var(--line); border-radius: 7px; margin-bottom: 6px; font-size: 11.5px; cursor: pointer; color: var(--sub); font-variant-numeric: tabular-nums; }
+.wt2-sideitem:hover { border-color: var(--bond); color: var(--ink); }
 /* vertical chronicle */
 .tv-scroll { overflow: auto; max-height: calc(100vh - 210px); border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
 .tv-card { position: absolute; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; box-shadow: var(--pop); padding: 5px 8px 6px; box-sizing: border-box; cursor: pointer; overflow: hidden; }

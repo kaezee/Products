@@ -78,7 +78,7 @@ export interface Segment {
 export interface TimelineMarker {
   id: string;
   world_id: string;
-  kind: "date" | "event" | "timeskip";
+  kind: "date" | "event" | "timeskip" | "note";
   label: string | null;
   story_time_ref: number | null;
   story_time_label: string | null;

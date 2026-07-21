@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  getSegments, createSegment, updateSegment, softDeleteSegment, setChapterSegment,
-  getChapters, getMarkers, createMarker, softDeleteMarker,
+  getSegments, createSegment, updateSegment, softDeleteSegment, restoreSegment, setChapterSegment,
+  getChapters, getMarkers, createMarker, softDeleteMarker, restoreMarker,
 } from "../lib/api";
 import type { Segment, Chapter, TimelineMarker } from "../lib/types";
 import type { Nav } from "../App";
@@ -36,7 +36,11 @@ export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) =
   const [bulkSeg, setBulkSeg] = useState("");
   const [noteOpen, setNoteOpen] = useState(false);
   const [noteYear, setNoteYear] = useState(""); const [noteText, setNoteText] = useState("");
+  const [editRange, setEditRange] = useState<string | null>(null);   // segment id whose span is being typed
+  const [editStart, setEditStart] = useState(""); const [editEnd, setEditEnd] = useState("");
   const viewRef = useRef(view); viewRef.current = view;
+  const undoStack = useRef<Array<() => Promise<void>>>([]);
+  const pushUndo = (fn: () => Promise<void>) => { undoStack.current.push(fn); if (undoStack.current.length > 60) undoStack.current.shift(); };
 
   const [adding, setAdding] = useState(false);
   const [fName, setFName] = useState(""); const [fKind, setFKind] = useState("series");
@@ -44,7 +48,7 @@ export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) =
 
   const boardRef = useRef<HTMLDivElement>(null);
   const panRef = useRef<{ x: number; y: number; start: number; ty: number } | null>(null);
-  const resizeRef = useRef<{ id: string; edge: "start" | "end" } | null>(null);
+  const resizeRef = useRef<{ id: string; edge: "start" | "end"; prevStart: number | null; prevEnd: number | null } | null>(null);
 
   async function reload() {
     try {
@@ -52,7 +56,24 @@ export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) =
       setSegments(s); setChapters(c); setMarkers(m);
     } catch (x) { setErr(String(x)); } finally { setLoading(false); }
   }
-  useEffect(() => { setLoading(true); setFitDone(false); void reload(); /* eslint-disable-next-line */ }, [worldId]);
+  useEffect(() => { setLoading(true); setFitDone(false); undoStack.current = []; void reload(); /* eslint-disable-next-line */ }, [worldId]);
+
+  async function undo() {
+    const fn = undoStack.current.pop(); if (!fn) return;
+    try { await fn(); await reload(); } catch (x) { setErr(String(x)); }
+  }
+  useEffect(() => {
+    const h = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "z" && !e.shiftKey) {
+        const el = document.activeElement as HTMLElement | null;
+        if (el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.isContentEditable)) return; // leave text undo alone
+        e.preventDefault(); void undo();
+      }
+    };
+    window.addEventListener("keydown", h);
+    return () => window.removeEventListener("keydown", h);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const childrenOf = useMemo(() => {
     const m = new Map<string | null, Segment[]>();
@@ -134,12 +155,15 @@ export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) =
     const onWheel = (e: WheelEvent) => {
       e.preventDefault();
       const v = viewRef.current;
-      if (e.ctrlKey || e.metaKey) {
-        const lx = localX(e.clientX), yr = v.start + lx / v.ppy;
-        const ppy = clamp(v.ppy * Math.exp(-e.deltaY * 0.01), MIN_PPY, MAX_PPY);
-        setView({ ...v, ppy, start: yr - lx / ppy });
+      const pinch = e.ctrlKey || e.metaKey;   // Mac pinch sends ctrl+wheel
+      // horizontal swipe pans; vertical swipe (or pinch) zooms around the cursor
+      if (!pinch && Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
+        setView({ ...v, start: v.start + e.deltaX / v.ppy });
       } else {
-        setView({ ...v, start: v.start + e.deltaX / v.ppy, ty: v.ty - e.deltaY });
+        const lx = localX(e.clientX), yr = v.start + lx / v.ppy;
+        const k = pinch ? 0.01 : 0.0022;   // gentle for two-finger scroll, snappier for pinch
+        const ppy = clamp(v.ppy * Math.exp(-e.deltaY * k), MIN_PPY, MAX_PPY);
+        setView({ ...v, ppy, start: yr - lx / ppy });
       }
     };
     el.addEventListener("wheel", onWheel, { passive: false });
@@ -162,7 +186,11 @@ export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) =
   function onDown(e: React.MouseEvent) {
     const t = e.target as HTMLElement;
     const handle = t.closest("[data-edge]") as HTMLElement | null;
-    if (handle) { resizeRef.current = { id: handle.dataset.seg!, edge: handle.dataset.edge as "start" | "end" }; e.preventDefault(); return; }
+    if (handle) {
+      const seg = segments.find((z) => z.id === handle.dataset.seg);
+      resizeRef.current = { id: handle.dataset.seg!, edge: handle.dataset.edge as "start" | "end", prevStart: seg?.start_ref ?? null, prevEnd: seg?.end_ref ?? null };
+      e.preventDefault(); return;
+    }
     if (t.closest(".wt2-seglab, .wt2-ch, .wt2-note, button, input, select")) return;
     panRef.current = { x: e.clientX, y: e.clientY, start: view.start, ty: view.ty };
   }
@@ -177,7 +205,24 @@ export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) =
   }
   function onUp() {
     const r = resizeRef.current; resizeRef.current = null; panRef.current = null;
-    if (r) { const s = segments.find((z) => z.id === r.id); if (s) updateSegment(s.id, { start_ref: s.start_ref, end_ref: s.end_ref }).catch((x) => setErr(String(x))); }
+    if (r) {
+      const s = segments.find((z) => z.id === r.id);
+      if (s && (s.start_ref !== r.prevStart || s.end_ref !== r.prevEnd)) {
+        pushUndo(() => updateSegment(r.id, { start_ref: r.prevStart, end_ref: r.prevEnd }));
+        updateSegment(s.id, { start_ref: s.start_ref, end_ref: s.end_ref }).catch((x) => setErr(String(x)));
+      }
+    }
+  }
+  async function setSegRange(s: Segment, start: number | null, end: number | null) {
+    if (start === s.start_ref && end === s.end_ref) return;
+    const prev = { start_ref: s.start_ref, end_ref: s.end_ref };
+    setSegments((p) => p.map((z) => z.id === s.id ? { ...z, start_ref: start, end_ref: end } : z));
+    pushUndo(() => updateSegment(s.id, prev));
+    try { await updateSegment(s.id, { start_ref: start, end_ref: end }); } catch (x) { setErr(String(x)); }
+  }
+  function commitRange(s: Segment) {
+    void setSegRange(s, editStart.trim() ? parseStoryTime(editStart) : null, editEnd.trim() ? parseStoryTime(editEnd) : null);
+    setEditRange(null);
   }
   function onDouble(e: React.MouseEvent) {
     if ((e.target as HTMLElement).closest(".wt2-seglab, .wt2-ch, .wt2-note, button, input, select")) return;
@@ -189,30 +234,35 @@ export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) =
     if (!fName.trim()) { setErr("Name the segment."); return; }
     try {
       const sibs = segments.filter((s) => (s.parent_id ?? "") === fParent);
-      await createSegment(worldId, { parent_id: fParent || null, kind: fKind.trim() || "segment", name: fName.trim(),
+      const created = await createSegment(worldId, { parent_id: fParent || null, kind: fKind.trim() || "segment", name: fName.trim(),
         seg_order: sibs.length, start_ref: fStart.trim() ? parseStoryTime(fStart) : null, end_ref: fEnd.trim() ? parseStoryTime(fEnd) : null });
+      pushUndo(() => softDeleteSegment(created.id));
       setAdding(false); setErr(null); await reload();
     } catch (x) { setErr(String(x)); }
   }
   async function delSeg(s: Segment) {
     if (!confirm(`Delete "${s.name}" and its nested segments? Chapters return to the sidebar. Recoverable.`)) return;
-    try { await softDeleteSegment(s.id); await reload(); } catch (x) { setErr(String(x)); }
+    try { await softDeleteSegment(s.id); pushUndo(() => restoreSegment(s.id)); await reload(); } catch (x) { setErr(String(x)); }
   }
   async function addSelectedTo(segId: string) {
     const ids = [...sel]; if (!ids.length || !segId) return;
-    try { await Promise.all(ids.map((id) => setChapterSegment(id, segId))); setSel(new Set()); setBulkSeg(""); await reload(); }
-    catch (x) { setErr(String(x)); }
+    try {
+      await Promise.all(ids.map((id) => setChapterSegment(id, segId)));
+      pushUndo(() => Promise.all(ids.map((id) => setChapterSegment(id, null))).then(() => {}));
+      setSel(new Set()); setBulkSeg(""); await reload();
+    } catch (x) { setErr(String(x)); }
   }
   const toggleSel = (id: string) => setSel((p) => { const n = new Set(p); n.has(id) ? n.delete(id) : n.add(id); return n; });
   async function addNote() {
     if (!noteText.trim()) { setNoteOpen(false); return; }
     try {
       const yr = noteYear.trim() ? parseStoryTime(noteYear) : null;
-      await createMarker(worldId, { kind: "note", label: noteText.trim(), story_time_ref: yr, story_time_label: noteYear.trim() || null });
+      const m = await createMarker(worldId, { kind: "note", label: noteText.trim(), story_time_ref: yr, story_time_label: noteYear.trim() || null });
+      pushUndo(() => softDeleteMarker(m.id));
       setNoteText(""); setNoteYear(""); setNoteOpen(false); setErr(null); await reload();
     } catch (x) { setErr(String(x)); }
   }
-  async function delMarker(id: string) { try { await softDeleteMarker(id); await reload(); } catch (x) { setErr(String(x)); } }
+  async function delMarker(id: string) { try { await softDeleteMarker(id); pushUndo(() => restoreMarker(id)); await reload(); } catch (x) { setErr(String(x)); } }
 
   if (err) return <p className="err">{err}</p>;
   if (loading) return <p className="muted">Loading world timeline…</p>;
@@ -223,8 +273,9 @@ export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) =
     <div className="fi">
       <div className="row" style={{ borderBottom: "none", padding: 0, marginBottom: 4, gap: 8, flexWrap: "wrap" }}>
         <h2 className="scope-title" style={{ margin: 0 }}>World Timeline</h2>
-        <span className="faint" style={{ fontSize: 11 }}>drag or scroll to pan · ⌘/ctrl-scroll (or pinch) to zoom · double-click to draw a segment · drag a bar's ends to resize</span>
+        <span className="faint" style={{ fontSize: 11 }}>scroll to zoom · two-finger swipe / drag to pan · double-click to draw a segment · drag a bar's ends · ⌘Z to undo</span>
         <span className="spacer" />
+        <button onClick={() => void undo()} title="Undo (⌘Z)">↶ Undo</button>
         <span className="seg" style={{ fontSize: 13 }}>
           <span onClick={() => zoomBy(1 / 1.35)} title="Zoom out">−</span>
           <span onClick={fitView} title="Fit everything" style={{ fontSize: 12 }}>Fit</span>
@@ -293,7 +344,21 @@ export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) =
                 <div key={seg.id}>
                   <span className="wt2-seglab" style={{ left: x1 + depth * 6, top: y, color: tint }}>
                     <span className="wt2-kind">{seg.kind}</span>{seg.name}
-                    <span className="faint" style={{ fontSize: 10, marginLeft: 5 }}>{placeholder ? "drag to place →" : `${sp[0]}–${sp[1]}`}</span>
+                    {editRange === seg.id ? (
+                      <span style={{ marginLeft: 5 }} onMouseDown={(e) => e.stopPropagation()}>
+                        <input className="wt2-yr" autoFocus value={editStart} onChange={(e) => setEditStart(e.target.value)}
+                          onKeyDown={(e) => { if (e.key === "Enter") commitRange(seg); if (e.key === "Escape") setEditRange(null); }} style={{ width: 52 }} />
+                        <span className="muted"> – </span>
+                        <input className="wt2-yr" value={editEnd} onChange={(e) => setEditEnd(e.target.value)}
+                          onKeyDown={(e) => { if (e.key === "Enter") commitRange(seg); if (e.key === "Escape") setEditRange(null); }} style={{ width: 52 }} />
+                        <span className="wt2-x" style={{ color: "var(--allied)" }} onClick={() => commitRange(seg)}>✓</span>
+                      </span>
+                    ) : (
+                      <span className="faint" style={{ fontSize: 10.5, marginLeft: 5, cursor: "text", borderBottom: "1px dotted var(--faint)" }}
+                        title="Click to set/adjust the years" onClick={() => { setEditStart(String(seg.start_ref ?? sp[0])); setEditEnd(String(seg.end_ref ?? sp[1])); setEditRange(seg.id); }}>
+                        {placeholder ? "＋ set years" : `${sp[0]}–${sp[1]}`}
+                      </span>
+                    )}
                     <span className="wt2-x" onClick={() => delSeg(seg)}>✕</span>
                   </span>
                   <div className="wt2-seg" style={{ left: x1, width: w, top: y + LABEL_H, height: BAR_H, background: tint, opacity: placeholder ? 0.4 : 1 }} title={`${seg.name} · ${sp[0]}–${sp[1]}`}>
@@ -301,11 +366,13 @@ export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) =
                     <span className="wt2-edge" data-seg={seg.id} data-edge="end" style={{ right: -3 }} />
                   </div>
                   {hasCh && wide && chs.map((c) => {
-                    const cx = c.story_time_ref != null ? xOf(c.story_time_ref)
-                      : x1 + (w * (undatedInSeg.indexOf(c) + 1)) / (undatedInSeg.length + 1);
+                    // dated → at its year; UNDATED → packed tight at the segment's start
+                    // (fixed screen spacing, not spread across the whole span).
+                    const left = c.story_time_ref != null ? xOf(c.story_time_ref) - CH_SQ / 2
+                      : x1 + 2 + undatedInSeg.indexOf(c) * (CH_SQ + 3);
                     return (
-                      <div key={c.id} className="wt2-ch" style={{ left: cx - CH_SQ / 2, top: y + LABEL_H + BAR_H + 5, borderColor: tint, borderStyle: c.planned || c.story_time_ref == null ? "dashed" : "solid" }}
-                        title={`${c.planned ? "planned · " : ""}${c.title}${c.story_time_ref != null ? " · " + (c.story_time_label ?? c.story_time_ref) : " · no date — drop in order"}`}
+                      <div key={c.id} className="wt2-ch" style={{ left, top: y + LABEL_H + BAR_H + 5, borderColor: tint, borderStyle: c.planned || c.story_time_ref == null ? "dashed" : "solid" }}
+                        title={`${c.planned ? "planned · " : ""}${c.title}${c.story_time_ref != null ? " · " + (c.story_time_label ?? c.story_time_ref) : " · no date yet — stacked in order, date it to place it"}`}
                         onClick={() => go({ scope: "manuscript", chapterId: c.id })}>
                         <b>{c.planned ? "✎" : String(c.manuscript_order).padStart(2, "0")}</b><span>{trunc(c.title)}</span>
                       </div>

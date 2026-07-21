@@ -166,15 +166,16 @@ textarea { font-family: var(--serif); }
 .tl-bandx { cursor: pointer; opacity: .5; font-size: 11px; }
 .tl-bandx:hover { opacity: 1; }
 
-/* ── World Timeline (zoomable year-ruler + nested segment bars) ── */
-.wt2-wrap { display: flex; gap: 14px; align-items: stretch; }
-.wt2-board { flex: 1; position: relative; min-width: 0; height: calc(100vh - 230px); min-height: 320px; overflow-y: auto; overflow-x: hidden; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); cursor: grab; user-select: none; }
+/* ── World Timeline (infinite canvas: year-ruler + nested segment bars) ── */
+.wt2-wrap { display: flex; gap: 12px; align-items: stretch; }
+.wt2-board { flex: 1; position: relative; min-width: 0; height: calc(100vh - 210px); min-height: 340px; overflow: hidden; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); cursor: grab; user-select: none; }
 .wt2-board:active { cursor: grabbing; }
-.wt2-ruler { position: sticky; top: 0; height: 32px; background: var(--surface); border-bottom: 2px solid var(--ink); z-index: 5; }
+.wt2-ruler { position: absolute; top: 0; left: 0; right: 0; height: 32px; background: var(--surface); border-bottom: 2px solid var(--ink); z-index: 5; }
 .wt2-tick { position: absolute; top: 5px; transform: translateX(-50%); font-family: var(--serif); font-size: 15px; color: var(--ink); font-variant-numeric: tabular-nums; white-space: nowrap; }
-.wt2-plot { position: relative; }
+.wt2-gridlayer { position: absolute; top: 32px; left: 0; right: 0; bottom: 0; overflow: hidden; pointer-events: none; }
 .wt2-grid { position: absolute; top: 0; bottom: 0; width: 0; border-left: 1px solid var(--line); }
-.wt2-empty { position: absolute; top: 44px; left: 20px; color: var(--muted); font-size: 13px; max-width: 380px; }
+.wt2-content { position: absolute; top: 32px; left: 0; right: 0; bottom: 0; will-change: transform; }
+.wt2-empty { position: absolute; top: 20px; left: 20px; color: var(--muted); font-size: 13px; max-width: 400px; }
 .wt2-seglab { position: absolute; font-family: var(--serif); font-size: 13px; font-weight: 600; white-space: nowrap; z-index: 2; }
 .wt2-kind { font-family: var(--sans); font-size: 8.5px; text-transform: uppercase; letter-spacing: .05em; opacity: .65; font-weight: 700; margin-right: 3px; }
 .wt2-seg { position: absolute; border-radius: 4px; }
@@ -189,11 +190,19 @@ textarea { font-family: var(--serif); }
 .wt2-collapsed { position: absolute; font-size: 10px; white-space: nowrap; }
 .wt2-x { cursor: pointer; color: var(--faint); font-size: 11px; margin-left: 6px; }
 .wt2-x:hover { color: var(--hostile); }
-.wt2-side { flex: 0 0 192px; border-left: 1px solid var(--line); padding-left: 14px; max-height: calc(100vh - 230px); overflow-y: auto; }
+.wt2-side { flex: 0 0 196px; border-left: 1px solid var(--line); padding-left: 14px; max-height: calc(100vh - 210px); overflow-y: auto; }
 .wt2-sidelab { font-size: 10.5px; font-weight: 650; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
 .wt2-sidesub { font-size: 11px; color: var(--faint); margin: 3px 0 10px; }
-.wt2-sideitem { padding: 6px 8px; border: 1px solid var(--line); border-radius: 7px; margin-bottom: 6px; font-size: 11.5px; cursor: pointer; color: var(--sub); font-variant-numeric: tabular-nums; }
-.wt2-sideitem:hover { border-color: var(--bond); color: var(--ink); }
+.wt2-sideitem { padding: 6px 8px; border: 1px solid var(--line); border-radius: 7px; margin-bottom: 6px; font-size: 11.5px; cursor: pointer; color: var(--sub); font-variant-numeric: tabular-nums; display: flex; align-items: center; gap: 6px; }
+.wt2-sideitem:hover { border-color: var(--lineStrong); color: var(--ink); }
+.wt2-sideitem.on { border-color: var(--bondLine); background: var(--bondBg); color: var(--bond); font-weight: 600; }
+.wt2-sideitem > span:first-child { flex: 1; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.wt2-open { opacity: .45; }
+.wt2-open:hover { opacity: 1; color: var(--bond); }
+.wt2-side.collapsed { flex: 0 0 34px; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 12px 0 0; color: var(--muted); }
+.wt2-side.collapsed:hover { color: var(--ink); }
+.wt2-sidecount { font-weight: 700; font-size: 15px; color: var(--ink); font-variant-numeric: tabular-nums; }
+.wt2-sidevert { writing-mode: vertical-rl; transform: rotate(180deg); font-size: 11px; letter-spacing: .05em; text-transform: uppercase; }
 /* vertical chronicle */
 .tv-scroll { overflow: auto; max-height: calc(100vh - 210px); border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
 .tv-card { position: absolute; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; box-shadow: var(--pop); padding: 5px 8px 6px; box-sizing: border-box; cursor: pointer; overflow: hidden; }

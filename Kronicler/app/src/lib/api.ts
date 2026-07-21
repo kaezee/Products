@@ -206,6 +206,10 @@ export async function softDeleteSegment(id: string): Promise<void> {
   const { error } = await supabase.from("segments").update({ deleted_at: new Date().toISOString() }).eq("id", id);
   if (error) throw error;
 }
+export async function restoreSegment(id: string): Promise<void> {
+  const { error } = await supabase.from("segments").update({ deleted_at: null }).eq("id", id);
+  if (error) throw error;
+}
 export async function setChapterSegment(chapterId: string, segmentId: string | null): Promise<void> {
   const { error } = await supabase.from("chapters").update({ segment_id: segmentId }).eq("id", chapterId);
   if (error) throw error;
@@ -234,6 +238,10 @@ export async function updateMarker(id: string, patch: Partial<Pick<TimelineMarke
 }
 export async function softDeleteMarker(id: string): Promise<void> {
   const { error } = await supabase.from("timeline_markers").update({ deleted_at: new Date().toISOString() }).eq("id", id);
+  if (error) throw error;
+}
+export async function restoreMarker(id: string): Promise<void> {
+  const { error } = await supabase.from("timeline_markers").update({ deleted_at: null }).eq("id", id);
   if (error) throw error;
 }
 

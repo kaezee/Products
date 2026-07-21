@@ -179,6 +179,7 @@ textarea { font-family: var(--serif); }
 .wt2-note { position: absolute; top: 4px; display: flex; align-items: center; gap: 4px; z-index: 4; white-space: nowrap; transform: translateX(-3px); }
 .wt2-notedot { width: 7px; height: 7px; border-radius: 50%; background: var(--obligation); flex: 0 0 auto; }
 .wt2-notelab { font-size: 10px; color: var(--obligation); background: var(--obligationBg); border: 1px solid var(--obligation); border-radius: 5px; padding: 1px 6px; }
+.wt2-yr { font-size: 11px; padding: 2px 5px; width: 52px; font-variant-numeric: tabular-nums; }
 .wt2-seglab { position: absolute; font-family: var(--serif); font-size: 13px; font-weight: 600; white-space: nowrap; z-index: 2; }
 .wt2-kind { font-family: var(--sans); font-size: 8.5px; text-transform: uppercase; letter-spacing: .05em; opacity: .65; font-weight: 700; margin-right: 3px; }
 .wt2-seg { position: absolute; border-radius: 4px; }

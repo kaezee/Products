@@ -1,6 +1,6 @@
 import { supabase } from "./supabase";
 import type {
-  World, Entity, Chapter, Band, RelationshipType, StreamRow, ChapterVersion, ChapterEntity, Note, TimelineMarker, Segment, EntityType,
+  World, Entity, Chapter, Band, RelationshipType, StreamRow, ChapterVersion, ChapterEntity, Note, TimelineMarker, Segment, SegmentKind, EntityType,
 } from "./types";
 
 const ET_COLS = "id, world_id, name, mark, swatch, line_style, is_builtin, sort_order";
@@ -247,6 +247,39 @@ export async function restoreSegment(id: string): Promise<void> {
 }
 export async function setChapterSegment(chapterId: string, segmentId: string | null): Promise<void> {
   const { error } = await supabase.from("chapters").update({ segment_id: segmentId }).eq("id", chapterId);
+  if (error) throw error;
+}
+// Bulk-assign several chapters to one segment (the "move to season/book/volume"
+// action). segmentId null unfiles them.
+export async function setChaptersSegment(chapterIds: string[], segmentId: string | null): Promise<void> {
+  if (chapterIds.length === 0) return;
+  const { error } = await supabase.from("chapters").update({ segment_id: segmentId }).in("id", chapterIds);
+  if (error) throw error;
+}
+
+// ── Segment kinds (series/book/season/volume/arc + custom) ────────────────
+const SK_COLS = "id, world_id, name, swatch, is_builtin, sort_order";
+export async function getSegmentKinds(worldId: string): Promise<SegmentKind[]> {
+  const { data, error } = await supabase
+    .from("segment_kinds").select(SK_COLS)
+    .eq("world_id", worldId).order("sort_order", { ascending: true });
+  if (error) throw error;
+  return (data ?? []) as SegmentKind[];
+}
+export async function createSegmentKind(worldId: string, k: { name: string; swatch: string; sort_order?: number }): Promise<SegmentKind> {
+  const { data, error } = await supabase
+    .from("segment_kinds")
+    .insert({ world_id: worldId, name: k.name, swatch: k.swatch, sort_order: k.sort_order ?? 100 })
+    .select(SK_COLS).single();
+  if (error) throw error;
+  return data as SegmentKind;
+}
+export async function updateSegmentKind(id: string, patch: Partial<Pick<SegmentKind, "name" | "swatch" | "sort_order">>): Promise<void> {
+  const { error } = await supabase.from("segment_kinds").update(patch).eq("id", id);
+  if (error) throw error;
+}
+export async function deleteSegmentKind(id: string): Promise<void> {
+  const { error } = await supabase.from("segment_kinds").delete().eq("id", id);
   if (error) throw error;
 }
 

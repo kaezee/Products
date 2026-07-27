@@ -88,7 +88,7 @@ export function Overview({ worldId, go }: { worldId: string; go: (n: Nav) => voi
       <h2 className="scope-title">Overview</h2>
       <p className="scope-sub">What changed and what needs attention. Everything here lives somewhere else.</p>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1.1fr 1fr", gap: 18 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(340px, 100%), 1fr))", gap: 18 }}>
         <div>
           <div className="label" style={{ marginTop: 0 }}>Recent state changes</div>
           <div className="card">

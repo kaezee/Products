@@ -1,7 +1,15 @@
 import { supabase } from "./supabase";
 import type {
-  World, Entity, Chapter, Band, RelationshipType, StreamRow, ChapterVersion, ChapterEntity, Note, TimelineMarker, Segment,
+  World, Entity, Chapter, Band, RelationshipType, StreamRow, ChapterVersion, ChapterEntity, Note, TimelineMarker, Segment, EntityType,
 } from "./types";
+
+export async function getEntityTypes(worldId: string): Promise<EntityType[]> {
+  const { data, error } = await supabase
+    .from("entity_types").select("id, world_id, name, mark, swatch, line_style, is_builtin, sort_order")
+    .eq("world_id", worldId).order("sort_order", { ascending: true });
+  if (error) throw error;
+  return (data ?? []) as EntityType[];
+}
 
 // ── Notes (the planning board) ───────────────────────────────────────────
 

@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from "react";
-import type { Entity } from "../lib/types";
+import type { Entity, EntityType } from "../lib/types";
 import { scanMentions } from "../lib/mentions";
+import { getEntityTypes } from "../lib/api";
+import { buildTypeSwatches } from "../lib/entityTypes";
 
 const escapeHtml = (s: string) => s.replace(/[&<>]/g, (c) => (c === "&" ? "&amp;" : c === "<" ? "&lt;" : "&gt;"));
-const CANON = new Set(["Character", "Place", "Faction", "Item", "Event", "Creature"]);
 
 const SUPPORTS_PO = (() => {
   try {
@@ -36,16 +37,25 @@ export function RichProse({ value, entities, onChange, onSelectText, onOpenEntit
   const entRef = useRef(entities);
   entRef.current = entities;
 
+  // type name (lowercased) → curated swatch, so every mention gets its colour
+  // from the world's type registry (built-ins + custom), never a hardcoded hex.
+  const swatchRef = useRef<Map<string, string>>(new Map());
+
   function decorateHtml(text: string): string {
     const ents = entRef.current;
     const spans = scanMentions(text, ents);
     const typeById = new Map(ents.map((e) => [e.id, e.type]));
+    const swatches = swatchRef.current;
     let out = "", i = 0;
     for (const s of spans) {
       const t = typeById.get(s.entityId);
-      const cls = t && CANON.has(t) ? `ment ment-${t}` : "ment";
+      const sw = t ? swatches.get(t.toLowerCase()) : undefined;
+      const style = sw
+        ? ` style="--k-ment-color:var(--k-entity-${sw});--k-ment-tint:var(--k-entity-${sw}-tint)"`
+        : "";
+      const typeAttr = t ? ` data-type="${escapeHtml(t.toLowerCase())}"` : "";
       out += escapeHtml(text.slice(i, s.start));
-      out += `<span class="${cls}" data-id="${s.entityId}">${escapeHtml(text.slice(s.start, s.end))}</span>`;
+      out += `<span class="ment" data-id="${s.entityId}"${typeAttr}${style}>${escapeHtml(text.slice(s.start, s.end))}</span>`;
       i = s.end;
     }
     out += escapeHtml(text.slice(i));
@@ -109,8 +119,33 @@ export function RichProse({ value, entities, onChange, onSelectText, onOpenEntit
     // eslint-disable-next-line
   }, [value]);
 
+  // Load the world's type registry so mentions colour from curated swatches.
+  const worldId = entities[0]?.world_id;
+  useEffect(() => {
+    if (!worldId) return;
+    let live = true;
+    getEntityTypes(worldId).then((rows: EntityType[]) => {
+      if (!live) return;
+      const names = entRef.current.map((e) => e.type);
+      swatchRef.current = buildTypeSwatches(rows, names);
+      decorate();
+    }).catch(() => {});
+    return () => { live = false; };
+    // eslint-disable-next-line
+  }, [worldId]);
+
   // Re-highlight when the cast changes (entities finish loading, alias added…).
-  useEffect(() => { decorate(); /* eslint-disable-next-line */ }, [entities]);
+  useEffect(() => {
+    // rebuild in case a new custom type appeared among the entities
+    if (swatchRef.current.size) {
+      swatchRef.current = buildTypeSwatches(
+        [...swatchRef.current].map(([name, swatch]) => ({ name, swatch })),
+        entities.map((e) => e.type),
+      );
+    }
+    decorate();
+    /* eslint-disable-next-line */
+  }, [entities]);
 
   function onInput() {
     if (composing.current) return;

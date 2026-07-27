@@ -3,6 +3,8 @@ import type { Entity, EntityType } from "../lib/types";
 import { scanMentions } from "../lib/mentions";
 import { getEntityTypes } from "../lib/api";
 import { buildTypeSwatches } from "../lib/entityTypes";
+import { VALENCE_COLOR } from "../lib/valence";
+import type { MentionState } from "../lib/mentionState";
 
 const escapeHtml = (s: string) => s.replace(/[&<>]/g, (c) => (c === "&" ? "&amp;" : c === "<" ? "&lt;" : "&gt;"));
 
@@ -18,12 +20,13 @@ const SUPPORTS_PO = (() => {
 // inline elements (hover-preview + click-through), while the stored value stays
 // PLAIN TEXT. plaintext-only gives native Enter→\n, plain paste, and undo; we
 // only add the decoration spans and preserve the caret across re-highlights.
-export function RichProse({ value, entities, onChange, onSelectText, onOpenEntity, placeholder }: {
+export function RichProse({ value, entities, onChange, onSelectText, onOpenEntity, stateOf, placeholder }: {
   value: string;
   entities: Entity[];
   onChange: (v: string) => void;
   onSelectText: (t: string) => void;
   onOpenEntity?: (id: string) => void;
+  stateOf?: (entityId: string) => MentionState[];
   placeholder?: string;
 }) {
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -224,19 +227,43 @@ export function RichProse({ value, entities, onChange, onSelectText, onOpenEntit
         onMouseOver={(e) => { const m = (e.target as HTMLElement).closest?.(".ment") as HTMLElement | null; if (m) showCardFor(m); }}
         onMouseOut={(e) => { const m = (e.target as HTMLElement).closest?.(".ment"); if (m) scheduleHide(); }}
       />
-      {peek && (
+      {peek && (() => {
+        const sw = swatchRef.current.get(peek.entity.type.toLowerCase());
+        const states = stateOf ? stateOf(peek.entity.id).slice(0, 4) : [];
+        return (
         <div className="pop"
           onMouseEnter={() => window.clearTimeout(hideTimer.current)}
           onMouseLeave={scheduleHide}
-          style={{ position: "absolute", left: Math.max(8, peek.x), top: peek.y + 8, width: 240, zIndex: 6, background: "var(--surface)", border: "1px solid var(--lineStrong)", borderRadius: 12, padding: "12px 14px", boxShadow: "var(--pop)" }}>
-          <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 6 }}>
+          style={{ position: "absolute", left: Math.max(8, peek.x), top: peek.y + 8, width: 250, zIndex: 6, background: "var(--surface)", border: "1px solid var(--lineStrong)", borderRadius: 12, padding: "12px 14px", boxShadow: "var(--pop)" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
             <span className="title-serif" style={{ fontSize: 15, flex: 1 }}>{peek.entity.title}</span>
-            <span className="chip">{peek.entity.type}</span>
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 11, color: "var(--sub)" }}>
+              <span style={{ width: 9, height: 9, borderRadius: 3, background: sw ? `var(--k-entity-${sw})` : "var(--faint)" }} />
+              {peek.entity.type}
+            </span>
           </div>
           {peek.entity.aliases.length > 0 && <div className="note" style={{ marginBottom: 6 }}>"{peek.entity.aliases.join('", "')}"</div>}
           <div style={{ fontSize: 12.5, color: "var(--sub)", lineHeight: 1.5 }}>
-            {peek.entity.body ? peek.entity.body.slice(0, 160) + (peek.entity.body.length > 160 ? "…" : "") : <span className="muted">No description yet.</span>}
+            {peek.entity.body ? peek.entity.body.slice(0, 140) + (peek.entity.body.length > 140 ? "…" : "") : <span className="muted">No description yet.</span>}
           </div>
+          {states.length > 0 && (
+            <div style={{ marginTop: 9, paddingTop: 9, borderTop: "1px solid var(--line)" }}>
+              <div className="label" style={{ margin: "0 0 5px", fontSize: 10 }}>As of here</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+                {states.map((s, i) => (
+                  <div key={i} style={{ display: "flex", alignItems: "baseline", gap: 6, fontSize: 12, lineHeight: 1.35 }}>
+                    <span style={{ width: 6, height: 6, borderRadius: 999, flexShrink: 0, marginTop: 1, background: VALENCE_COLOR[s.valence] }} />
+                    <span style={{ flex: 1 }}>
+                      <span style={{ color: "var(--ink)" }}>{s.label}</span>
+                      <span style={{ color: "var(--sub)" }}> · {s.other}</span>
+                      {s.concealed && <span title="hidden from someone at this point" style={{ marginLeft: 4 }}>🔒</span>}
+                      {s.isCorrection && <span className="faint" style={{ marginLeft: 4, fontSize: 10 }}>(revised)</span>}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
           {onOpenEntity && (
             <div style={{ marginTop: 10 }}>
               <button style={{ padding: "4px 10px", fontSize: 12 }}
@@ -244,7 +271,8 @@ export function RichProse({ value, entities, onChange, onSelectText, onOpenEntit
             </div>
           )}
         </div>
-      )}
+        );
+      })()}
     </div>
   );
 }

@@ -13,6 +13,9 @@ import { CANONICAL_ENTITY_TYPES, CUSTOM_TYPE } from "../lib/entityTypes";
 import { Composer } from "./Composer";
 import { BriefPanel } from "./BriefPanel";
 import { RichProse } from "./RichProse";
+import {
+  READ_FACES, READ_SIZE_MIN, READ_SIZE_MAX, getReadFace, getReadSize, setReadFace, setReadSize, type ReadFace,
+} from "../lib/readingPrefs";
 
 type SaveState = "saved" | "saving" | "dirty";
 
@@ -29,6 +32,16 @@ export function ChapterEditor(props: {
   const [saveState, setSaveState] = useState<SaveState>("saved");
   const [selText, setSelText] = useState("");
   const [composerOpen, setComposerOpen] = useState(false);
+
+  // The chapter side panel: collapsible, and it holds the reading controls.
+  const [panelOpen, setPanelOpen] = useState(() => localStorage.getItem("k.chpanel") !== "0");
+  const [readFace, setReadFaceState] = useState<ReadFace>(getReadFace());
+  const [readSize, setReadSizeState] = useState<number>(getReadSize());
+  function togglePanel() {
+    setPanelOpen((v) => { const n = !v; localStorage.setItem("k.chpanel", n ? "1" : "0"); return n; });
+  }
+  function changeFace(f: ReadFace) { setReadFace(f); setReadFaceState(f); }
+  function changeSize(n: number) { setReadSize(n); setReadSizeState(getReadSize()); }
 
   // Local copy of the cast so entities/aliases created from the prose light up
   // in the panel immediately, without bouncing back to the Manuscript list.
@@ -303,7 +316,28 @@ export function ChapterEditor(props: {
           />
         </div>
 
-        <div style={{ width: 230, flexShrink: 0 }}>
+        {panelOpen ? (
+        <div style={{ width: 244, flexShrink: 0 }}>
+          <div className="row" style={{ borderBottom: "none", padding: 0, marginBottom: 6, alignItems: "center" }}>
+            <div className="label" style={{ margin: 0 }}>Aa · Reading</div>
+            <span className="spacer" />
+            <span title="Hide panel" onClick={togglePanel}
+              style={{ cursor: "pointer", color: "var(--muted)", fontSize: 15, padding: "0 2px" }}>»</span>
+          </div>
+          <div className="card" style={{ padding: 10, marginBottom: 16, display: "flex", flexDirection: "column", gap: 9 }}>
+            <select className="sel" value={readFace} title="Font the chapter text is set in"
+              onChange={(e) => changeFace(e.target.value as ReadFace)}>
+              {READ_FACES.map((f) => <option key={f.key} value={f.key}>{f.label}</option>)}
+            </select>
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <span className="muted" style={{ fontSize: 11, flex: 1 }}>Text size</span>
+              <button style={{ padding: "2px 10px", fontSize: 14, lineHeight: 1 }} disabled={readSize <= READ_SIZE_MIN}
+                onClick={() => changeSize(readSize - 1)} title="Smaller">−</button>
+              <span style={{ minWidth: 40, textAlign: "center", fontSize: 12, fontVariantNumeric: "tabular-nums" }}>{readSize}px</span>
+              <button style={{ padding: "2px 10px", fontSize: 14, lineHeight: 1 }} disabled={readSize >= READ_SIZE_MAX}
+                onClick={() => changeSize(readSize + 1)} title="Larger">+</button>
+            </div>
+          </div>
           {showBrief && (
             <div style={{ marginBottom: 4 }}>
               {!brief ? <p className="muted">Computing brief…</p>
@@ -360,6 +394,12 @@ export function ChapterEditor(props: {
             </>
           )}
         </div>
+        ) : (
+          <div style={{ flexShrink: 0 }}>
+            <button title="Show reading & cast panel" onClick={togglePanel}
+              style={{ padding: "6px 9px", lineHeight: 1 }}>«</button>
+          </div>
+        )}
       </div>
 
       {composerOpen && (

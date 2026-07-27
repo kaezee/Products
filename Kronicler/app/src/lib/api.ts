@@ -101,6 +101,21 @@ export async function renameWorld(id: string, name: string): Promise<void> {
   if (error) throw error;
 }
 
+// The world clock for one world (calendar + known time). Used by the timeline.
+export async function getWorld(id: string): Promise<World> {
+  const { data, error } = await supabase
+    .from("worlds").select("id, owner_id, name, calendar, known_start_year, known_end_year")
+    .eq("id", id).single();
+  if (error) throw error;
+  return data as World;
+}
+
+export async function setKnownTime(id: string, startYear: number, endYear: number): Promise<void> {
+  const { error } = await supabase.from("worlds")
+    .update({ known_start_year: startYear, known_end_year: endYear }).eq("id", id);
+  if (error) throw error;
+}
+
 export async function createWorld(name: string): Promise<World> {
   const { data: userData, error: userErr } = await supabase.auth.getUser();
   if (userErr) throw userErr;
@@ -295,7 +310,8 @@ export async function getMarkers(worldId: string): Promise<TimelineMarker[]> {
 export async function createMarker(worldId: string, m: Partial<TimelineMarker> & { kind: TimelineMarker["kind"] }): Promise<TimelineMarker> {
   const { data, error } = await supabase
     .from("timeline_markers")
-    .insert({ world_id: worldId, kind: m.kind, label: m.label ?? null, story_time_ref: m.story_time_ref ?? null, story_time_label: m.story_time_label ?? null, story: m.story ?? null, color: m.color ?? null })
+    .insert({ world_id: worldId, kind: m.kind, label: m.label ?? null, story_time_ref: m.story_time_ref ?? null, story_time_label: m.story_time_label ?? null, story: m.story ?? null, color: m.color ?? null,
+      time_year: m.time_year ?? null, time_month: m.time_month ?? null, time_day: m.time_day ?? null, time_precision: m.time_precision ?? null, day_num_start: m.day_num_start ?? null, day_num_end: m.day_num_end ?? null })
     .select(MARKER_COLS).single();
   if (error) throw error;
   return data as TimelineMarker;

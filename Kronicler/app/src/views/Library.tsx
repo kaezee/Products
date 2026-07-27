@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
-import { getEntities, createEntity, softDeleteEntity, renameEntityType, updateEntity } from "../lib/api";
-import type { Entity } from "../lib/types";
-import { CANONICAL_ENTITY_TYPES, CUSTOM_TYPE, plural } from "../lib/entityTypes";
+import { getEntities, getEntityTypes, createEntity, softDeleteEntity, renameEntityType, updateEntity } from "../lib/api";
+import type { Entity, EntityType } from "../lib/types";
+import { CANONICAL_ENTITY_TYPES, CUSTOM_TYPE, plural, buildTypeSwatches } from "../lib/entityTypes";
 import { EntityPage } from "./EntityPage";
 import { ImportDocx } from "./ImportDocx";
+import { TypeStyleEditor } from "./TypeStyleEditor";
 
 export function Library({ worldId, focusEntityId }: { worldId: string; focusEntityId?: string }) {
   const [entities, setEntities] = useState<Entity[] | null>(null);
@@ -27,8 +28,12 @@ export function Library({ worldId, focusEntityId }: { worldId: string; focusEnti
   const [customType, setCustomType] = useState("");
   const [importing, setImporting] = useState(false);
 
+  const [entityTypes, setEntityTypes] = useState<EntityType[]>([]);
   async function reload() {
-    try { setEntities(await getEntities(worldId)); } catch (x) { setErr(String(x)); }
+    try {
+      const [ents, ets] = await Promise.all([getEntities(worldId), getEntityTypes(worldId)]);
+      setEntities(ents); setEntityTypes(ets);
+    } catch (x) { setErr(String(x)); }
   }
   useEffect(() => { void reload(); /* eslint-disable-next-line */ }, [worldId]);
 
@@ -214,6 +219,14 @@ export function Library({ worldId, focusEntityId }: { worldId: string; focusEnti
                   </span>
                 ))}
               </div>
+
+              <TypeStyleEditor
+                worldId={worldId}
+                typeName={currentType}
+                row={entityTypes.find((t) => t.name.toLowerCase() === currentType.toLowerCase()) ?? null}
+                swatch={buildTypeSwatches(entityTypes, entities.map((e) => e.type)).get(currentType.toLowerCase()) ?? "slate"}
+                onChanged={reload}
+              />
 
               <div className="card">
                 {sectionList.map((e) => row(e, false))}

@@ -3,7 +3,6 @@ import { supabase } from "../lib/supabase";
 import { exportWorld, getChapters, getEntities } from "../lib/api";
 import type { Entity } from "../lib/types";
 import { Trash } from "./Trash";
-import { TypesManager } from "./TypesManager";
 
 function slug(s: string) { return (s || "world").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "world"; }
 function stamp() { return new Date().toISOString().slice(0, 10); }
@@ -80,12 +79,6 @@ export function Settings({ worldId, worldName, userEmail, onDeleteWorld, onWorld
           <button onClick={() => supabase.auth.signOut()}>Sign out</button>
         </div>
       </div>
-
-      <div className="label" style={{ marginTop: 28 }}>Entity types · colours &amp; marks</div>
-      <p className="scope-sub" style={{ maxWidth: 620, marginTop: -2, marginBottom: 8 }}>
-        Every kind of thing in your world — plus any you invent. Each type owns the colour and underline its mentions wear in prose. New custom types show up here the moment you first use one.
-      </p>
-      <TypesManager worldId={worldId} />
 
       <div className="label" style={{ marginTop: 28 }}>Export · your data is yours</div>
       <div className="card" style={{ maxWidth: 680 }}>

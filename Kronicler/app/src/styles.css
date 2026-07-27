@@ -43,7 +43,7 @@ input, textarea, select { font-size: 13px; padding: 9px 11px; border: 1px solid 
 .chrome { display: flex; align-items: center; gap: 12px; padding: 11px 18px; border-bottom: 1px solid var(--line); background: var(--surface); }
 .worldchip { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; padding: 7px 12px; border: 1px solid var(--lineStrong); border-radius: 9px; background: var(--surface); cursor: pointer; white-space: nowrap; }
 .worldchip .k { font-family: var(--serif); font-style: italic; font-weight: 600; font-size: 16px; color: var(--bond); }
-.searchwrap { flex: 1; position: relative; }
+.searchwrap { flex: 1; min-width: 0; position: relative; }
 .searchwrap .ic { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--muted); font-size: 13px; }
 .searchwrap input { width: 100%; padding-left: 32px; }
 .kbtn { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--sub); padding: 8px 12px; border: 1px solid var(--line); border-radius: 9px; background: var(--surface); cursor: pointer; white-space: nowrap; font-weight: 500; }

@@ -20,13 +20,16 @@ const SUPPORTS_PO = (() => {
 // inline elements (hover-preview + click-through), while the stored value stays
 // PLAIN TEXT. plaintext-only gives native Enter→\n, plain paste, and undo; we
 // only add the decoration spans and preserve the caret across re-highlights.
-export function RichProse({ value, entities, onChange, onSelectText, onOpenEntity, stateOf, placeholder }: {
+export function RichProse({ value, entities, onChange, onSelectText, onOpenEntity, stateOf, onNewEntity, onAlias, onMarkMoment, placeholder }: {
   value: string;
   entities: Entity[];
   onChange: (v: string) => void;
   onSelectText: (t: string) => void;
   onOpenEntity?: (id: string) => void;
   stateOf?: (entityId: string) => MentionState[];
+  onNewEntity?: () => void;
+  onAlias?: () => void;
+  onMarkMoment?: () => void;
   placeholder?: string;
 }) {
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -35,6 +38,8 @@ export function RichProse({ value, entities, onChange, onSelectText, onOpenEntit
   const decorateTimer = useRef<number | undefined>(undefined);
   const hideTimer = useRef<number | undefined>(undefined);
   const [peek, setPeek] = useState<{ x: number; y: number; entity: Entity } | null>(null);
+  // The floating annotation control — anchored to the current text selection.
+  const [sel, setSel] = useState<{ x: number; y: number; len: number } | null>(null);
 
   // Keep the latest entity set available to the decorate routine.
   const entRef = useRef(entities);
@@ -152,6 +157,7 @@ export function RichProse({ value, entities, onChange, onSelectText, onOpenEntit
 
   function onInput() {
     if (composing.current) return;
+    setSel(null);
     const text = edRef.current?.textContent ?? "";
     onChange(text);
     window.clearTimeout(decorateTimer.current);
@@ -160,6 +166,7 @@ export function RichProse({ value, entities, onChange, onSelectText, onOpenEntit
 
   // Firefox lacks plaintext-only: keep Enter as a real "\n" and paste plain.
   function onKeyDown(e: React.KeyboardEvent) {
+    if (e.key === "Escape" && sel) { setSel(null); return; }
     if (SUPPORTS_PO) return;
     if (e.key === "Enter") {
       e.preventDefault();
@@ -190,9 +197,18 @@ export function RichProse({ value, entities, onChange, onSelectText, onOpenEntit
   }
 
   function reportSelection() {
-    const sel = window.getSelection();
+    const s = window.getSelection();
     const el = edRef.current;
-    if (sel && el && el.contains(sel.anchorNode)) onSelectText(sel.toString());
+    const wrap = wrapRef.current;
+    const text = s && el && el.contains(s.anchorNode) ? s.toString() : "";
+    onSelectText(text);
+    if (text.trim() && s && s.rangeCount && wrap) {
+      const rect = s.getRangeAt(0).getBoundingClientRect();
+      const wr = wrap.getBoundingClientRect();
+      setSel({ x: rect.left - wr.left + rect.width / 2, y: rect.top - wr.top, len: text.trim().length });
+    } else {
+      setSel(null);
+    }
   }
 
   function showCardFor(m: HTMLElement) {
@@ -227,6 +243,20 @@ export function RichProse({ value, entities, onChange, onSelectText, onOpenEntit
         onMouseOver={(e) => { const m = (e.target as HTMLElement).closest?.(".ment") as HTMLElement | null; if (m) showCardFor(m); }}
         onMouseOut={(e) => { const m = (e.target as HTMLElement).closest?.(".ment"); if (m) scheduleHide(); }}
       />
+      {sel && (onNewEntity || onAlias || onMarkMoment) && (
+        <div className="annot-bar"
+          onMouseDown={(e) => e.preventDefault()}
+          style={{
+            position: "absolute", zIndex: 7,
+            left: Math.max(84, Math.min(sel.x, (wrapRef.current?.clientWidth ?? 400) - 84)),
+            top: sel.y > 42 ? sel.y - 8 : sel.y + 24,
+            transform: sel.y > 42 ? "translate(-50%, -100%)" : "translate(-50%, 0)",
+          }}>
+          {onNewEntity && <button onClick={() => { onNewEntity(); setSel(null); }} title="Turn the selection into a new entity">✦ New entity</button>}
+          {onAlias && <button onClick={() => { onAlias(); setSel(null); }} title="Attach the selection as another name for an existing entity">⚯ Alias</button>}
+          {onMarkMoment && <button disabled={sel.len < 3} onClick={() => { onMarkMoment(); setSel(null); }} title="Record what happens between characters in the selection">✳ Moment</button>}
+        </div>
+      )}
       {peek && (() => {
         const sw = swatchRef.current.get(peek.entity.type.toLowerCase());
         const states = stateOf ? stateOf(peek.entity.id).slice(0, 4) : [];

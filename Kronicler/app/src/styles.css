@@ -138,6 +138,17 @@ textarea { font-family: var(--serif); }
 .ment:hover, .ment:focus-visible { background: var(--k-ment-tint, var(--k-action-subtle)); }
 .ment:focus-visible { outline: 2px solid var(--k-action-default); outline-offset: 1px; }
 
+/* Floating annotation control — appears at the text selection (design doc 2 §5) */
+.prose-wrap { position: relative; }
+.annot-bar { display: flex; gap: 2px; padding: 3px; background: var(--k-bg-raised, var(--surface));
+  border: 1px solid var(--k-border-strong, var(--lineStrong)); border-radius: 9px; box-shadow: var(--k-shadow-pop, var(--pop));
+  white-space: nowrap; animation: annot-in var(--k-duration-fast, 120ms) var(--k-ease, ease); }
+.annot-bar button { border: none; background: transparent; box-shadow: none; padding: 4px 9px; font-size: 12px;
+  border-radius: 6px; color: var(--k-text-primary, var(--ink)); }
+.annot-bar button:hover:not(:disabled) { background: var(--k-bg-hover, var(--wash)); }
+.annot-bar button:disabled { opacity: .4; }
+@keyframes annot-in { from { opacity: 0; transform: translate(-50%, calc(-100% + 4px)); } }
+
 /* Level 2 (full): contentEditable prose surface with real inline mentions */
 .rich { white-space: pre-wrap; overflow-wrap: break-word; word-break: break-word;
   font: 400 16px/1.7 var(--serif); padding: 16px; border: 1px solid var(--line);

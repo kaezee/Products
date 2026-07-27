@@ -296,6 +296,9 @@ export function ChapterEditor(props: {
             onSelectText={(t) => setSelText(t)}
             onOpenEntity={onOpenEntity}
             stateOf={stateOf}
+            onNewEntity={() => openEntMode("new")}
+            onAlias={() => openEntMode("alias")}
+            onMarkMoment={() => setComposerOpen(true)}
             placeholder="Write the chapter here. Known names light up as you type — hover one to peek. Select a sentence to record a state."
           />
         </div>

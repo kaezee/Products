@@ -3,12 +3,39 @@ import type {
   World, Entity, Chapter, Band, RelationshipType, StreamRow, ChapterVersion, ChapterEntity, Note, TimelineMarker, Segment, EntityType,
 } from "./types";
 
+const ET_COLS = "id, world_id, name, mark, swatch, line_style, is_builtin, sort_order";
+
 export async function getEntityTypes(worldId: string): Promise<EntityType[]> {
   const { data, error } = await supabase
-    .from("entity_types").select("id, world_id, name, mark, swatch, line_style, is_builtin, sort_order")
+    .from("entity_types").select(ET_COLS)
     .eq("world_id", worldId).order("sort_order", { ascending: true });
   if (error) throw error;
   return (data ?? []) as EntityType[];
+}
+
+export async function createEntityType(
+  worldId: string,
+  t: { name: string; mark: string; swatch: string; line_style?: EntityType["line_style"]; sort_order?: number },
+): Promise<EntityType> {
+  const { data, error } = await supabase
+    .from("entity_types")
+    .insert({ world_id: worldId, name: t.name, mark: t.mark, swatch: t.swatch, line_style: t.line_style ?? "solid", sort_order: t.sort_order ?? 100 })
+    .select(ET_COLS).single();
+  if (error) throw error;
+  return data as EntityType;
+}
+
+export async function updateEntityType(
+  id: string,
+  patch: Partial<Pick<EntityType, "name" | "mark" | "swatch" | "line_style" | "sort_order">>,
+): Promise<void> {
+  const { error } = await supabase.from("entity_types").update(patch).eq("id", id);
+  if (error) throw error;
+}
+
+export async function deleteEntityType(id: string): Promise<void> {
+  const { error } = await supabase.from("entity_types").delete().eq("id", id);
+  if (error) throw error;
 }
 
 // ── Notes (the planning board) ───────────────────────────────────────────

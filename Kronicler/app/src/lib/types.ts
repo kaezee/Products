@@ -7,6 +7,11 @@ export interface World {
   id: string;
   owner_id: string;
   name: string;
+  // World clock (design doc 3). calendar is the writer's calendar config;
+  // known time is their declared recorded history, and bounds the canvas.
+  calendar?: import("./worldTime").Calendar;
+  known_start_year?: number;
+  known_end_year?: number;
 }
 
 export interface Entity {
@@ -56,6 +61,16 @@ export interface Chapter {
   band_id: string | null;
   segment_id: string | null;
   planned: boolean;
+  // World clock (design doc 3). Authored date + precision is truth; day_num_* is
+  // the derived cache the timeline positions on. anachronic = a flashback that
+  // sits off its segment's span and renders as a tethered marker.
+  time_year: number | null;
+  time_month: number | null;
+  time_day: number | null;
+  time_precision: "year" | "month" | "day" | null;
+  day_num_start: number | null;
+  day_num_end: number | null;
+  anachronic: boolean;
 }
 
 // A world's entity type registry entry (design doc 2). Owns a curated swatch,
@@ -97,6 +112,12 @@ export interface TimelineMarker {
   story_time_label: string | null;
   story: string | null;
   color: string | null;
+  time_year: number | null;
+  time_month: number | null;
+  time_day: number | null;
+  time_precision: "year" | "month" | "day" | null;
+  day_num_start: number | null;
+  day_num_end: number | null;
 }
 
 export interface Band {

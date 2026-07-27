@@ -86,6 +86,17 @@ export interface EntityType {
   sort_order: number;
 }
 
+// A world's segment-kind registry entry (design doc 3 §4.3). Gives each kind
+// (series/book/season/volume/arc + any custom) a curated swatch.
+export interface SegmentKind {
+  id: string;
+  world_id: string;
+  name: string;
+  swatch: string;      // one of the 12 curated entity swatches
+  is_builtin: boolean;
+  sort_order: number;
+}
+
 // A node in the World Timeline tree: Series / Book / Season / Volume / anything,
 // nested to any depth via parent_id. start_ref/end_ref are the drawn span; the
 // effective span is auto-fit to its chapters + children (computed in the view).

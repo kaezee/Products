@@ -8,6 +8,7 @@ import { parseStoryTime } from "../lib/time";
 import type { Chapter, Entity, RelationshipType, ChapterVersion, ChapterEntity, StreamRow } from "../lib/types";
 import { detectMentions } from "../lib/mentions";
 import { computeBrief } from "../lib/brief";
+import { statesAsOf } from "../lib/mentionState";
 import { CANONICAL_ENTITY_TYPES, CUSTOM_TYPE } from "../lib/entityTypes";
 import { Composer } from "./Composer";
 import { BriefPanel } from "./BriefPanel";
@@ -104,12 +105,17 @@ export function ChapterEditor(props: {
     return base.slice(0, 8);
   }, [ents, aliasQuery]);
 
-  // Brief: computed from the world stream once, when first opened.
+  // The world stream: loaded once on open. Powers both the Brief and the
+  // hover card's "as of here" standing, so a peek never waits on a fetch.
   useEffect(() => {
-    if (showBrief && stream === null) {
-      getStream(worldId).then(setStream).catch((x) => setErr(String(x)));
-    }
-  }, [showBrief, stream, worldId]);
+    getStream(worldId).then(setStream).catch((x) => setErr(String(x)));
+  }, [worldId]);
+
+  // The entity's relationships as the story stands at THIS chapter.
+  const stateOf = useCallback(
+    (id: string) => (stream ? statesAsOf(stream, id, chapter.manuscript_order) : []),
+    [stream, chapter.manuscript_order],
+  );
 
   const typesById = useMemo(() => new Map(types.map((t) => [t.id, t])), [types]);
   const nameOf = useMemo(() => {
@@ -289,6 +295,7 @@ export function ChapterEditor(props: {
             onChange={(v) => { setBody(v); scheduleSave(v); }}
             onSelectText={(t) => setSelText(t)}
             onOpenEntity={onOpenEntity}
+            stateOf={stateOf}
             placeholder="Write the chapter here. Known names light up as you type — hover one to peek. Select a sentence to record a state."
           />
         </div>

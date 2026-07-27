@@ -13,6 +13,11 @@ import { Overview } from "./views/Overview";
 import { Settings } from "./views/Settings";
 import { SearchResults } from "./views/SearchResults";
 import { Palette } from "./views/Palette";
+import { getStoredTheme, setTheme, type Theme } from "./lib/theme";
+
+const THEME_CYCLE: Theme[] = ["paper", "grey", "dark", "system"];
+const THEME_ICON: Record<Theme, string> = { paper: "○", grey: "◐", dark: "●", system: "◑" };
+const THEME_LABEL: Record<Theme, string> = { paper: "Paper", grey: "Grey", dark: "Dark", system: "System" };
 
 export function App() {
   return <AuthGate>{(session) => <Workspace session={session} />}</AuthGate>;
@@ -40,9 +45,14 @@ function Workspace({ session }: { session: Session }) {
   const [renamingWorld, setRenamingWorld] = useState(false);
   const [worldNameDraft, setWorldNameDraft] = useState("");
   const [railCollapsed, setRailCollapsed] = useState(() => localStorage.getItem("k.rail") === "1");
+  const [theme, setThemeState] = useState<Theme>(getStoredTheme());
 
   function toggleRail() {
     setRailCollapsed((v) => { const n = !v; localStorage.setItem("k.rail", n ? "1" : ""); return n; });
+  }
+  function cycleTheme() {
+    const next = THEME_CYCLE[(THEME_CYCLE.indexOf(theme) + 1) % THEME_CYCLE.length];
+    setTheme(next); setThemeState(next);
   }
 
   useEffect(() => {
@@ -170,8 +180,12 @@ function Workspace({ session }: { session: Session }) {
                   onClick={() => go({ scope: "settings" })} title={railCollapsed ? "Settings" : undefined}>
                   <span className="g">⚙</span>{!railCollapsed && "Settings"}
                 </div>
+                <div className="railitem" onClick={cycleTheme}
+                  title={`Appearance: ${THEME_LABEL[theme]} — click to cycle (Paper → Grey → Dark → System)`}>
+                  <span className="g">{THEME_ICON[theme]}</span>{!railCollapsed && <>Theme<span className="spacer" /><span className="muted">{THEME_LABEL[theme]}</span></>}
+                </div>
                 <div className="railitem" title={railCollapsed ? (session.user.email ?? "Account") : (session.user.email ?? "")}>
-                  <span className="g">◐</span>
+                  <span className="g">◍</span>
                   {!railCollapsed && <>Account<span className="spacer" />
                     <span className="muted" style={{ cursor: "pointer" }} onClick={() => supabase.auth.signOut()}>out</span></>}
                 </div>

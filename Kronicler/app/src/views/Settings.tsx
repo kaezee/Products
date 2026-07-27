@@ -4,14 +4,6 @@ import { exportWorld, getChapters, getEntities } from "../lib/api";
 import type { Entity } from "../lib/types";
 import { Trash } from "./Trash";
 import { TypesManager } from "./TypesManager";
-import { getStoredTheme, setTheme, type Theme } from "../lib/theme";
-
-const THEMES: { key: Theme; label: string; hint: string }[] = [
-  { key: "paper", label: "Paper", hint: "warm light" },
-  { key: "grey", label: "Grey", hint: "cool light" },
-  { key: "dark", label: "Dark", hint: "blue-black" },
-  { key: "system", label: "Match system", hint: "follow OS" },
-];
 
 function slug(s: string) { return (s || "world").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "world"; }
 function stamp() { return new Date().toISOString().slice(0, 10); }
@@ -33,7 +25,6 @@ export function Settings({ worldId, worldName, userEmail, onDeleteWorld, onWorld
 }) {
   const [busy, setBusy] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
-  const [theme, setThemeState] = useState<Theme>(getStoredTheme());
 
   async function backupJson() {
     setBusy("json"); setErr(null);
@@ -87,22 +78,6 @@ export function Settings({ worldId, worldName, userEmail, onDeleteWorld, onWorld
         <div className="row" style={{ borderBottom: "none" }}>
           <span style={{ flex: 1 }}>{userEmail}</span>
           <button onClick={() => supabase.auth.signOut()}>Sign out</button>
-        </div>
-      </div>
-
-      <div className="label" style={{ marginTop: 28 }}>Appearance</div>
-      <div className="card" style={{ maxWidth: 680 }}>
-        <div className="row" style={{ borderBottom: "none" }}>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontWeight: 500 }}>Theme</div>
-            <span className="muted" style={{ fontSize: 12.5 }}>Applies to the whole app, across your devices. Reading font &amp; size are set per world, from the writing view.</span>
-          </div>
-          <div className="seg" style={{ fontSize: 11.5 }}>
-            {THEMES.map((t) => (
-              <span key={t.key} className={theme === t.key ? "on" : ""} title={t.hint}
-                onClick={() => { setTheme(t.key); setThemeState(t.key); }}>{t.label}</span>
-            ))}
-          </div>
         </div>
       </div>
 

@@ -3,10 +3,10 @@
 
 /* ── theme-independent tokens ──────────────────────────────────────────── */
 :root {
-  /* faces — provisional (Newsreader/Inter) until self-hosted Literata/Public Sans land */
-  --k-font-brand: 'Newsreader', Georgia, serif;
-  --k-font-ui:    'Inter', system-ui, -apple-system, sans-serif;
-  --k-font-mono:  ui-monospace, 'Roboto Mono', 'SF Mono', monospace;
+  /* faces — the ratified design system: Literata (reading), Public Sans (UI), Roboto Mono */
+  --k-font-brand: 'Literata', Georgia, 'Times New Roman', serif;
+  --k-font-ui:    'Public Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --k-font-mono:  'Roboto Mono', ui-monospace, 'SF Mono', monospace;
   --k-font-read:  var(--k-font-brand);
 
   /* type scale (size / line-height pairs) */

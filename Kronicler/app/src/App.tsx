@@ -204,7 +204,6 @@ function Workspace({ session }: { session: Session }) {
             </div>
           </div>
         </div>
-        <p className="foot-note">Kronicler — {session.user.email} · raw build, design system applied</p>
       </div>
 
       {paletteOpen && worldId && (

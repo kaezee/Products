@@ -1,6 +1,6 @@
 /* Kronicler design system — ported from the ratified interaction prototype
    (Kronicler/prototype/interaction-prototype-v2.jsx). Phase 5. */
-@import url('https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=Inter:wght@400;450;500;600;650&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Literata:ital,opsz,wght@0,7..72,400;0,7..72,500;0,7..72,600;1,7..72,400;1,7..72,500&family=Public+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Roboto+Mono:wght@400;500&display=swap');
 @import "./styles/tokens.primitives.css";
 @import "./styles/tokens.semantic.css";
 
@@ -18,9 +18,9 @@
   --obligation: var(--k-valence-obligation); --obligationBg: var(--k-valence-obligation-tint);
   --neutral: var(--k-valence-neutral); --neutralBg: var(--k-valence-neutral-tint);
   --hostile: var(--k-valence-hostile); --hostileBg: var(--k-valence-hostile-tint);
-  /* faces stay on the current webfonts until self-hosted Literata/Public Sans land */
-  --serif: 'Newsreader', Georgia, serif;
-  --sans: 'Inter', system-ui, sans-serif;
+  /* the design system's faces: Literata for reading, Public Sans for UI */
+  --serif: var(--k-font-brand);
+  --sans: var(--k-font-ui);
   --shadow: var(--k-shadow-sm);
   --pop: var(--k-shadow-pop);
 }
@@ -36,10 +36,10 @@ button.primary { background: var(--k-action-default); color: var(--k-action-on);
 button:disabled { opacity: 0.5; cursor: default; }
 input, textarea, select { font-size: 13px; padding: 9px 11px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--ink); }
 
-/* ── shell ─────────────────────────────────────────────── */
-.page { min-height: 100vh; padding: 22px 18px; }
-.shell { max-width: 1120px; margin: 0 auto; }
-.shellcard { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; overflow: hidden; box-shadow: 0 2px 10px rgba(31,29,24,.06); }
+/* ── shell — fills the viewport as one app surface ─────────── */
+.page { height: 100vh; padding: 14px; display: flex; }
+.shell { flex: 1; max-width: 1680px; margin: 0 auto; display: flex; flex-direction: column; min-height: 0; }
+.shellcard { flex: 1; display: flex; flex-direction: column; min-height: 0; background: var(--surface); border: 1px solid var(--line); border-radius: 16px; overflow: hidden; box-shadow: 0 2px 10px rgba(31,29,24,.06); }
 .chrome { display: flex; align-items: center; gap: 12px; padding: 11px 18px; border-bottom: 1px solid var(--line); background: var(--surface); }
 .worldchip { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; padding: 7px 12px; border: 1px solid var(--lineStrong); border-radius: 9px; background: var(--surface); cursor: pointer; white-space: nowrap; }
 .worldchip .k { font-family: var(--serif); font-style: italic; font-weight: 600; font-size: 16px; color: var(--bond); }
@@ -48,18 +48,18 @@ input, textarea, select { font-size: 13px; padding: 9px 11px; border: 1px solid 
 .searchwrap input { width: 100%; padding-left: 32px; }
 .kbtn { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--sub); padding: 8px 12px; border: 1px solid var(--line); border-radius: 9px; background: var(--surface); cursor: pointer; white-space: nowrap; font-weight: 500; }
 .kbd { font-family: var(--k-font-mono); font-size: 10.5px; border: 1px solid var(--lineStrong); border-radius: 5px; padding: 2px 6px; background: var(--inset); }
-.shellbody { display: flex; min-height: 620px; }
+.shellbody { display: flex; flex: 1; min-height: 0; }
 .rail { width: 178px; flex-shrink: 0; border-right: 1px solid var(--line); padding: 14px 10px 10px; display: flex; flex-direction: column; gap: 2px; background: var(--surface); }
 .railitem { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-radius: 8px; font-size: 13px; cursor: pointer; color: var(--sub); font-weight: 450; }
 .railitem .g { width: 15px; text-align: center; font-size: 12.5px; opacity: 0.75; }
 .railitem.on { background: var(--bondBg); color: var(--bond); font-weight: 650; }
 .railitem.on .g { opacity: 1; }
 .railfoot { border-top: 1px solid var(--line); padding-top: 8px; margin-top: 8px; display: flex; flex-direction: column; gap: 2px; }
-.main { flex: 1; min-width: 0; padding: 20px 24px; overflow: hidden; }
-.foot-note { text-align: center; font-size: 11.5px; color: var(--muted); margin: 16px 0 0; }
+.main { flex: 1; min-width: 0; padding: 20px 24px; overflow-y: auto; }
+.rail { overflow-y: auto; }
 
 /* ── primitives ────────────────────────────────────────── */
-.scope-title { font-family: var(--serif); font-weight: 500; font-size: 24px; margin: 0 0 3px; }
+.scope-title { font-family: var(--serif); font-weight: 500; font-size: var(--k-type-title-size); line-height: var(--k-type-title-lh); margin: 0 0 3px; }
 .scope-sub { font-size: 12.5px; color: var(--sub); margin: 0 0 18px; }
 .card { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; box-shadow: var(--shadow); }
 .row { display: flex; gap: 10px; align-items: center; padding: 10px 14px; border-bottom: 1px solid var(--line); font-size: 13px; }
@@ -151,7 +151,8 @@ textarea { font-family: var(--serif); }
 
 /* Level 2 (full): contentEditable prose surface with real inline mentions */
 .rich { white-space: pre-wrap; overflow-wrap: break-word; word-break: break-word;
-  font: 400 16px/1.7 var(--serif); padding: 16px; border: 1px solid var(--line);
+  font-family: var(--k-read-face); font-size: var(--k-read-size); line-height: var(--k-read-lh); font-weight: 400;
+  padding: 16px; border: 1px solid var(--line);
   border-radius: 8px; min-height: 420px; background: var(--surface); color: var(--ink);
   outline: none; tab-size: 4; }
 .rich:focus { border-color: var(--bond); box-shadow: 0 0 0 3px var(--bondBg); }

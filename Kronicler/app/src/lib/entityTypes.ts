@@ -14,6 +14,16 @@ export const CANONICAL_ENTITY_TYPES = [
 // Sentinel used in the type <select> to reveal the free-text custom field.
 export const CUSTOM_TYPE = "__custom__";
 
+// The 12 curated entity swatches — the exact enum the DB constrains to. This is
+// the writer's whole colour vocabulary for types; no raw hex ever escapes it.
+export const ENTITY_SWATCHES = [
+  "azure", "teal", "green", "moss", "amber", "ochre",
+  "rust", "crimson", "magenta", "violet", "plum", "slate",
+] as const;
+export type EntitySwatch = typeof ENTITY_SWATCHES[number];
+
+export const LINE_STYLES = ["solid", "dotted", "dashed"] as const;
+
 // Default swatch per built-in type (design doc 1 §3.6). Writer may override via
 // the registry once type-editing lands.
 export const BUILTIN_SWATCH: Record<string, string> = {

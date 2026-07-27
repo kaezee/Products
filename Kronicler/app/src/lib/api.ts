@@ -78,7 +78,7 @@ export async function softDeleteNote(id: string): Promise<void> {
 export async function getMyWorlds(): Promise<World[]> {
   const { data, error } = await supabase
     .from("worlds")
-    .select("id, owner_id, name")
+    .select("id, owner_id, name, calendar, known_start_year, known_end_year")
     .is("deleted_at", null)
     .order("created_at", { ascending: true });
   if (error) throw error;
@@ -171,7 +171,7 @@ export async function softDeleteEntity(id: string): Promise<void> {
 export async function getChapters(worldId: string): Promise<Chapter[]> {
   const { data, error } = await supabase
     .from("chapters")
-    .select("id, world_id, title, manuscript_order, story_time_ref, story_time_label, body, band_id, segment_id, planned")
+    .select("id, world_id, title, manuscript_order, story_time_ref, story_time_label, body, band_id, segment_id, planned, time_year, time_month, time_day, time_precision, day_num_start, day_num_end, anachronic")
     .eq("world_id", worldId)
     .is("deleted_at", null)
     .order("manuscript_order", { ascending: true });
@@ -251,7 +251,7 @@ export async function setChapterSegment(chapterId: string, segmentId: string | n
 }
 
 // ── Timeline markers (date lines, era/events, time-skip dividers) ─────────
-const MARKER_COLS = "id, world_id, kind, label, story_time_ref, story_time_label, story, color";
+const MARKER_COLS = "id, world_id, kind, label, story_time_ref, story_time_label, story, color, time_year, time_month, time_day, time_precision, day_num_start, day_num_end";
 export async function getMarkers(worldId: string): Promise<TimelineMarker[]> {
   const { data, error } = await supabase
     .from("timeline_markers").select(MARKER_COLS)
@@ -352,7 +352,7 @@ export async function createChapter(
   const { data, error } = await supabase
     .from("chapters")
     .insert({ world_id: worldId, title, manuscript_order: manuscriptOrder, body, ...extra })
-    .select("id, world_id, title, manuscript_order, story_time_ref, story_time_label, body, band_id, segment_id, planned")
+    .select("id, world_id, title, manuscript_order, story_time_ref, story_time_label, body, band_id, segment_id, planned, time_year, time_month, time_day, time_precision, day_num_start, day_num_end, anachronic")
     .single();
   if (error) throw error;
   return data;
@@ -598,7 +598,7 @@ export async function restoreEntity(id: string): Promise<void> {
 export async function getDeletedChapters(worldId: string): Promise<Chapter[]> {
   const { data, error } = await supabase
     .from("chapters")
-    .select("id, world_id, title, manuscript_order, story_time_ref, story_time_label, body, band_id, segment_id, planned, deleted_at")
+    .select("id, world_id, title, manuscript_order, story_time_ref, story_time_label, body, band_id, segment_id, planned, time_year, time_month, time_day, time_precision, day_num_start, day_num_end, anachronic, deleted_at")
     .eq("world_id", worldId)
     .not("deleted_at", "is", null)
     .order("deleted_at", { ascending: false });

@@ -322,10 +322,21 @@ export async function setChapterStoryTime(chapterId: string, storyTime: number |
 }
 
 // The in-world DATE: a display label ("1150 AE") plus the sortable integer key
-// parsed from it (see lib/time). Writes both at once so they never drift.
+// parsed from it (see lib/time). Also mirrors it into the world-clock columns as
+// a year-precision date so it lands on the new timeline immediately. Free-text
+// only yields a year, so precision is 'year'; the default 360-day calendar is
+// assumed until a structured date editor + per-world calendar land (doc 3 §12).
+const DEFAULT_DAYS_PER_YEAR = 360;
 export async function setChapterDate(chapterId: string, storyTimeRef: number | null, label: string | null): Promise<void> {
+  const clock = storyTimeRef == null
+    ? { time_year: null, time_month: null, time_day: null, time_precision: null, day_num_start: null, day_num_end: null }
+    : {
+        time_year: storyTimeRef, time_month: 1, time_day: 1, time_precision: "year",
+        day_num_start: storyTimeRef * DEFAULT_DAYS_PER_YEAR,
+        day_num_end: storyTimeRef * DEFAULT_DAYS_PER_YEAR + DEFAULT_DAYS_PER_YEAR - 1,
+      };
   const { error } = await supabase.from("chapters")
-    .update({ story_time_ref: storyTimeRef, story_time_label: label })
+    .update({ story_time_ref: storyTimeRef, story_time_label: label, ...clock })
     .eq("id", chapterId);
   if (error) throw error;
 }

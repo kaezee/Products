@@ -1,0 +1,62 @@
+/* Kronicler design tokens — TIER 1: primitives (raw ramps, theme-independent).
+   Never reference these directly in a component; go through the semantic layer. */
+
+:root {
+  /* ── Woad — primary hue (234°) ─────────────────────────── */
+  --k-woad-50:  #F2F2F8;
+  --k-woad-100: #E4E5F1;
+  --k-woad-200: #C8CBE4;
+  --k-woad-300: #9EA3D1;
+  --k-woad-400: #626BBC;
+  --k-woad-500: #394293;
+  --k-woad-600: #2B3273;
+  --k-woad-700: #22285D;
+  --k-woad-800: #1B1F46;
+  --k-woad-900: #14172E;
+  --k-woad-950: #0D0F1C;
+  --k-woad-a300: #959EEF;
+  --k-woad-a400: #7B86EA;
+  --k-woad-a500: #616EE5;
+
+  /* ── Warm neutrals — Paper theme ───────────────────────── */
+  --k-warm-25:  #FEFDFB;
+  --k-warm-50:  #FCFAF4;
+  --k-warm-100: #F5F4EF;
+  --k-warm-200: #ECEAE4;
+  --k-warm-300: #DAD7CE;
+  --k-warm-400: #B2AD9F;
+  --k-warm-500: #8B8574;
+  --k-warm-600: #6A6558;
+  --k-warm-700: #514D43;
+  --k-warm-800: #38362E;
+  --k-warm-900: #22201B;
+  --k-warm-950: #141310;
+
+  /* ── Cool neutrals — Grey theme ────────────────────────── */
+  --k-cool-25:  #FFFFFF;
+  --k-cool-50:  #F8F8F7;
+  --k-cool-100: #F2F2F1;
+  --k-cool-200: #E9E9E7;
+  --k-cool-300: #D2D2D0;
+  --k-cool-400: #A8A8A3;
+  --k-cool-500: #818179;
+  --k-cool-600: #61615C;
+  --k-cool-700: #4A4A45;
+  --k-cool-800: #32322F;
+  --k-cool-900: #20201E;
+  --k-cool-950: #121211;
+
+  /* ── Dusk neutrals — Dark theme (blue-black, 234°) ─────── */
+  --k-dusk-25:  #F4F4F6;
+  --k-dusk-50:  #E2E3E9;
+  --k-dusk-100: #C6C7D2;
+  --k-dusk-200: #9EA0B3;
+  --k-dusk-300: #767993;
+  --k-dusk-400: #5A5C72;
+  --k-dusk-500: #434556;
+  --k-dusk-600: #323443;
+  --k-dusk-700: #252632;
+  --k-dusk-800: #1A1B23;
+  --k-dusk-900: #111118;
+  --k-dusk-950: #0A0B0F;
+}

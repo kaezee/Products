@@ -1,0 +1,175 @@
+/* Kronicler design tokens — TIER 2: semantic. The only tier components touch.
+   Colour resolves per theme; type/space/layout/radius/motion are theme-independent. */
+
+/* ── theme-independent tokens ──────────────────────────────────────────── */
+:root {
+  /* faces — provisional (Newsreader/Inter) until self-hosted Literata/Public Sans land */
+  --k-font-brand: 'Newsreader', Georgia, serif;
+  --k-font-ui:    'Inter', system-ui, -apple-system, sans-serif;
+  --k-font-mono:  ui-monospace, 'Roboto Mono', 'SF Mono', monospace;
+  --k-font-read:  var(--k-font-brand);
+
+  /* type scale (size / line-height pairs) */
+  --k-type-display-size: 30px; --k-type-display-lh: 1.15;
+  --k-type-title-size:   26px; --k-type-title-lh:   1.20;
+  --k-type-heading-size: 19px; --k-type-heading-lh: 1.30;
+  --k-type-entity-size:  15px; --k-type-entity-lh:  1.40;
+  --k-type-body-size:    13px; --k-type-body-lh:    1.50;
+  --k-type-ui-size:      12.5px; --k-type-ui-lh:    1.45;
+  --k-type-small-size:   11.5px; --k-type-small-lh: 1.50;
+  --k-type-micro-size:   10px; --k-type-micro-lh:   1.40;
+  --k-type-mono-size:    11px; --k-type-mono-lh:    1.50;
+  --k-type-mono-lg-size: 13px; --k-type-mono-lg-lh: 1.40;
+
+  /* content layer (writer-owned; overridden per world at runtime) */
+  --k-read-face:    var(--k-font-brand);
+  --k-read-size:    17px;
+  --k-read-lh:      1.85;
+  --k-read-measure: 64ch;
+
+  /* spacing — 4px base */
+  --k-space-0: 2px;  --k-space-1: 4px;  --k-space-2: 6px;  --k-space-3: 8px;
+  --k-space-4: 12px; --k-space-5: 16px; --k-space-6: 20px; --k-space-7: 24px;
+  --k-space-8: 32px; --k-space-9: 40px; --k-space-10: 48px; --k-space-11: 64px; --k-space-12: 80px;
+
+  /* layout */
+  --k-rail-width: 176px; --k-shell-max: 1120px; --k-content-max: 880px;
+  --k-side-width: 280px; --k-chrome-height: 56px;
+
+  /* radius */
+  --k-radius-sm: 5px; --k-radius-md: 8px; --k-radius-lg: 12px; --k-radius-xl: 16px; --k-radius-full: 999px;
+
+  /* motion */
+  --k-duration-fast: 120ms; --k-duration-base: 180ms; --k-duration-slow: 260ms;
+  --k-ease: cubic-bezier(.2, 0, .2, 1);
+}
+
+/* ── Paper (default) ───────────────────────────────────────────────────── */
+:root, [data-theme="paper"] {
+  --k-bg-canvas:  var(--k-warm-50);
+  --k-bg-surface: #FFFFFF;
+  --k-bg-sunken:  var(--k-warm-100);
+  --k-bg-raised:  #FFFFFF;
+  --k-bg-hover:   var(--k-warm-100);
+  --k-border:        #E7E2D3;
+  --k-border-strong: #D3CCB9;
+  --k-text-primary:   #1F1C15;
+  --k-text-secondary: #5C5647;
+  --k-text-tertiary:  #98917E;
+  --k-text-inverse:   var(--k-warm-50);
+  --k-action-default: var(--k-woad-700);
+  --k-action-hover:   #1B1F4B;
+  --k-action-active:  #14183D;
+  --k-action-subtle:  #EEEFF6;
+  --k-action-ring:    #D6D8EB;
+  --k-action-on:      #FFFFFF;
+  --k-shadow-sm:  0 1px 2px rgba(31,29,24,.05);
+  --k-shadow-md:  0 1px 2px rgba(31,29,24,.05), 0 4px 12px rgba(31,29,24,.05);
+  --k-shadow-pop: 0 10px 32px rgba(31,29,24,.16), 0 2px 6px rgba(31,29,24,.08);
+
+  --k-valence-allied:      #1F7B4D; --k-valence-allied-tint:     #EAF6F0;
+  --k-valence-obligation:  #8C6519; --k-valence-obligation-tint: #F7F2E8;
+  --k-valence-neutral:     #706C5F; --k-valence-neutral-tint:    #F2F1EE;
+  --k-valence-hostile:     #C13F30; --k-valence-hostile-tint:    #F6EBEA;
+
+  --k-entity-azure:   #287398; --k-entity-azure-tint:   #EAF2F5;
+  --k-entity-teal:    #1E7875; --k-entity-teal-tint:    #EAF6F5;
+  --k-entity-green:   #217B4B; --k-entity-green-tint:   #EAF5EF;
+  --k-entity-moss:    #407923; --k-entity-moss-tint:    #EEF5EB;
+  --k-entity-amber:   #88671A; --k-entity-amber-tint:   #F7F3E9;
+  --k-entity-ochre:   #6E701A; --k-entity-ochre-tint:   #F5F6EA;
+  --k-entity-rust:    #A75627; --k-entity-rust-tint:    #F6EEEA;
+  --k-entity-crimson: #C63548; --k-entity-crimson-tint: #F5EAEC;
+  --k-entity-magenta: #BB368A; --k-entity-magenta-tint: #F5EBF1;
+  --k-entity-violet:  #A33FBD; --k-entity-violet-tint:  #F2EBF4;
+  --k-entity-plum:    #8153C6; --k-entity-plum-tint:    #EFEBF4;
+  --k-entity-slate:   #676C77; --k-entity-slate-tint:   #EDEFF2;
+}
+
+/* ── Grey ──────────────────────────────────────────────────────────────── */
+[data-theme="grey"] {
+  --k-bg-canvas:  var(--k-cool-100);
+  --k-bg-surface: #FFFFFF;
+  --k-bg-sunken:  var(--k-cool-200);
+  --k-bg-raised:  #FFFFFF;
+  --k-bg-hover:   #EFEFED;
+  --k-border:        #E4E4E2;
+  --k-border-strong: #CCCCC9;
+  --k-text-primary:   #1D1D1B;
+  --k-text-secondary: #5C5C57;
+  --k-text-tertiary:  #8E8E88;
+  --k-text-inverse:   #FFFFFF;
+  --k-action-default: var(--k-woad-700);
+  --k-action-hover:   #1B1F4B;
+  --k-action-active:  #14183D;
+  --k-action-subtle:  #EEEFF6;
+  --k-action-ring:    #D6D8EB;
+  --k-action-on:      #FFFFFF;
+  --k-shadow-sm:  0 1px 2px rgba(20,22,26,.06);
+  --k-shadow-md:  0 1px 2px rgba(20,22,26,.06), 0 4px 12px rgba(20,22,26,.05);
+  --k-shadow-pop: 0 10px 32px rgba(20,22,26,.14), 0 2px 6px rgba(20,22,26,.07);
+
+  --k-valence-allied:      #1F7B4D; --k-valence-allied-tint:     #EAF6F0;
+  --k-valence-obligation:  #8C6519; --k-valence-obligation-tint: #F7F2E8;
+  --k-valence-neutral:     #706C5F; --k-valence-neutral-tint:    #F2F1EE;
+  --k-valence-hostile:     #C13F30; --k-valence-hostile-tint:    #F6EBEA;
+
+  --k-entity-azure:   #287398; --k-entity-azure-tint:   #EAF2F5;
+  --k-entity-teal:    #1E7875; --k-entity-teal-tint:    #EAF6F5;
+  --k-entity-green:   #217B4B; --k-entity-green-tint:   #EAF5EF;
+  --k-entity-moss:    #407923; --k-entity-moss-tint:    #EEF5EB;
+  --k-entity-amber:   #88671A; --k-entity-amber-tint:   #F7F3E9;
+  --k-entity-ochre:   #6E701A; --k-entity-ochre-tint:   #F5F6EA;
+  --k-entity-rust:    #A75627; --k-entity-rust-tint:    #F6EEEA;
+  --k-entity-crimson: #C63548; --k-entity-crimson-tint: #F5EAEC;
+  --k-entity-magenta: #BB368A; --k-entity-magenta-tint: #F5EBF1;
+  --k-entity-violet:  #A33FBD; --k-entity-violet-tint:  #F2EBF4;
+  --k-entity-plum:    #8153C6; --k-entity-plum-tint:    #EFEBF4;
+  --k-entity-slate:   #676C77; --k-entity-slate-tint:   #EDEFF2;
+}
+
+/* ── Dark ──────────────────────────────────────────────────────────────── */
+[data-theme="dark"] {
+  --k-bg-canvas:  #080A11;
+  --k-bg-surface: #101321;
+  --k-bg-sunken:  #05060B;
+  --k-bg-raised:  #181C2D;
+  --k-bg-hover:   #181C2D;
+  --k-border:        #22273A;
+  --k-border-strong: #333950;
+  --k-text-primary:   #E9EBF4;
+  --k-text-secondary: #A3AABF;
+  --k-text-tertiary:  #767D93;
+  --k-text-inverse:   #080A11;
+  --k-action-default: var(--k-woad-a400);
+  --k-action-hover:   var(--k-woad-a300);
+  --k-action-active:  var(--k-woad-a500);
+  --k-action-subtle:  #272B49;
+  --k-action-ring:    #323867;
+  --k-action-on:      #080A11;
+  --k-shadow-sm:  none;
+  --k-shadow-md:  0 2px 16px rgba(0,0,0,.55);
+  --k-shadow-pop: 0 12px 36px rgba(0,0,0,.7);
+
+  --k-valence-allied:      #28B56F; --k-valence-allied-tint:     #1E4833;
+  --k-valence-obligation:  #CE9524; --k-valence-obligation-tint: #4E3C18;
+  --k-valence-neutral:     #A69F8D; --k-valence-neutral-tint:    #3C382A;
+  --k-valence-hostile:     #E2867C; --k-valence-hostile-tint:    #48221E;
+
+  --k-entity-azure:   #4EA9D6; --k-entity-azure-tint:   #1F3A47;
+  --k-entity-teal:    #27B1AC; --k-entity-teal-tint:    #1E4847;
+  --k-entity-green:   #2BB56B; --k-entity-green-tint:   #1F4732;
+  --k-entity-moss:    #5BB32E; --k-entity-moss-tint:    #2D4620;
+  --k-entity-amber:   #CA9721; --k-entity-amber-tint:   #4D3D19;
+  --k-entity-ochre:   #A5A923; --k-entity-ochre-tint:   #48491D;
+  --k-entity-rust:    #DE8B5C; --k-entity-rust-tint:    #492D1D;
+  --k-entity-crimson: #E28491; --k-entity-crimson-tint: #471F24;
+  --k-entity-magenta: #DE81BC; --k-entity-magenta-tint: #462038;
+  --k-entity-violet:  #CA86DB; --k-entity-violet-tint:  #3D2343;
+  --k-entity-plum:    #B091DE; --k-entity-plum-tint:    #302343;
+  --k-entity-slate:   #99A0AD; --k-entity-slate-tint:   #29303D;
+}
+
+/* native controls / scrollbars follow the theme */
+:root, [data-theme="paper"], [data-theme="grey"] { color-scheme: light; }
+[data-theme="dark"] { color-scheme: dark; }

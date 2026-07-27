@@ -228,6 +228,16 @@ textarea { font-family: var(--serif); }
 .wt2-side.collapsed:hover { color: var(--ink); }
 .wt2-sidecount { font-weight: 700; font-size: 15px; color: var(--ink); font-variant-numeric: tabular-nums; }
 .wt2-sidevert { writing-mode: vertical-rl; transform: rotate(180deg); font-size: 11px; letter-spacing: .05em; text-transform: uppercase; }
+/* Chapter bands (design doc 3): year/month precision → hatched span; day → solid.
+   Colour arrives via --sw (the segment's entity swatch). */
+.wt2-chband { position: absolute; height: 20px; border-radius: 5px; display: flex; align-items: center; padding: 0 5px; cursor: pointer; overflow: hidden; z-index: 3;
+  background-color: color-mix(in srgb, var(--sw) 13%, var(--surface)); border: 1px solid var(--sw); }
+.wt2-chband:hover { filter: brightness(0.97); box-shadow: 0 0 0 2px color-mix(in srgb, var(--sw) 30%, transparent); }
+.wt2-chband.hatch { background-image: repeating-linear-gradient(45deg, transparent 0 3px, color-mix(in srgb, var(--sw) 20%, transparent) 3px 5px); }
+.wt2-chband.planned { border-style: dashed; background-color: color-mix(in srgb, var(--sw) 6%, var(--surface)); }
+.wt2-chlab { font-size: 9px; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.wt2-knownedge { position: absolute; top: 32px; bottom: 0; width: 0; border-left: 2px dashed color-mix(in srgb, var(--hostile) 45%, transparent); z-index: 4; pointer-events: none; }
+.wt2-loose-lab { position: absolute; left: 6px; font-size: 9px; text-transform: uppercase; letter-spacing: .05em; color: var(--faint); z-index: 2; }
 /* vertical chronicle */
 .tv-scroll { overflow: auto; max-height: calc(100vh - 210px); border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
 .tv-card { position: absolute; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; box-shadow: var(--pop); padding: 5px 8px 6px; box-sizing: border-box; cursor: pointer; overflow: hidden; }

@@ -39,6 +39,11 @@ function Workspace({ session }: { session: Session }) {
   const [err, setErr] = useState<string | null>(null);
   const [renamingWorld, setRenamingWorld] = useState(false);
   const [worldNameDraft, setWorldNameDraft] = useState("");
+  const [railCollapsed, setRailCollapsed] = useState(() => localStorage.getItem("k.rail") === "1");
+
+  function toggleRail() {
+    setRailCollapsed((v) => { const n = !v; localStorage.setItem("k.rail", n ? "1" : ""); return n; });
+  }
 
   useEffect(() => {
     let alive = true;
@@ -152,21 +157,27 @@ function Workspace({ session }: { session: Session }) {
 
           <div className="shellbody">
             {/* rail */}
-            <div className="rail">
+            <div className={"rail" + (railCollapsed ? " rail-collapsed" : "")}>
               {RAIL.map(([s, label, g]) => (
-                <div key={s} className={"railitem" + (!searching && nav.scope === s ? " on" : "")} onClick={() => go({ scope: s })}>
-                  <span className="g">{g}</span>{label}
+                <div key={s} className={"railitem" + (!searching && nav.scope === s ? " on" : "")}
+                  onClick={() => go({ scope: s })} title={railCollapsed ? label : undefined}>
+                  <span className="g">{g}</span>{!railCollapsed && label}
                 </div>
               ))}
               <div className="spacer" />
               <div className="railfoot">
-                <div className={"railitem" + (!searching && nav.scope === "settings" ? " on" : "")} onClick={() => go({ scope: "settings" })}>
-                  <span className="g">⚙</span>Settings
+                <div className={"railitem" + (!searching && nav.scope === "settings" ? " on" : "")}
+                  onClick={() => go({ scope: "settings" })} title={railCollapsed ? "Settings" : undefined}>
+                  <span className="g">⚙</span>{!railCollapsed && "Settings"}
                 </div>
-                <div className="railitem" title={session.user.email ?? ""}>
-                  <span className="g">◐</span>Account
-                  <span className="spacer" />
-                  <span className="muted" style={{ cursor: "pointer" }} onClick={() => supabase.auth.signOut()}>out</span>
+                <div className="railitem" title={railCollapsed ? (session.user.email ?? "Account") : (session.user.email ?? "")}>
+                  <span className="g">◐</span>
+                  {!railCollapsed && <>Account<span className="spacer" />
+                    <span className="muted" style={{ cursor: "pointer" }} onClick={() => supabase.auth.signOut()}>out</span></>}
+                </div>
+                <div className="railitem rail-toggle" onClick={toggleRail}
+                  title={railCollapsed ? "Expand sidebar" : "Collapse sidebar"}>
+                  <span className="g">{railCollapsed ? "»" : "«"}</span>{!railCollapsed && "Collapse"}
                 </div>
               </div>
             </div>

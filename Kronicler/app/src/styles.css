@@ -49,7 +49,13 @@ input, textarea, select { font-size: 13px; padding: 9px 11px; border: 1px solid 
 .kbtn { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--sub); padding: 8px 12px; border: 1px solid var(--line); border-radius: 9px; background: var(--surface); cursor: pointer; white-space: nowrap; font-weight: 500; }
 .kbd { font-family: var(--k-font-mono); font-size: 10.5px; border: 1px solid var(--lineStrong); border-radius: 5px; padding: 2px 6px; background: var(--inset); }
 .shellbody { display: flex; flex: 1; min-height: 0; min-width: 0; }
-.rail { width: 178px; flex-shrink: 0; border-right: 1px solid var(--line); padding: 14px 10px 10px; display: flex; flex-direction: column; gap: 2px; background: var(--surface); overflow-y: auto; }
+.rail { width: 178px; flex-shrink: 0; border-right: 1px solid var(--line); padding: 14px 10px 10px; display: flex; flex-direction: column; gap: 2px; background: var(--surface); overflow-y: auto; overflow-x: hidden; transition: width var(--k-duration-base, 180ms) var(--k-ease, ease); }
+.rail-collapsed { width: 56px; padding-left: 8px; padding-right: 8px; }
+.rail-collapsed .railitem { justify-content: center; padding: 9px 0; gap: 0; }
+.rail-collapsed .railitem .g { width: auto; font-size: 15px; opacity: 0.9; }
+.rail-collapsed .railitem.on { background: var(--bondBg); }
+.rail-toggle { color: var(--muted); }
+.rail-toggle .g { font-size: 14px; }
 .railitem { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-radius: 8px; font-size: 13px; cursor: pointer; color: var(--sub); font-weight: 450; }
 .railitem .g { width: 15px; text-align: center; font-size: 12.5px; opacity: 0.75; }
 .railitem.on { background: var(--bondBg); color: var(--bond); font-weight: 650; }

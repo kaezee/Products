@@ -9,19 +9,30 @@ export function PanelToggleIcon({ size = 16 }: { size?: number }) {
 }
 
 // A toggleable right-hand contextual panel with progressive-disclosure sections
-// (the pattern from Claude's own right sidebar). The panel toggle lives in the
-// host's top bar; this renders the panel body only when open.
-
-export function SidePanel({ open, onClose, children }: {
+// (the pattern from Claude's own right sidebar). The single collapse toggle lives
+// ON the panel itself — never in the host's top bar. When collapsed the panel
+// shrinks to a slim rail carrying just the re-open toggle, so it's always the
+// same control in the same place.
+export function SidePanel({ open, onToggle, children }: {
   open: boolean;
-  onClose: () => void;
+  onToggle: () => void;
   children: ReactNode;
 }) {
-  if (!open) return null;
+  if (!open) {
+    return (
+      <div className="sidepanel-rail">
+        <button className="sidepanel-toggle" title="Show panel" aria-label="Show panel" onClick={onToggle}>
+          <PanelToggleIcon />
+        </button>
+      </div>
+    );
+  }
   return (
     <aside className="sidepanel">
+      <div className="sidepanel-head">
+        <button className="sidepanel-toggle" title="Hide panel" aria-label="Hide panel" onClick={onToggle}><PanelToggleIcon /></button>
+      </div>
       <div className="sidepanel-body">{children}</div>
-      <button className="sidepanel-close" title="Close panel" aria-label="Close panel" onClick={onClose}><PanelToggleIcon /></button>
     </aside>
   );
 }

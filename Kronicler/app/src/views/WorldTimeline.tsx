@@ -8,7 +8,7 @@ import type { Nav } from "../App";
 import { parseStoryTime } from "../lib/time";
 import { buildKindSwatches } from "../lib/segmentKinds";
 import { deriveCalendar, DEFAULT_CALENDAR, type DerivedCalendar } from "../lib/worldTime";
-import { SidePanel, Disclosure, PanelToggleIcon } from "../components/SidePanel";
+import { SidePanel, Disclosure } from "../components/SidePanel";
 import { Icon } from "../components/icons";
 import { SwatchPicker } from "../components/SwatchPicker";
 
@@ -528,7 +528,6 @@ export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) =
             </div>
           )}
         </div>
-        <button className="iconbtn" onClick={() => setSideOpen((v) => !v)} title={sideOpen ? "Hide panel" : "Show panel"} aria-pressed={sideOpen}><PanelToggleIcon /></button>
       </div>
 
       {warn && (
@@ -662,7 +661,7 @@ export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) =
           </div>
         </div>
 
-        <SidePanel open={sideOpen} onClose={() => setSideOpen(false)}>
+        <SidePanel open={sideOpen} onToggle={() => setSideOpen((v) => !v)}>
           {/* Undated — the core loop. Type a year to drop a chapter on the line. */}
           <Disclosure label="Undated" count={undatedSidebar.length} defaultOpen>
             {undatedSidebar.length === 0

@@ -148,16 +148,18 @@ textarea { font-family: var(--serif); }
    The underline is uniform (this is a tracked entity); the tint fill appears
    only on hover/focus, so dense prose still reads as prose. */
 /* Toggleable contextual side panel + progressive-disclosure sections. */
-.sidepanel { flex: 0 0 264px; min-width: 0; min-height: 0; position: relative; display: flex; flex-direction: column;
+.sidepanel { flex: 0 0 288px; align-self: flex-start; max-height: 100%; min-width: 0; position: relative; display: flex; flex-direction: column;
   background: var(--surface); border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow); overflow: hidden; }
-.sidepanel-body { flex: 1; min-height: 0; overflow-y: auto; }
-.sidepanel-close { position: absolute; top: 8px; right: 8px; z-index: 2; width: 26px; height: 26px; padding: 0; display: flex; align-items: center; justify-content: center;
-  border: 1px solid var(--line); border-radius: 7px; background: var(--surface); color: var(--sub); font-size: 14px; }
-.sidepanel-close:hover:not(:disabled) { background: var(--wash); color: var(--ink); }
+.sidepanel-head { flex: 0 0 auto; display: flex; justify-content: flex-end; padding: 8px; border-bottom: 1px solid var(--line); }
+.sidepanel-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+/* Collapsed: a slim rail holding just the re-open toggle, at the same right edge. */
+.sidepanel-rail { flex: 0 0 auto; align-self: flex-start; padding-top: 2px; }
+.sidepanel-toggle { width: 30px; height: 30px; padding: 0; display: flex; align-items: center; justify-content: center;
+  border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--sub); cursor: pointer; }
+.sidepanel-toggle:hover:not(:disabled) { background: var(--wash); color: var(--ink); }
 .disc + .disc { border-top: 1px solid var(--line); }
-.disc-head { width: 100%; display: flex; align-items: center; gap: 8px; padding: 12px 40px 12px 12px; background: none; border: none; border-radius: 0; cursor: pointer;
+.disc-head { width: 100%; display: flex; align-items: center; gap: 8px; padding: 12px 14px; background: none; border: none; border-radius: 0; cursor: pointer;
   font-family: var(--sans); color: var(--sub); }
-.disc:first-child .disc-head { padding-right: 44px; }
 .disc-head:hover { background: var(--wash); }
 .disc-chev { display: inline-flex; align-items: center; color: var(--muted); transition: transform var(--k-duration-fast, 120ms) var(--k-ease, ease); }
 .disc.open .disc-chev { transform: rotate(90deg); }
@@ -229,7 +231,7 @@ textarea { font-family: var(--serif); }
 .rich .ment { border-radius: 3px; padding: 0 1px; background: var(--k-ment-tint, var(--k-action-subtle)); }
 
 /* Notes board (canvas-lite) */
-.notes-board { position: relative; height: 68vh; overflow: hidden; border: 1px solid var(--line); border-radius: 12px; background: var(--k-bg-canvas) repeating-linear-gradient(0deg, transparent, transparent 23px, color-mix(in srgb, var(--k-text-primary) 4%, transparent) 24px), repeating-linear-gradient(90deg, transparent, transparent 23px, color-mix(in srgb, var(--k-text-primary) 4%, transparent) 24px); cursor: grab; }
+.notes-board { position: relative; height: 68vh; overflow: hidden; border: 1px solid var(--line); border-radius: 12px; background: var(--surface) repeating-linear-gradient(0deg, transparent, transparent 23px, color-mix(in srgb, var(--k-text-primary) 4%, transparent) 24px), repeating-linear-gradient(90deg, transparent, transparent 23px, color-mix(in srgb, var(--k-text-primary) 4%, transparent) 24px); cursor: grab; }
 .notes-board.panning { cursor: grabbing; }
 .notes-canvas { position: absolute; top: 0; left: 0; width: 0; height: 0; will-change: transform; }
 .canvas-zoom { position: absolute; right: 12px; bottom: 12px; display: flex; align-items: center; gap: 2px; background: var(--surface); border: 1px solid var(--line); border-radius: 9px; box-shadow: var(--pop); padding: 2px; user-select: none; }

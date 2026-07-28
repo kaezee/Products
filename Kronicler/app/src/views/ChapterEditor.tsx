@@ -13,7 +13,7 @@ import { Composer } from "./Composer";
 import { BriefPanel } from "./BriefPanel";
 import { RichProse } from "./RichProse";
 import { ChapterDate } from "./ChapterDate";
-import { SidePanel, Disclosure, PanelToggleIcon } from "../components/SidePanel";
+import { SidePanel, Disclosure } from "../components/SidePanel";
 import { Icon } from "../components/icons";
 import {
   READ_FACES, READ_SIZE_MIN, READ_SIZE_MAX, getReadFace, getReadSize, setReadFace, setReadSize, type ReadFace,
@@ -212,8 +212,6 @@ export function ChapterEditor(props: {
         <span className="tab" onClick={onBack} style={{ paddingLeft: 0, display: "inline-flex", alignItems: "center", gap: 4 }}><Icon name="chevron-left" size={15} /> Manuscript</span>
         <span className="spacer" />
         <span className="muted">{saveState === "saved" ? "saved" : saveState === "saving" ? "saving…" : "unsaved changes"}</span>
-        <button className="iconbtn" onClick={togglePanel} title={panelOpen ? "Hide panel" : "Show panel"} aria-pressed={panelOpen}
-          style={{ padding: "6px 8px" }}><PanelToggleIcon /></button>
       </div>
 
       <div style={{ display: "flex", alignItems: "baseline", gap: 12, margin: "0 0 12px" }}>
@@ -305,7 +303,7 @@ export function ChapterEditor(props: {
           />
         </div>
 
-        <SidePanel open={panelOpen} onClose={togglePanel}>
+        <SidePanel open={panelOpen} onToggle={togglePanel}>
           <Disclosure label="Reading" defaultOpen>
             <div style={{ display: "flex", flexDirection: "column", gap: 9 }}>
               <select className="sel" value={readFace} title="Font the chapter text is set in"

@@ -357,6 +357,25 @@ export async function setChapterDate(chapterId: string, storyTimeRef: number | n
   if (error) throw error;
 }
 
+// Structured in-world date (design doc 3 §12): authored {year,month,day} +
+// precision, with the derived day-numbers and a display label. The caller
+// computes day-numbers from the world calendar (lib/worldTime). Pass null to clear.
+export async function setChapterStructuredDate(
+  chapterId: string,
+  fields: {
+    time_year: number; time_month: number | null; time_day: number | null;
+    time_precision: "year" | "month" | "day"; day_num_start: number; day_num_end: number;
+    story_time_label: string; story_time_ref: number;
+  } | null,
+): Promise<void> {
+  const patch = fields ?? {
+    time_year: null, time_month: null, time_day: null, time_precision: null,
+    day_num_start: null, day_num_end: null, story_time_label: null, story_time_ref: null,
+  };
+  const { error } = await supabase.from("chapters").update(patch).eq("id", chapterId);
+  if (error) throw error;
+}
+
 export async function getRelationshipTypes(worldId: string): Promise<RelationshipType[]> {
   const { data, error } = await supabase
     .from("relationship_types")

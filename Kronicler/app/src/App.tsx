@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { supabase } from "./lib/supabase";
 import { getMyWorlds, createWorld, softDeleteWorld, renameWorld } from "./lib/api";
@@ -48,14 +48,13 @@ function Workspace({ session }: { session: Session }) {
   const [worldNameDraft, setWorldNameDraft] = useState("");
   const [railCollapsed, setRailCollapsed] = useState(() => localStorage.getItem("k.rail") === "1");
   const [theme, setThemeState] = useState<Theme>(getStoredTheme());
+  const [appearanceOpen, setAppearanceOpen] = useState(false);
+  const appearanceRef = useRef<HTMLDivElement>(null);
 
   function toggleRail() {
     setRailCollapsed((v) => { const n = !v; localStorage.setItem("k.rail", n ? "1" : ""); return n; });
   }
-  function cycleTheme() {
-    const next = THEME_CYCLE[(THEME_CYCLE.indexOf(theme) + 1) % THEME_CYCLE.length];
-    setTheme(next); setThemeState(next);
-  }
+  function pickTheme(next: Theme) { setTheme(next); setThemeState(next); setAppearanceOpen(false); }
 
   useEffect(() => {
     let alive = true;
@@ -77,6 +76,13 @@ function Workspace({ session }: { session: Session }) {
     window.addEventListener("keydown", h);
     return () => window.removeEventListener("keydown", h);
   }, []);
+
+  useEffect(() => {
+    if (!appearanceOpen) return;
+    const h = (e: MouseEvent) => { if (appearanceRef.current && !appearanceRef.current.contains(e.target as Node)) setAppearanceOpen(false); };
+    window.addEventListener("mousedown", h);
+    return () => window.removeEventListener("mousedown", h);
+  }, [appearanceOpen]);
 
   async function reloadWorlds() {
     try {
@@ -165,6 +171,24 @@ function Workspace({ session }: { session: Session }) {
             <div className="kbtn" onClick={() => setPaletteOpen(true)}>
               <span className="kbd">⌘K</span> Jump or create
             </div>
+            <div className="appearance" ref={appearanceRef}>
+              <button className="appearance-btn" title={`Appearance: ${THEME_LABEL[theme]}`} aria-label="Appearance"
+                aria-expanded={appearanceOpen} onClick={() => setAppearanceOpen((v) => !v)}>
+                <Icon name={THEME_ICON[theme]} size={ICON_SIZE.md} />
+              </button>
+              {appearanceOpen && (
+                <div className="appearance-pop" role="menu">
+                  <div className="appearance-poplab">Appearance</div>
+                  {THEME_CYCLE.map((t) => (
+                    <button key={t} role="menuitemradio" aria-checked={t === theme}
+                      className={"appearance-opt" + (t === theme ? " on" : "")} onClick={() => pickTheme(t)}>
+                      <Icon name={THEME_ICON[t]} size={ICON_SIZE.md} /> <span>{THEME_LABEL[t]}</span>
+                      {t === theme && <span className="appearance-check"><Icon name="check" size={13} /></span>}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
 
           <div className="shellbody">
@@ -182,14 +206,9 @@ function Workspace({ session }: { session: Session }) {
                   onClick={() => go({ scope: "settings" })} title={railCollapsed ? "Settings" : undefined}>
                   <span className="g"><Icon name="settings" size={ICON_SIZE.lg} /></span>{!railCollapsed && "Settings"}
                 </div>
-                <div className="railitem" onClick={cycleTheme}
-                  title={`Appearance: ${THEME_LABEL[theme]} — click to cycle (Paper → Grey → Dark → System)`}>
-                  <span className="g"><Icon name={THEME_ICON[theme]} size={ICON_SIZE.lg} /></span>{!railCollapsed && <>Theme<span className="spacer" /><span className="muted">{THEME_LABEL[theme]}</span></>}
-                </div>
-                <div className="railitem" title={railCollapsed ? (session.user.email ?? "Account") : (session.user.email ?? "")}>
-                  <span className="g"><Icon name="account" size={ICON_SIZE.lg} /></span>
-                  {!railCollapsed && <>Account<span className="spacer" />
-                    <span className="muted" style={{ cursor: "pointer" }} onClick={() => supabase.auth.signOut()}>out</span></>}
+                <div className="railitem" onClick={() => supabase.auth.signOut()}
+                  title={railCollapsed ? "Log out" : (session.user.email ?? "Log out")}>
+                  <span className="g"><Icon name="logout" size={ICON_SIZE.lg} /></span>{!railCollapsed && "Log out"}
                 </div>
                 <div className="railitem rail-toggle" onClick={toggleRail}
                   title={railCollapsed ? "Expand sidebar" : "Collapse sidebar"}>

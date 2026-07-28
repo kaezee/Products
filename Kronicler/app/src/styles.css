@@ -64,6 +64,17 @@ input, textarea, select { font-size: 13px; padding: 9px 11px; border: 1px solid 
 .searchwrap input { width: 100%; padding-left: 32px; }
 .kbtn { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--sub); padding: 8px 12px; border: 1px solid var(--line); border-radius: 9px; background: var(--surface); cursor: pointer; white-space: nowrap; font-weight: 500; }
 .kbd { font-family: var(--k-font-mono); font-size: 10.5px; border: 1px solid var(--lineStrong); border-radius: 5px; padding: 2px 6px; background: var(--inset); }
+/* Appearance control — a top-chrome button that opens a theme picker popover. */
+.appearance { position: relative; flex: 0 0 auto; }
+.appearance-btn { display: flex; align-items: center; justify-content: center; width: 36px; height: 36px; padding: 0; color: var(--sub); border: 1px solid var(--line); border-radius: 9px; background: var(--surface); cursor: pointer; }
+.appearance-btn:hover { background: var(--wash); color: var(--ink); }
+.appearance-pop { position: absolute; top: calc(100% + 8px); right: 0; z-index: 40; min-width: 172px; padding: 6px; background: var(--k-bg-raised); border: 1px solid var(--k-border); border-radius: 12px; box-shadow: 0 10px 28px rgba(0,0,0,.16); }
+.appearance-poplab { font-size: 10.5px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); padding: 4px 8px 6px; }
+.appearance-opt { width: 100%; display: flex; align-items: center; gap: 9px; padding: 8px 8px; border: none; border-radius: 8px; background: none; color: var(--sub); cursor: pointer; font-size: 13px; text-align: left; }
+.appearance-opt > span:first-of-type { flex: 1; }
+.appearance-opt:hover { background: var(--wash); color: var(--ink); }
+.appearance-opt.on { color: var(--ink); font-weight: 600; }
+.appearance-check { display: inline-flex; color: var(--k-action-default); }
 .shellbody { display: flex; flex: 1; min-height: 0; min-width: 0; }
 .rail { width: 178px; flex-shrink: 0; border-right: 1px solid var(--line); padding: 14px 10px 10px; display: flex; flex-direction: column; gap: 2px; background: transparent; overflow-y: auto; overflow-x: hidden; transition: width var(--k-duration-base, 180ms) var(--k-ease, ease); }
 .rail-collapsed { width: 56px; padding-left: 8px; padding-right: 8px; }

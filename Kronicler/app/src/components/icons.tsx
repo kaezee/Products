@@ -12,6 +12,7 @@ import {
   Moon,
   Monitor,
   CircleUser,
+  LogOut,
   Search,
   Plus,
   Pencil,
@@ -54,6 +55,7 @@ const REGISTRY = {
   "theme-dark": Moon,
   "theme-system": Monitor,
   account: CircleUser,
+  logout: LogOut,
   // actions / affordances
   search: Search,
   plus: Plus,

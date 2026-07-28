@@ -178,6 +178,10 @@ textarea { font-family: var(--serif); }
 .wt2-und-title:hover { color: var(--bond); }
 .wt2-und.on .wt2-und-title { color: var(--bond); font-weight: 600; }
 .wt2-und-date { width: 52px; font-size: 11px; padding: 4px 6px; }
+/* Segment colour picker popover. */
+.swatchpop { position: absolute; top: calc(100% + 6px); left: 0; z-index: 40; background: var(--k-bg-raised); border: 1px solid var(--k-border); border-radius: 10px; box-shadow: 0 8px 24px rgba(0,0,0,.16); padding: 8px; width: 148px; }
+.swatchpop-grid { display: grid; grid-template-columns: repeat(6, 20px); gap: 3px; }
+.swatchpop-auto { margin-top: 8px; width: 100%; font-size: 11px; padding: 5px 8px; }
 .wt2-grip { display: inline-flex; align-items: center; color: var(--faint); cursor: grab; flex: 0 0 auto; }
 .wt2-grip:hover { color: var(--muted); }
 .wt2-grip:active { cursor: grabbing; }

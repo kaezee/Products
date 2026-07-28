@@ -11,6 +11,7 @@ import { ChapterEditor } from "./ChapterEditor";
 import { ImportDocx } from "./ImportDocx";
 import type { Nav } from "../App";
 import { Icon } from "../components/icons";
+import { SwatchPicker } from "../components/SwatchPicker";
 
 // Segments are the one grouping shared with the Timeline — Series › Book ›
 // Season › Volume, nested to any depth. Here each is a collapsible section so a
@@ -129,6 +130,10 @@ export function Manuscript({ worldId, focusChapterId, go }: { worldId: string; f
     setSegments((prev) => prev.map((z) => z.id === s.id ? { ...z, kind } : z));
     try { await updateSegment(s.id, { kind }); } catch (x) { setErr(String(x)); }
   }
+  async function setSegColor(s: Segment, color: string | null) {
+    setSegments((prev) => prev.map((z) => z.id === s.id ? { ...z, color } : z));
+    try { await updateSegment(s.id, { color }); } catch (x) { setErr(String(x)); }
+  }
   async function removeSegment(s: Segment) {
     const kids = segments.filter((z) => z.parent_id === s.id);
     const msg = kids.length
@@ -244,8 +249,8 @@ export function Manuscript({ worldId, focusChapterId, go }: { worldId: string; f
     return (
       <div key={s.id} style={{ marginLeft: depth * 16 }}>
         <div className="row" style={{ background: tint, borderBottom: `1px solid ${color}`, gap: 8, borderRadius: depth ? 8 : 0, marginTop: depth ? 6 : 0 }}>
-          <span onClick={() => toggle(s.id)} style={{ cursor: "pointer", color, display: "inline-flex" }}><Icon name={isCollapsed ? "chevron" : "chevron-down"} size={14} /></span>
-          <span className="dot" style={{ background: color }} />
+          <span onClick={() => toggle(s.id)} style={{ cursor: "pointer", color: "var(--muted)", display: "inline-flex" }}><Icon name={isCollapsed ? "chevron" : "chevron-down"} size={15} /></span>
+          <SwatchPicker value={sw} onPick={(c) => setSegColor(s, c)} title="Segment colour — pick or Auto" />
           <input value={s.name} onChange={(e) => renameSegment(s, e.target.value)}
             style={{ fontFamily: "var(--serif)", fontSize: 14.5, fontWeight: 600, color, border: "none", background: "transparent", padding: 0, minWidth: 80, width: 200 }} />
           <select value={s.kind} onChange={(e) => setSegKind(s, e.target.value)} title="Kind of segment"

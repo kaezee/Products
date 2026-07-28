@@ -10,6 +10,7 @@ import { buildKindSwatches } from "../lib/segmentKinds";
 import { deriveCalendar, DEFAULT_CALENDAR, type DerivedCalendar } from "../lib/worldTime";
 import { SidePanel, Disclosure, PanelToggleIcon } from "../components/SidePanel";
 import { Icon } from "../components/icons";
+import { SwatchPicker } from "../components/SwatchPicker";
 
 // The World Timeline (design doc 3). Everything positions on a signed DAY NUMBER;
 // the axis is calendar-aware and the navigable range is bounded by "known time"
@@ -390,6 +391,10 @@ export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) =
       setAdding(false); setErr(null); await reload();
     } catch (x) { setErr(String(x)); }
   }
+  async function setSegColor(id: string, color: string | null) {
+    setSegments((prev) => prev.map((z) => z.id === id ? { ...z, color } : z));
+    try { await updateSegment(id, { color }); } catch (x) { setErr(String(x)); }
+  }
   async function delSeg(s: Segment) {
     if (!confirm(`Delete "${s.name}" and its nested segments? Chapters return to the sidebar. Recoverable.`)) return;
     try { await softDeleteSegment(s.id); pushUndo(() => restoreSegment(s.id)); await reload(); } catch (x) { setErr(String(x)); }
@@ -717,7 +722,7 @@ export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) =
             {segments.length === 0 && <div className="wt2-sidesub" style={{ marginTop: 0 }}>No segments yet — use + Add · Segment.</div>}
             {rows.list.map(({ seg, depth }) => (
               <div key={seg.id} className="wt2-outline" style={{ paddingLeft: 4 + depth * 12 }}>
-                <span className="wt2-outline-dot" style={{ background: `var(--k-entity-${swatchOf(seg)})` }} />
+                <SwatchPicker value={swatchOf(seg)} onPick={(c) => setSegColor(seg.id, c)} title="Segment colour — pick or Auto" />
                 <span className="wt2-outline-name" title={`${seg.kind} · ${seg.name}`}
                   onClick={() => { const sp = spanOf(seg); if (sp) frameRange(sp[0], sp[1]); }}>{trunc(seg.name, 18)}</span>
                 <span className="wt2-open" title="Delete" onClick={() => delSeg(seg)}><Icon name="close" size={13} /></span>

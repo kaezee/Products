@@ -190,13 +190,15 @@ textarea { font-family: var(--serif); }
 /* ── World Timeline (infinite canvas: year-ruler + nested segment bars) ── */
 .wt2-fill { display: flex; flex-direction: column; height: 100%; min-height: 0; }
 .wt2-wrap { display: flex; gap: 12px; align-items: stretch; flex: 1; min-height: 0; }
-.wt2-board { flex: 1; position: relative; min-width: 0; min-height: 240px; overflow: hidden; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); cursor: grab; user-select: none; }
+.wt2-board { flex: 1; position: relative; min-width: 0; min-height: 240px; overflow: hidden; border: 1px solid var(--k-border); border-radius: 12px; background: var(--k-bg-canvas); cursor: grab; user-select: none; }
 .wt2-board:active { cursor: grabbing; }
-.wt2-ruler { position: absolute; top: 0; left: 0; right: 0; height: 32px; background: var(--surface); border-bottom: 2px solid var(--ink); z-index: 5; }
-.wt2-tick { position: absolute; top: 5px; transform: translateX(-50%); font-family: var(--serif); font-size: 15px; color: var(--ink); font-variant-numeric: tabular-nums; white-space: nowrap; }
-.wt2-gridlayer { position: absolute; top: 32px; left: 0; right: 0; bottom: 0; overflow: hidden; pointer-events: none; }
-.wt2-grid { position: absolute; top: 0; bottom: 0; width: 0; border-left: 1px solid var(--line); }
-.wt2-content { position: absolute; top: 32px; left: 0; right: 0; bottom: 0; will-change: transform; }
+/* Known time is the bright focus surface; the buffer stays the dim canvas base. */
+.wt2-known { position: absolute; top: 32px; bottom: 0; background: var(--k-bg-surface); z-index: 0; }
+.wt2-ruler { position: absolute; top: 0; left: 0; right: 0; height: 32px; background: var(--k-bg-surface); border-bottom: 1px solid var(--k-border-strong); z-index: 5; }
+.wt2-tick { position: absolute; top: 8px; transform: translateX(-50%); font-family: var(--k-font-mono); font-size: 12px; color: var(--k-text-secondary); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.wt2-gridlayer { position: absolute; top: 32px; left: 0; right: 0; bottom: 0; overflow: hidden; pointer-events: none; z-index: 1; }
+.wt2-grid { position: absolute; top: 0; bottom: 0; width: 0; border-left: 1px solid var(--k-border); opacity: 0.55; }
+.wt2-content { position: absolute; top: 32px; left: 0; right: 0; bottom: 0; will-change: transform; z-index: 3; }
 .wt2-empty { position: absolute; top: 20px; left: 20px; color: var(--muted); font-size: 13px; max-width: 400px; }
 .wt2-note { position: absolute; top: 4px; display: flex; align-items: center; gap: 4px; z-index: 4; white-space: nowrap; transform: translateX(-3px); }
 .wt2-notedot { width: 7px; height: 7px; border-radius: 50%; background: var(--obligation); flex: 0 0 auto; }
@@ -244,11 +246,10 @@ textarea { font-family: var(--serif); }
 .wt2-cluster:hover { border-color: var(--bond); color: var(--bond); }
 .wt2-density { position: absolute; width: 2px; height: 11px; border-radius: 1px; opacity: .68; transform: translateX(-1px); }
 /* Known time (§5.3): outside-bounds dim zone, edge labels, extend chips, warning. */
-.wt2-oob { position: absolute; top: 32px; bottom: 0; z-index: 1; pointer-events: none;
-  background-color: color-mix(in srgb, var(--ink) 5.5%, transparent);
-  background-image: repeating-linear-gradient(45deg, transparent 0 6px, color-mix(in srgb, var(--ink) 4%, transparent) 6px 7px); }
+.wt2-oob { position: absolute; top: 32px; bottom: 0; z-index: 2; pointer-events: none;
+  background-image: repeating-linear-gradient(45deg, transparent 0 7px, color-mix(in srgb, var(--k-text-primary) 5%, transparent) 7px 8px); }
 .wt2-edgelab { position: absolute; top: 37px; font-size: 9.5px; white-space: nowrap; z-index: 4; transform: translateX(5px);
-  color: color-mix(in srgb, var(--hostile) 65%, var(--ink)); }
+  font-family: var(--k-font-mono); color: color-mix(in srgb, var(--k-valence-hostile) 78%, var(--k-text-primary)); }
 .wt2-extend { position: absolute; top: 54px; z-index: 5; transform: translateX(5px); font-size: 10px; white-space: nowrap; cursor: pointer;
   border: 1px dashed var(--lineStrong); border-radius: 999px; padding: 2px 8px; background: var(--surface); color: var(--sub); }
 .wt2-extend:hover { border-color: var(--bond); background: var(--bondBg); color: var(--bond); }

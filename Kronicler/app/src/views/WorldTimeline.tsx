@@ -198,11 +198,12 @@ export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) =
       return { lo: lo - pad, hi: hi + pad, knownLo: lo, knownHi: hi };
     }
     const knownLo = yearToDay(known.start), knownHi = yearToDay(known.end) + dpy - 1;
-    const lo = content ? Math.min(knownLo, content.lo) : knownLo;
-    const hi = content ? Math.max(knownHi, content.hi) : knownHi;
-    const span = Math.max(1, hi - lo);
-    const pad = Math.min(200 * dpy, Math.max(1 * dpy, span * 0.15));
-    return { lo: lo - pad, hi: hi + pad, knownLo, knownHi };
+    // A fixed ±500-year buffer around known time (unioned with content so nothing
+    // is ever stranded). Known time is the focus; the buffer is breathing room.
+    const pad = 500 * dpy;
+    const lo = (content ? Math.min(knownLo, content.lo) : knownLo) - pad;
+    const hi = (content ? Math.max(knownHi, content.hi) : knownHi) + pad;
+    return { lo, hi, knownLo, knownHi };
   }, [known, content, dpy, ms, chapters.length]);
   navRef.current = { lo: nav.lo, hi: nav.hi };
 
@@ -221,15 +222,11 @@ export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) =
     return { start, ppd, ty };
   }
 
-  // Initial frame: everything (content ∪ known), a touch of padding.
+  // Initial frame: known time + its buffer (known time centred, in focus).
   useEffect(() => {
     if (fitDone || loading) return;
     const w = boardRef.current?.clientWidth ?? nowW; setNowW(w);
-    const lo = content ? Math.min(nav.knownLo, content.lo) : nav.knownLo;
-    const hi = content ? Math.max(nav.knownHi, content.hi) : nav.knownHi;
-    const span = Math.max(dpy, hi - lo);
-    const ppd = w / (span * 1.06);
-    setView(clampView({ start: lo - span * 0.03, ppd, ty: 0 }, w));
+    setView(clampView({ start: nav.lo, ppd: w / Math.max(dpy, nav.hi - nav.lo), ty: 0 }, w));
     setFitDone(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [content, nav, loading, fitDone]);
@@ -270,19 +267,21 @@ export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) =
     el.addEventListener("wheel", onWheel, { passive: false });
     const ro = new ResizeObserver(() => setNowW(el.clientWidth));
     ro.observe(el);
+    setNowW(el.clientWidth);
     return () => { el.removeEventListener("wheel", onWheel); ro.disconnect(); };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    // Re-attach once the board actually renders (it's absent during loading), else
+    // scroll-to-zoom is wired to nothing. eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading]);
 
   function zoomBy(factor: number) {
     cancelAnim();
     setView((v) => { const lx = nowW / 2, day = v.start + lx / v.ppd; return clampView({ ...v, ppd: v.ppd * factor, start: day - lx / (v.ppd * factor) }, nowW); });
   }
-  // Fit frames KNOWN TIME exactly + 2% (§5.5) — not the padded navigable range.
+  // Fit frames known time with its ±500y buffer (the whole navigable range), so
+  // known time sits in focus in the middle with a little room either side.
   function fitKnown() {
     const w = boardRef.current?.clientWidth ?? nowW;
-    const span = Math.max(dpy, nav.knownHi - nav.knownLo);
-    animateTo({ start: nav.knownLo - span * 0.01, ppd: w / (span * 1.02), ty: 0 });
+    animateTo({ start: nav.lo, ppd: w / Math.max(dpy, nav.hi - nav.lo), ty: 0 });
   }
 
   // ── known time: edit, extend, and the shrink warning (§5.3–5.4) ─────────
@@ -489,9 +488,7 @@ export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) =
       <div className="row" style={{ borderBottom: "none", padding: 0, marginBottom: 4, gap: 8, flexWrap: "wrap", flexShrink: 0 }}>
         <h2 className="scope-title" style={{ margin: 0 }}>World Timeline</h2>
         <span className="faint" style={{ fontSize: 11 }}>
-          {ms
-            ? <>Manuscript order · {Math.round(visibleUnits)} chapters in view</>
-            : <><b style={{ textTransform: "capitalize", color: "var(--sub)" }}>{tier}</b> · {fmtSpan(visibleYears)} in view</>}
+          {ms ? <>{Math.round(visibleUnits)} chapters in view</> : <>{fmtSpan(visibleYears)} in view</>}
           {" "}· scroll to zoom · shift-scroll / drag to pan · ⌘Z undo
         </span>
         <span className="spacer" />
@@ -581,7 +578,8 @@ export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) =
         <div ref={boardRef} className="wt2-board" onMouseDown={onDown} onMouseMove={onMove} onMouseUp={onUp} onMouseLeave={onUp}>
           {/* known time only applies on the story-time axis */}
           {!ms && <>
-            {/* out-of-bounds: everything outside known time renders dimmed + hatched (§5.3) */}
+            {/* known time is the bright focus; everything else is the dim buffer */}
+            <div className="wt2-known" style={{ left: Math.max(0, knownX0), width: Math.max(0, Math.min(nowW, knownX1) - Math.max(0, knownX0)) }} />
             {knownX0 > 0 && <div className="wt2-oob" style={{ left: 0, width: Math.min(nowW, knownX0) }} />}
             {knownX1 < nowW && <div className="wt2-oob" style={{ left: Math.max(0, knownX1), right: 0 }} />}
             {knownX0 > 0 && knownX0 < nowW && <>

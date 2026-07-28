@@ -13,6 +13,7 @@ import { Composer } from "./Composer";
 import { BriefPanel } from "./BriefPanel";
 import { RichProse } from "./RichProse";
 import { ChapterDate } from "./ChapterDate";
+import { SidePanel, Disclosure, PanelToggleIcon } from "../components/SidePanel";
 import {
   READ_FACES, READ_SIZE_MIN, READ_SIZE_MAX, getReadFace, getReadSize, setReadFace, setReadSize, type ReadFace,
 } from "../lib/readingPrefs";
@@ -63,8 +64,6 @@ export function ChapterEditor(props: {
   const [types, setTypes] = useState<RelationshipType[]>([]);
   const [versions, setVersions] = useState<ChapterVersion[]>([]);
   const [cast, setCast] = useState<ChapterEntity[]>([]);
-  const [showVersions, setShowVersions] = useState(false);
-  const [showBrief, setShowBrief] = useState(false);
   const [stream, setStream] = useState<StreamRow[] | null>(null);
   const [err, setErr] = useState<string | null>(null);
 
@@ -212,8 +211,8 @@ export function ChapterEditor(props: {
         <span className="tab" onClick={onBack} style={{ paddingLeft: 0 }}>← Manuscript</span>
         <span className="spacer" />
         <span className="muted">{saveState === "saved" ? "saved" : saveState === "saving" ? "saving…" : "unsaved changes"}</span>
-        <span className={"tab" + (showBrief ? " on" : "")} onClick={() => setShowBrief((v) => !v)}>Brief</span>
-        <span className="tab" onClick={() => setShowVersions((v) => !v)}>History ({versions.length})</span>
+        <button className="iconbtn" onClick={togglePanel} title={panelOpen ? "Hide panel" : "Show panel"} aria-pressed={panelOpen}
+          style={{ padding: "6px 8px" }}><PanelToggleIcon /></button>
       </div>
 
       <div style={{ display: "flex", alignItems: "baseline", gap: 12, margin: "0 0 12px" }}>
@@ -305,90 +304,66 @@ export function ChapterEditor(props: {
           />
         </div>
 
-        {panelOpen ? (
-        <div style={{ width: 244, flexShrink: 0 }}>
-          <div className="row" style={{ borderBottom: "none", padding: 0, marginBottom: 6, alignItems: "center" }}>
-            <div className="label" style={{ margin: 0 }}>Aa · Reading</div>
-            <span className="spacer" />
-            <span title="Hide panel" onClick={togglePanel}
-              style={{ cursor: "pointer", color: "var(--muted)", fontSize: 15, padding: "0 2px" }}>»</span>
-          </div>
-          <div className="card" style={{ padding: 10, marginBottom: 16, display: "flex", flexDirection: "column", gap: 9 }}>
-            <select className="sel" value={readFace} title="Font the chapter text is set in"
-              onChange={(e) => changeFace(e.target.value as ReadFace)}>
-              {READ_FACES.map((f) => <option key={f.key} value={f.key}>{f.label}</option>)}
-            </select>
-            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              <span className="muted" style={{ fontSize: 11, flex: 1 }}>Text size</span>
-              <button style={{ padding: "2px 10px", fontSize: 14, lineHeight: 1 }} disabled={readSize <= READ_SIZE_MIN}
-                onClick={() => changeSize(readSize - 1)} title="Smaller">−</button>
-              <span style={{ minWidth: 40, textAlign: "center", fontSize: 12, fontVariantNumeric: "tabular-nums" }}>{readSize}px</span>
-              <button style={{ padding: "2px 10px", fontSize: 14, lineHeight: 1 }} disabled={readSize >= READ_SIZE_MAX}
-                onClick={() => changeSize(readSize + 1)} title="Larger">+</button>
+        <SidePanel open={panelOpen} onClose={togglePanel}>
+          <Disclosure label="Reading" defaultOpen>
+            <div style={{ display: "flex", flexDirection: "column", gap: 9 }}>
+              <select className="sel" value={readFace} title="Font the chapter text is set in"
+                onChange={(e) => changeFace(e.target.value as ReadFace)}>
+                {READ_FACES.map((f) => <option key={f.key} value={f.key}>{f.label}</option>)}
+              </select>
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <span className="muted" style={{ fontSize: 11, flex: 1 }}>Text size</span>
+                <button style={{ padding: "2px 10px", fontSize: 14, lineHeight: 1 }} disabled={readSize <= READ_SIZE_MIN}
+                  onClick={() => changeSize(readSize - 1)} title="Smaller">−</button>
+                <span style={{ minWidth: 40, textAlign: "center", fontSize: 12, fontVariantNumeric: "tabular-nums" }}>{readSize}px</span>
+                <button style={{ padding: "2px 10px", fontSize: 14, lineHeight: 1 }} disabled={readSize >= READ_SIZE_MAX}
+                  onClick={() => changeSize(readSize + 1)} title="Larger">+</button>
+              </div>
             </div>
-          </div>
-          {showBrief && (
-            <div style={{ marginBottom: 4 }}>
-              {!brief ? <p className="muted">Computing brief…</p>
-                : <BriefPanel brief={brief} chapterOrder={chapter.manuscript_order} nameOf={nameOf} onOpenEntity={onOpenEntity} compact />}
-            </div>
-          )}
+          </Disclosure>
+
           {(() => {
             const visible = mentioned.filter((e) => !dismissed.has(e.id));
             const unlinked = visible.filter((e) => !castIds.includes(e.id));
             return (
-              <>
-                <div className="row" style={{ borderBottom: "none", padding: 0, marginTop: showBrief ? 22 : 0, marginBottom: 6, alignItems: "baseline" }}>
-                  <div className="label" style={{ margin: 0 }}>Cast detected · {visible.length}</div>
-                  <span className="spacer" />
-                  {unlinked.length > 1 && (
-                    <button style={{ padding: "3px 9px", fontSize: 11 }} onClick={() => linkAll(unlinked.map((e) => e.id))}
-                      title="Add all detected characters to this chapter's cast (feeds the Brief)">link all {unlinked.length}</button>
-                  )}
-                </div>
-                <div className="card">
-                  {visible.length === 0 && <div className="row"><span className="muted">No known entities mentioned yet.</span></div>}
-                  {visible.map((e) => {
-                    const linked = castIds.includes(e.id);
-                    return (
-                      <div className="row" key={e.id} style={{ padding: "8px 10px", gap: 6 }}>
-                        <span style={{ flex: 1, fontSize: 13 }}>{e.title}</span>
-                        {linked
-                          ? <span className="muted" style={{ fontSize: 11 }}>linked</span>
-                          : <button style={{ padding: "3px 8px", fontSize: 11 }} onClick={() => link(e.id)} title="Confirm — add to this chapter's cast">link</button>}
-                        <span title="Not this — hide the suggestion" onClick={() => setDismissed((d) => new Set(d).add(e.id))}
-                          style={{ cursor: "pointer", color: "var(--faint)", fontSize: 13 }}>✕</span>
-                      </div>
-                    );
-                  })}
-                </div>
-              </>
+              <Disclosure label="Cast detected" count={visible.length} defaultOpen>
+                {unlinked.length > 1 && (
+                  <button style={{ padding: "3px 9px", fontSize: 11, marginBottom: 8 }} onClick={() => linkAll(unlinked.map((e) => e.id))}
+                    title="Add all detected characters to this chapter's cast">link all {unlinked.length}</button>
+                )}
+                {visible.length === 0 && <span className="muted">No known entities mentioned yet.</span>}
+                {visible.map((e) => {
+                  const linked = castIds.includes(e.id);
+                  return (
+                    <div className="row" key={e.id} style={{ padding: "7px 0", gap: 6, borderColor: "var(--line)" }}>
+                      <span style={{ flex: 1, fontSize: 13 }}>{e.title}</span>
+                      {linked
+                        ? <span className="muted" style={{ fontSize: 11 }}>linked</span>
+                        : <button style={{ padding: "3px 8px", fontSize: 11 }} onClick={() => link(e.id)} title="Confirm — add to this chapter's cast">link</button>}
+                      <span title="Not this — hide the suggestion" onClick={() => setDismissed((d) => new Set(d).add(e.id))}
+                        style={{ cursor: "pointer", color: "var(--faint)", fontSize: 13 }}>✕</span>
+                    </div>
+                  );
+                })}
+              </Disclosure>
             );
           })()}
 
-          {showVersions && (
-            <>
-              <div className="label">Version history</div>
-              <div className="card">
-                {versions.length === 0 && <div className="row"><span className="muted">No versions yet.</span></div>}
-                {versions.map((v) => (
-                  <div className="row" key={v.id} style={{ padding: "8px 12px", gap: 8 }}>
-                    <span className="muted" style={{ fontSize: 11, flex: 1 }}>
-                      {new Date(v.created_at).toLocaleString()}
-                    </span>
-                    <button style={{ padding: "3px 8px", fontSize: 11 }} onClick={() => restore(v)}>restore</button>
-                  </div>
-                ))}
+          <Disclosure label="Brief">
+            {!brief ? <span className="muted">Computing brief…</span>
+              : <BriefPanel brief={brief} chapterOrder={chapter.manuscript_order} nameOf={nameOf} onOpenEntity={onOpenEntity} compact />}
+          </Disclosure>
+
+          <Disclosure label="History" count={versions.length}>
+            {versions.length === 0 && <span className="muted">No versions yet.</span>}
+            {versions.map((v) => (
+              <div className="row" key={v.id} style={{ padding: "7px 0", gap: 8, borderColor: "var(--line)" }}>
+                <span className="muted" style={{ fontSize: 11, flex: 1 }}>{new Date(v.created_at).toLocaleString()}</span>
+                <button style={{ padding: "3px 8px", fontSize: 11 }} onClick={() => restore(v)}>restore</button>
               </div>
-            </>
-          )}
-        </div>
-        ) : (
-          <div style={{ flexShrink: 0 }}>
-            <button title="Show reading & cast panel" onClick={togglePanel}
-              style={{ padding: "6px 9px", lineHeight: 1 }}>«</button>
-          </div>
-        )}
+            ))}
+          </Disclosure>
+        </SidePanel>
       </div>
 
       {composerOpen && (

@@ -1,5 +1,16 @@
 import { useState, type ReactNode } from "react";
 
+// A real "side panel" toggle icon: a rounded rectangle with a vertical divider
+// marking a panel on the right edge (like Claude's open/close-sidebar control).
+export function PanelToggleIcon({ size = 15 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" aria-hidden="true">
+      <rect x="1.5" y="2.5" width="13" height="11" rx="2.2" />
+      <line x1="10" y1="2.5" x2="10" y2="13.5" />
+    </svg>
+  );
+}
+
 // A toggleable right-hand contextual panel with progressive-disclosure sections
 // (the pattern from Claude's own right sidebar). The panel toggle lives in the
 // host's top bar; this renders the panel body only when open.
@@ -13,7 +24,7 @@ export function SidePanel({ open, onClose, children }: {
   return (
     <aside className="sidepanel">
       <div className="sidepanel-body">{children}</div>
-      <button className="sidepanel-close" title="Close panel" aria-label="Close panel" onClick={onClose}>⊟</button>
+      <button className="sidepanel-close" title="Close panel" aria-label="Close panel" onClick={onClose}><PanelToggleIcon /></button>
     </aside>
   );
 }

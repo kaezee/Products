@@ -14,6 +14,7 @@ import { Settings } from "./views/Settings";
 import { SearchResults } from "./views/SearchResults";
 import { Palette } from "./views/Palette";
 import { getStoredTheme, setTheme, type Theme } from "./lib/theme";
+import { PanelToggleIcon } from "./components/SidePanel";
 
 const THEME_CYCLE: Theme[] = ["paper", "grey", "dark", "system"];
 const THEME_ICON: Record<Theme, string> = { paper: "○", grey: "◐", dark: "●", system: "◑" };
@@ -191,7 +192,7 @@ function Workspace({ session }: { session: Session }) {
                 </div>
                 <div className="railitem rail-toggle" onClick={toggleRail}
                   title={railCollapsed ? "Expand sidebar" : "Collapse sidebar"}>
-                  <span className="g">{railCollapsed ? "»" : "«"}</span>{!railCollapsed && "Collapse"}
+                  <span className="g" style={{ display: "inline-flex", alignItems: "center", justifyContent: "center" }}><PanelToggleIcon size={16} /></span>{!railCollapsed && "Collapse"}
                 </div>
               </div>
             </div>

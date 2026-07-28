@@ -318,23 +318,68 @@ export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) =
   if (loading) return <p className="muted">Loading world timeline…</p>;
 
   const visibleYears = (nowW / view.ppd) / dpy;
+  const tier = tierOf(visibleYears);
   const knownX0 = xOf(nav.knownLo), knownX1 = xOf(nav.knownHi);
+
+  // Instantly frame a day range (+10% pad). Smooth geometric framing lands in
+  // the next batch; for now it's a clamp-jump.
+  function frameRange(dLo: number, dHi: number) {
+    const w = nowW, span = Math.max(dpy * 0.1, dHi - dLo), pad = span * 0.1;
+    setView((v) => clampView({ ...v, ppd: w / (span + 2 * pad), start: dLo - pad }, w));
+  }
 
   // A dated chapter's band. Year/month precision → hatched band across its whole
   // span; day precision → a solid mark. Colour from its segment's swatch.
-  const chapterBand = (c: Chapter, sw: string, top: number) => {
+  const chapterBand = (c: Chapter, sw: string, top: number, showTitle: boolean) => {
     const x1 = xOf(c.day_num_start!);
     const x2 = xOf(c.day_num_end ?? c.day_num_start!);
     const w = Math.max(x2 - x1, 7);
     const hatched = c.time_precision !== "day";
+    const num = c.planned ? "✎" : String(c.manuscript_order).padStart(2, "0");
     return (
       <div key={c.id} className={"wt2-chband" + (hatched ? " hatch" : "") + (c.planned ? " planned" : "")}
         style={{ left: x1, width: w, top, ["--sw" as string]: `var(--k-entity-${sw})` }}
         title={`${c.planned ? "planned · " : ""}${c.title}${c.story_time_label ? " · " + c.story_time_label : ""}`}
         onClick={() => go({ scope: "manuscript", chapterId: c.id })}>
-        <span className="wt2-chlab">{c.planned ? "✎" : String(c.manuscript_order).padStart(2, "0")} {trunc(c.title, 14)}</span>
+        <span className="wt2-chlab">{showTitle ? `${num} ${trunc(c.title, 14)}` : num}</span>
       </div>
     );
+  };
+
+  // Chapters under a segment (or loose), rendered for the current LOD tier:
+  //  work  → a density strip (ticks, no individual chapters)
+  //  season/chapter → pixel-proximity clusters: singles as bands, groups as a
+  //                   "N chapters" badge (double-click to frame)
+  //  detail → every chapter as a titled band, lane-stacked for same-day overlap
+  const chapterLayer = (chs: Chapter[], sw: string, top: number): React.ReactNode => {
+    if (tier === "era") return null;                     // Era shows only top-level bars
+    const dated = chs.filter((c) => c.day_num_start != null);
+    if (dated.length === 0) return null;
+    if (tier === "work") {
+      return dated.map((c) => (
+        <span key={c.id} className="wt2-density" title={`${dated.length} chapters here`}
+          style={{ left: xOf(midDay(c)), top: top + 4, background: `var(--k-entity-${sw})` }} />
+      ));
+    }
+    if (tier === "detail") {
+      const lanes = laneAssign(dated, xOf);
+      return dated.map((c) => chapterBand(c, sw, top + (lanes.get(c.id) ?? 0) * (CH_H + 3), true));
+    }
+    // season / chapter: cluster by pixel proximity
+    const groups = clusterByPixel(dated.map((c) => ({ c, x: xOf(midDay(c)) })), 56);
+    return groups.map((g, i) => {
+      if (g.items.length === 1) return chapterBand(g.items[0], sw, top, false);
+      const cx = (g.x0 + g.x1) / 2;
+      const dLo = Math.min(...g.items.map((c) => c.day_num_start!));
+      const dHi = Math.max(...g.items.map((c) => c.day_num_end ?? c.day_num_start!));
+      return (
+        <span key={"cl" + i} className="wt2-cluster" style={{ left: cx, top }}
+          title={g.items.map((c) => c.title).join(", ") + " — double-click to open up"}
+          onDoubleClick={(e) => { e.stopPropagation(); frameRange(dLo, dHi); }}>
+          {g.items.length} chapters
+        </span>
+      );
+    });
   };
 
   return (
@@ -342,7 +387,7 @@ export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) =
       <div className="row" style={{ borderBottom: "none", padding: 0, marginBottom: 4, gap: 8, flexWrap: "wrap" }}>
         <h2 className="scope-title" style={{ margin: 0 }}>World Timeline</h2>
         <span className="faint" style={{ fontSize: 11 }}>
-          {fmtSpan(visibleYears)} in view · scroll to zoom · drag to pan · ⌘Z undo
+          <b style={{ textTransform: "capitalize", color: "var(--sub)" }}>{tier}</b> · {fmtSpan(visibleYears)} in view · scroll to zoom · drag to pan · ⌘Z undo
         </span>
         <span className="spacer" />
         <button onClick={() => void undo()} title="Undo (⌘Z)">↶ Undo</button>
@@ -405,10 +450,10 @@ export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) =
             ))}
 
             {/* loose dated chapters (a date but no segment) */}
-            {looseDated.length > 0 && (
+            {looseDated.length > 0 && tier !== "era" && (
               <>
                 <span className="wt2-loose-lab" style={{ top: PAD_Y - 14 }}>loose chapters</span>
-                {looseDated.map((c) => chapterBand(c, "slate", PAD_Y))}
+                {chapterLayer(looseDated, "slate", PAD_Y)}
               </>
             )}
 
@@ -416,15 +461,15 @@ export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) =
               <div className="wt2-empty">Add a segment (a series, book, or season), then date chapters or bulk-add them from the sidebar. Dated chapters appear here; the ruler is bounded by your world's known time.</div>
             )}
 
-            {rows.list.map(({ seg, depth, y, hasCh }) => {
+            {rows.list.map(({ seg, depth, y }) => {
+              if (tier === "era" && depth > 0) return null;   // Era: top-level segments only
               const sp0 = spanOf(seg), sw = swatchOf(seg);
               const color = `var(--k-entity-${sw})`;
               const placeholder = !sp0;
               const sp: Span = sp0 ?? [nav.knownLo, nav.knownLo + Math.max(dpy, Math.round((nav.knownHi - nav.knownLo) * 0.15))];
-              const chs = (chaptersBySeg.get(seg.id) ?? []).filter((c) => c.day_num_start != null);
+              const chs = chaptersBySeg.get(seg.id) ?? [];
               const barH = Math.max(4, BAR_H - depth * 2);
               const x1 = xOf(sp[0]), w = Math.max(xOf(sp[1]) - x1, RESIZE_MIN_W);
-              const wide = w > 70;
               return (
                 <div key={seg.id}>
                   <span className="wt2-seglab" style={{ left: x1 + depth * 16, top: y, color }}>
@@ -438,8 +483,7 @@ export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) =
                     <span className="wt2-edge" data-seg={seg.id} data-edge="start" style={{ left: -3 }} />
                     <span className="wt2-edge" data-seg={seg.id} data-edge="end" style={{ right: -3 }} />
                   </div>
-                  {hasCh && wide && chs.map((c) => chapterBand(c, sw, y + LABEL_H + barH + 6))}
-                  {hasCh && !wide && <span className="wt2-collapsed" style={{ left: x1 + depth * 16, top: y + LABEL_H + barH + 6, color }}>{chs.length} ▪ · zoom in</span>}
+                  {chapterLayer(chs, sw, y + LABEL_H + barH + 6)}
                 </div>
               );
             })}
@@ -495,6 +539,47 @@ export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) =
 }
 
 const trunc = (s: string, n = 12) => (s.length > n ? s.slice(0, n) + "…" : s);
+const midDay = (c: Chapter) => ((c.day_num_start ?? 0) + (c.day_num_end ?? c.day_num_start ?? 0)) / 2;
+
+// LOD tier from the visible span in years (§6). Different objects at different
+// altitudes; this is what makes the surface feel like a canvas, not a scaled drawing.
+type Tier = "era" | "work" | "season" | "chapter" | "detail";
+function tierOf(visibleYears: number): Tier {
+  if (visibleYears >= 500) return "era";
+  if (visibleYears >= 60) return "work";
+  if (visibleYears >= 5) return "season";
+  if (visibleYears >= 0.5) return "chapter";
+  return "detail";
+}
+
+// Group items by pixel proximity (§7.1): a gap smaller than `gap` keeps them in
+// the same cluster. Degrades gracefully where lane-stacking fails (22 in a month).
+function clusterByPixel(items: { c: Chapter; x: number }[], gap: number) {
+  const sorted = [...items].sort((a, b) => a.x - b.x);
+  const groups: { x0: number; x1: number; items: Chapter[] }[] = [];
+  for (const it of sorted) {
+    const last = groups[groups.length - 1];
+    if (last && it.x - last.x1 < gap) { last.x1 = it.x; last.items.push(it.c); }
+    else groups.push({ x0: it.x, x1: it.x, items: [it.c] });
+  }
+  return groups;
+}
+
+// Greedy lane assignment for genuinely-overlapping chapters at Detail tier (§7.2).
+function laneAssign(chs: Chapter[], xOf: (d: number) => number): Map<string, number> {
+  const items = chs
+    .map((c) => ({ id: c.id, x0: xOf(c.day_num_start!), x1: Math.max(xOf(c.day_num_end ?? c.day_num_start!), xOf(c.day_num_start!) + 7) }))
+    .sort((a, b) => a.x0 - b.x0);
+  const laneEnds: number[] = [];
+  const m = new Map<string, number>();
+  for (const it of items) {
+    let lane = laneEnds.findIndex((end) => end <= it.x0 - 4);
+    if (lane === -1) { lane = laneEnds.length; laneEnds.push(0); }
+    laneEnds[lane] = it.x1;
+    m.set(it.id, lane);
+  }
+  return m;
+}
 
 function fmtSpan(years: number): string {
   if (years >= 2) return `${Math.round(years).toLocaleString()} years`;

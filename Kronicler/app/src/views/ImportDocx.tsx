@@ -177,7 +177,7 @@ export function ImportDocx({ worldId, mode, startOrder, onClose, onDone }: {
 
         {stage === "done" && (
           <div>
-            <p style={{ fontFamily: "var(--serif)", fontSize: 16 }}>Imported <b>{progress.total}</b> {mode === "chapters" ? "chapters" : "entities"}. 🎉</p>
+            <p style={{ fontFamily: "var(--serif)", fontSize: 16, display: "inline-flex", alignItems: "center", gap: 6 }}><Icon name="done" size={16} style={{ color: "var(--bond)" }} /> Imported <b>{progress.total}</b> {mode === "chapters" ? "chapters" : "entities"}.</p>
             <button className="primary" onClick={onClose}>Done</button>
           </div>
         )}

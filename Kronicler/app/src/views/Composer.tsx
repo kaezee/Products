@@ -100,7 +100,7 @@ export function Composer(props: {
         </div>
         <p className="muted" style={{ margin: "0 0 10px", fontSize: 12 }}>
           What happens between two characters here? It joins their relationship history, filed under
-          {" "}<span style={{ color: "var(--ink)", fontWeight: 600 }}>📖 ch. {String(chapterOrder).padStart(2, "0")} — {chapterTitle}</span>.
+          {" "}<span style={{ color: "var(--ink)", fontWeight: 600 }}><Icon name="book" size={12} /> ch. {String(chapterOrder).padStart(2, "0")} — {chapterTitle}</span>.
         </p>
 
         {/* the sentence */}

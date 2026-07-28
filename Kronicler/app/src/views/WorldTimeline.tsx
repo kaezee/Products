@@ -528,13 +528,13 @@ export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) =
 
       {warn && (
         <div className="wt2-warn">
-          <div style={{ fontWeight: 600, marginBottom: 6 }}>⚠ {warn.segs.length + warn.chs.length} thing{warn.segs.length + warn.chs.length === 1 ? "" : "s"} fall outside {warn.want[0]}–{warn.want[1]}</div>
+          <div style={{ fontWeight: 600, marginBottom: 6, display: "flex", alignItems: "center", gap: 6 }}><Icon name="alert" size={15} style={{ color: "var(--obligation)" }} /> {warn.segs.length + warn.chs.length} thing{warn.segs.length + warn.chs.length === 1 ? "" : "s"} fall outside {warn.want[0]}–{warn.want[1]}</div>
           {warn.segs.map((s) => (
             <div key={s.id} className="row" style={{ borderBottom: "none", padding: "3px 0", gap: 8, fontSize: 12.5 }}>
               <span className="wt2-kind" style={{ color: "var(--obligation)" }}>segment</span>
               <b>{s.name}</b><span className="faint">{s.lo}–{s.hi}</span>
               <span className="spacer" />
-              <span className="wt2-open" title="Show it" onClick={() => { const seg = segments.find((z) => z.id === s.id); const sp = seg && spanOf(seg); if (sp) frameRange(sp[0], sp[1]); }}>jump ↗</span>
+              <span className="wt2-open" title="Show it" onClick={() => { const seg = segments.find((z) => z.id === s.id); const sp = seg && spanOf(seg); if (sp) frameRange(sp[0], sp[1]); }}>jump <Icon name="jump" size={12} /></span>
             </div>
           ))}
           {warn.chs.map((c) => (
@@ -542,7 +542,7 @@ export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) =
               <span className="wt2-kind" style={{ color: "var(--obligation)" }}>chapter</span>
               <b>{trunc(c.title, 26)}</b><span className="faint">{c.year} · outside, but its segment isn't (a flashback?)</span>
               <span className="spacer" />
-              <span className="wt2-open" onClick={() => go({ scope: "manuscript", chapterId: c.id })}>open ↗</span>
+              <span className="wt2-open" onClick={() => go({ scope: "manuscript", chapterId: c.id })}>open <Icon name="jump" size={12} /></span>
             </div>
           ))}
           <div className="muted" style={{ fontSize: 11.5, margin: "6px 0 10px" }}>Nothing is deleted or moved — they stay put and you can still pan to them, but they'll sit outside known time and Fit won't show them.</div>
@@ -575,7 +575,7 @@ export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) =
         <div className="card" style={{ padding: 10, marginBottom: 10, display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
           <span className="wt2-kind" style={{ color: "var(--obligation)" }}>note</span>
           <input autoFocus placeholder="Note — a thought, an event, a reminder…" value={noteText} onChange={(e) => setNoteText(e.target.value)} style={{ width: 280 }} />
-          <input placeholder="🕐 year (blank = no time)" value={noteYear} onChange={(e) => setNoteYear(e.target.value)} style={{ width: 150 }} />
+          <input placeholder="year (blank = no time)" value={noteYear} onChange={(e) => setNoteYear(e.target.value)} style={{ width: 150 }} />
           <button className="primary" onClick={addNote}>Add</button>
           <button onClick={() => setNoteOpen(false)}>Cancel</button>
         </div>
@@ -661,7 +661,7 @@ export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) =
           {/* Undated — the core loop. Type a year to drop a chapter on the line. */}
           <Disclosure label="Undated" count={undatedSidebar.length} defaultOpen>
             {undatedSidebar.length === 0
-              ? <div className="wt2-sidesub" style={{ margin: 0 }}>Every chapter has a date 🎉</div>
+              ? <div className="wt2-sidesub" style={{ margin: 0, display: "inline-flex", alignItems: "center", gap: 5 }}><Icon name="done" size={13} style={{ color: "var(--bond)" }} /> Every chapter has a date</div>
               : <>
                   <div className="wt2-sidesub" style={{ marginTop: 0 }}>Type a year, or drag a chapter onto the line to place it.</div>
                   {sel.size > 0 && (

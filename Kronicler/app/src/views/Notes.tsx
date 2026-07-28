@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { getNotes, createNote, updateNote, softDeleteNote, getEntities, getRelationshipTypes, getChapters } from "../lib/api";
 import type { Note, Entity, RelationshipType, Chapter } from "../lib/types";
 import { NoteToState } from "./NoteToState";
+import { Icon } from "../components/icons";
 
 const CARD_W = 230, CARD_H = 150; // CARD_H is a nominal height, for framing math only
 const MIN_SCALE = 0.3, MAX_SCALE = 2.2;
@@ -170,7 +171,7 @@ export function Notes({ worldId }: { worldId: string }) {
         <span className="spacer" />
         <div className="seg" style={{ fontSize: 11 }}>
           <span className={show === "all" ? "on" : ""} onClick={() => setShow("all")}>All {notes.length}</span>
-          <span className={show === "secrets" ? "on" : ""} onClick={() => setShow("secrets")}>🔒 Secrets {secretCount}</span>
+          <span className={show === "secrets" ? "on" : ""} onClick={() => setShow("secrets")} style={{ display: "inline-flex", alignItems: "center", gap: 4 }}><Icon name="lock" size={11} /> Secrets {secretCount}</span>
         </div>
         <button onClick={add}>+ New note</button>
       </div>
@@ -256,14 +257,15 @@ function NoteCard({ note, entities, chapters, onChange, onDelete, onDragStart, o
       background: note.is_secret ? "var(--obligationBg)" : "var(--surface)",
     }}>
       <div className="notecard-bar" onMouseDown={onDragStart}>
-        <span style={{ color: "var(--faint)", cursor: "grab" }}>⠿</span>
+        <span style={{ color: "var(--faint)", cursor: "grab", display: "inline-flex" }}><Icon name="grip" size={13} /></span>
         <span className="spacer" />
-        <span title={note.is_secret ? "Secret — hidden reveal" : "Mark as secret"} style={{ cursor: "pointer", fontSize: 12 }}
+        <span title={note.is_secret ? "Secret — hidden reveal" : "Mark as secret"}
+          style={{ cursor: "pointer", display: "inline-flex", color: note.is_secret ? "var(--obligation)" : "var(--muted)" }}
           onMouseDown={(e) => e.stopPropagation()} onClick={() => onChange({ is_secret: !note.is_secret })}>
-          {note.is_secret ? "🔒" : "🔓"}
+          <Icon name={note.is_secret ? "lock" : "unlock"} size={14} />
         </span>
-        <span title="Delete note" style={{ cursor: "pointer", color: "var(--faint)", fontSize: 13 }}
-          onMouseDown={(e) => e.stopPropagation()} onClick={onDelete}>✕</span>
+        <span title="Delete note" style={{ cursor: "pointer", color: "var(--faint)", display: "inline-flex" }}
+          onMouseDown={(e) => e.stopPropagation()} onClick={onDelete}><Icon name="close" size={13} /></span>
       </div>
       <textarea className="notecard-body" value={body} placeholder="Jot an idea…"
         style={{ resize: "none", flex: note.h ? 1 : undefined }}
@@ -272,19 +274,19 @@ function NoteCard({ note, entities, chapters, onChange, onDelete, onDragStart, o
         {tagged.map((e) => (
           <span key={e.id} className="chip on" style={{ cursor: "pointer" }}
             onClick={() => onChange({ entity_ids: note.entity_ids.filter((id) => id !== e.id) })}>
-            {e.title} ✕
+            {e.title} <Icon name="close" size={11} />
           </span>
         ))}
         {linkedCh.map((c) => (
           <span key={c.id} className="chip on" style={{ cursor: "pointer", borderColor: "var(--bond)", color: "var(--bond)" }} title={c.title}
             onClick={() => onChange({ chapter_ids: chapterIds.filter((id) => id !== c.id) })}>
-            📖 ch. {c.manuscript_order} ✕
+            <Icon name="book" size={11} /> ch. {c.manuscript_order} <Icon name="close" size={11} />
           </span>
         ))}
         {note.plan_ref && (
           <span className="chip on" style={{ cursor: "pointer", borderColor: "var(--obligation)", color: "var(--obligation)" }}
             title="A planned beat — not yet written" onClick={() => onChange({ plan_ref: null })}>
-            🗓 {note.plan_ref} ✕
+            <Icon name="calendar" size={11} /> {note.plan_ref} <Icon name="close" size={11} />
           </span>
         )}
         <span className="chip click" onClick={() => { setTagOpen((v) => !v); setChOpen(false); }}>+ who</span>

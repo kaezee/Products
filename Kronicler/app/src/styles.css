@@ -188,8 +188,9 @@ textarea { font-family: var(--serif); }
 .tl-bandx:hover { opacity: 1; }
 
 /* ── World Timeline (infinite canvas: year-ruler + nested segment bars) ── */
-.wt2-wrap { display: flex; gap: 12px; align-items: stretch; }
-.wt2-board { flex: 1; position: relative; min-width: 0; height: calc(100vh - 210px); min-height: 340px; overflow: hidden; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); cursor: grab; user-select: none; }
+.wt2-fill { display: flex; flex-direction: column; height: 100%; min-height: 0; }
+.wt2-wrap { display: flex; gap: 12px; align-items: stretch; flex: 1; min-height: 0; }
+.wt2-board { flex: 1; position: relative; min-width: 0; min-height: 240px; overflow: hidden; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); cursor: grab; user-select: none; }
 .wt2-board:active { cursor: grabbing; }
 .wt2-ruler { position: absolute; top: 0; left: 0; right: 0; height: 32px; background: var(--surface); border-bottom: 2px solid var(--ink); z-index: 5; }
 .wt2-tick { position: absolute; top: 5px; transform: translateX(-50%); font-family: var(--serif); font-size: 15px; color: var(--ink); font-variant-numeric: tabular-nums; white-space: nowrap; }
@@ -215,7 +216,7 @@ textarea { font-family: var(--serif); }
 .wt2-collapsed { position: absolute; font-size: 10px; white-space: nowrap; }
 .wt2-x { cursor: pointer; color: var(--faint); font-size: 11px; margin-left: 6px; }
 .wt2-x:hover { color: var(--hostile); }
-.wt2-side { flex: 0 0 196px; border-left: 1px solid var(--line); padding-left: 14px; max-height: calc(100vh - 210px); overflow-y: auto; }
+.wt2-side { flex: 0 0 196px; border-left: 1px solid var(--line); padding-left: 14px; min-height: 0; overflow-y: auto; }
 .wt2-sidelab { font-size: 10.5px; font-weight: 650; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
 .wt2-sidesub { font-size: 11px; color: var(--faint); margin: 3px 0 10px; }
 .wt2-sideitem { padding: 6px 8px; border: 1px solid var(--line); border-radius: 7px; margin-bottom: 6px; font-size: 11.5px; cursor: pointer; color: var(--sub); font-variant-numeric: tabular-nums; display: flex; align-items: center; gap: 6px; }

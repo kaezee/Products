@@ -257,15 +257,15 @@ export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) =
       e.preventDefault();
       if (animRef.current) { cancelAnimationFrame(animRef.current); animRef.current = null; }
       const v = viewRef.current, w = nowWRef.current;
-      const pinch = e.ctrlKey || e.metaKey;
-      if (!pinch && Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
-        setView(clampView({ ...v, start: v.start + e.deltaX / v.ppd }, w));
-      } else {
-        const lx = localX(e.clientX), day = v.start + lx / v.ppd;
-        const k = pinch ? 0.01 : 0.0022;
-        const ppd = v.ppd * Math.exp(-e.deltaY * k);
-        setView(clampView({ ...v, ppd, start: day - lx / ppd }, w));
+      // Shift-scroll (or a horizontal swipe) pans; plain scroll zooms at the cursor.
+      if (e.shiftKey || Math.abs(e.deltaX) > Math.abs(e.deltaY) * 1.5) {
+        setView(clampView({ ...v, start: v.start + (e.shiftKey ? e.deltaY : e.deltaX) / v.ppd }, w));
+        return;
       }
+      const lx = localX(e.clientX), day = v.start + lx / v.ppd;
+      const k = (e.ctrlKey || e.metaKey) ? 0.01 : 0.0025;   // pinch is snappier
+      const ppd = v.ppd * Math.exp(-e.deltaY * k);
+      setView(clampView({ ...v, ppd, start: day - lx / ppd }, w));
     };
     el.addEventListener("wheel", onWheel, { passive: false });
     const ro = new ResizeObserver(() => setNowW(el.clientWidth));
@@ -485,14 +485,14 @@ export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) =
   };
 
   return (
-    <div className="fi">
-      <div className="row" style={{ borderBottom: "none", padding: 0, marginBottom: 4, gap: 8, flexWrap: "wrap" }}>
+    <div className="fi wt2-fill">
+      <div className="row" style={{ borderBottom: "none", padding: 0, marginBottom: 4, gap: 8, flexWrap: "wrap", flexShrink: 0 }}>
         <h2 className="scope-title" style={{ margin: 0 }}>World Timeline</h2>
         <span className="faint" style={{ fontSize: 11 }}>
           {ms
             ? <>Manuscript order · {Math.round(visibleUnits)} chapters in view</>
             : <><b style={{ textTransform: "capitalize", color: "var(--sub)" }}>{tier}</b> · {fmtSpan(visibleYears)} in view</>}
-          {" "}· scroll to zoom · drag to pan · ⌘Z undo
+          {" "}· scroll to zoom · shift-scroll / drag to pan · ⌘Z undo
         </span>
         <span className="spacer" />
         <span className="seg" style={{ fontSize: 11.5 }} title="Story time places chapters by their in-world date; Manuscript order spaces every chapter evenly by chapter number">

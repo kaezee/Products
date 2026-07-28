@@ -66,6 +66,15 @@ export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) =
   const yearToDay = (y: number) => y * dpy;                 // start-of-year day number
   const dayToYear = (d: number) => Math.floor(d / dpy);
 
+  // Axis mode (§8): Story time positions on the day number (undated chapters wait
+  // in the sidebar); Manuscript order positions on manuscript_order, evenly
+  // spaced, so EVERY chapter appears — the fallback for a world with few dates.
+  const [axisMode, setAxisMode] = useState<"story" | "ms">("story");
+  const modeChosen = useRef(false);
+  const ms = axisMode === "ms";
+  const startU = (c: Chapter): number | null => (ms ? c.manuscript_order : c.day_num_start);
+  const endU = (c: Chapter): number | null => (ms ? c.manuscript_order : (c.day_num_end ?? c.day_num_start));
+
   async function reload() {
     try {
       const [w, s, c, m, k] = await Promise.all([
@@ -76,8 +85,15 @@ export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) =
       setSegments(s); setChapters(c); setMarkers(m); setKinds(k);
     } catch (x) { setErr(String(x)); } finally { setLoading(false); }
   }
-  useEffect(() => { setLoading(true); setFitDone(false); undoStack.current = []; void reload(); /* eslint-disable-next-line */ }, [worldId]);
+  useEffect(() => { setLoading(true); setFitDone(false); modeChosen.current = false; undoStack.current = []; void reload(); /* eslint-disable-next-line */ }, [worldId]);
   useEffect(() => () => { if (animRef.current) cancelAnimationFrame(animRef.current); }, []);
+  // Default axis: Manuscript order when fewer than 20% of chapters are dated (§8).
+  useEffect(() => {
+    if (loading || modeChosen.current || chapters.length === 0) return;
+    const dated = chapters.filter((c) => c.day_num_start != null).length;
+    setAxisMode(dated / chapters.length < 0.2 ? "ms" : "story");
+    modeChosen.current = true;
+  }, [loading, chapters]);
 
   async function undo() {
     const fn = undoStack.current.pop(); if (!fn) return;
@@ -123,21 +139,23 @@ export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) =
       const vals: number[] = [];
       for (const c of chaptersBySeg.get(s.id) ?? []) {
         if (c.anachronic) continue;                       // flashbacks don't stretch the bar (§4.4)
-        if (c.day_num_start != null) { vals.push(c.day_num_start, c.day_num_end ?? c.day_num_start); }
+        const a = startU(c), b = endU(c);
+        if (a != null) { vals.push(a, b ?? a); }
       }
       for (const ch of childrenOf.get(s.id) ?? []) { const cs = compute(ch, seen); if (cs) vals.push(cs[0], cs[1]); }
       let span: Span | null = vals.length ? [Math.min(...vals), Math.max(...vals)] : null;
-      const manual: Span | null = s.start_ref != null ? [yearToDay(s.start_ref), yearToDay(s.end_ref ?? s.start_ref) + dpy - 1] : null;
+      // Manual drawn range only applies on the story-time (day) axis.
+      const manual: Span | null = (!ms && s.start_ref != null) ? [yearToDay(s.start_ref), yearToDay(s.end_ref ?? s.start_ref) + dpy - 1] : null;
       if (!span) span = manual;
       else if (manual) span = [Math.min(span[0], manual[0]), Math.max(span[1], manual[1])];
       cache.set(s.id, span); return span;
     };
     return (s: Segment) => compute(s, new Set());
-  }, [chaptersBySeg, childrenOf, dpy]);
+  }, [chaptersBySeg, childrenOf, dpy, ms]);
 
   const looseDated = useMemo(
-    () => chapters.filter((c) => !c.segment_id && c.day_num_start != null && !c.anachronic),
-    [chapters],
+    () => chapters.filter((c) => !c.segment_id && startU(c) != null && !c.anachronic),
+    [chapters, ms],
   );
 
   // Row layout: depth-first, indent + shrink bar per level; a chapter row only
@@ -147,7 +165,7 @@ export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) =
     let y = PAD_Y + (looseDated.length ? LOOSE_H : 0);
     const walk = (parent: string | null, depth: number) => {
       for (const s of childrenOf.get(parent) ?? []) {
-        const hasCh = (chaptersBySeg.get(s.id) ?? []).some((c) => c.day_num_start != null);
+        const hasCh = (chaptersBySeg.get(s.id) ?? []).some((c) => startU(c) != null);
         out.push({ seg: s, depth, y, hasCh });
         y += LABEL_H + BAR_H + ROW_GAP + (hasCh ? CH_H + 6 : 0);
         walk(s.id, depth + 1);
@@ -155,31 +173,37 @@ export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) =
     };
     walk(null, 0);
     return { list: out, height: y + PAD_Y };
-  }, [childrenOf, chaptersBySeg, looseDated]);
+  }, [childrenOf, chaptersBySeg, looseDated, ms]);
   rowsHRef.current = rows.height;
 
-  const undatedSidebar = useMemo(() => chapters.filter((c) => c.day_num_start == null), [chapters]);
+  // Story mode parks undated chapters in the sidebar; ms mode places them all.
+  const undatedSidebar = useMemo(() => (ms ? [] : chapters.filter((c) => c.day_num_start == null)), [chapters, ms]);
 
-  // Content bounds in day-numbers (segments' spans + every dated chapter).
+  // Content bounds in the active unit (segment spans + every placed chapter).
   const content = useMemo(() => {
     const vals: number[] = [];
     for (const s of segments) { const sp = spanOf(s); if (sp) vals.push(sp[0], sp[1]); }
-    for (const c of chapters) if (c.day_num_start != null) { vals.push(c.day_num_start, c.day_num_end ?? c.day_num_start); }
+    for (const c of chapters) { const a = startU(c); if (a != null) vals.push(a, endU(c) ?? a); }
     if (!vals.length) return null;
     return { lo: Math.min(...vals), hi: Math.max(...vals) };
-  }, [segments, chapters, spanOf]);
+  }, [segments, chapters, spanOf, ms]);
 
   // Known time in day-numbers, and the padded navigable range (§5.2). Padding is
   // proportional; the union with content means shrinking known time never
   // strands anything.
   const nav = useMemo(() => {
+    if (ms) {
+      const lo = content ? content.lo : 1, hi = content ? content.hi : Math.max(1, chapters.length);
+      const span = Math.max(1, hi - lo), pad = Math.max(0.5, span * 0.06);
+      return { lo: lo - pad, hi: hi + pad, knownLo: lo, knownHi: hi };
+    }
     const knownLo = yearToDay(known.start), knownHi = yearToDay(known.end) + dpy - 1;
     const lo = content ? Math.min(knownLo, content.lo) : knownLo;
     const hi = content ? Math.max(knownHi, content.hi) : knownHi;
     const span = Math.max(1, hi - lo);
     const pad = Math.min(200 * dpy, Math.max(1 * dpy, span * 0.15));
     return { lo: lo - pad, hi: hi + pad, knownLo, knownHi };
-  }, [known, content, dpy]);
+  }, [known, content, dpy, ms, chapters.length]);
   navRef.current = { lo: nav.lo, hi: nav.hi };
 
   // Clamp a view to the navigable range and derived zoom bounds (§5.2).
@@ -214,12 +238,18 @@ export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) =
   const dayOf = (px: number) => view.start + px / view.ppd;
   const localX = (clientX: number) => clientX - (boardRef.current?.getBoundingClientRect().left ?? 0);
 
-  // Ruler ticks: nice year steps across the visible span, positioned by day.
+  // Ruler ticks (unit-aware): year steps on the story axis, chapter numbers on
+  // the manuscript-order axis. Each carries its unit position + label.
   const ticks = useMemo(() => {
+    if (ms) {
+      const lo = dayOf(0), hi = dayOf(nowW);
+      return niceTicks(lo, hi, Math.max(3, Math.round(nowW / 110)))
+        .filter((t) => t >= 1).map((t) => ({ pos: t, label: `ch ${t}` }));
+    }
     const yLo = dayOf(0) / dpy, yHi = dayOf(nowW) / dpy;
-    return niceTicks(yLo, yHi, Math.max(3, Math.round(nowW / 130)));
+    return niceTicks(yLo, yHi, Math.max(3, Math.round(nowW / 130))).map((t) => ({ pos: yearToDay(t), label: `${t}` }));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [view, nowW, dpy]);
+  }, [view, nowW, dpy, ms]);
 
   useEffect(() => {
     const el = boardRef.current; if (!el) return;
@@ -368,9 +398,11 @@ export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) =
   if (err) return <p className="err">{err}</p>;
   if (loading) return <p className="muted">Loading world timeline…</p>;
 
-  const visibleYears = (nowW / view.ppd) / dpy;
-  const tier = tierOf(visibleYears);
+  const visibleUnits = nowW / view.ppd;
+  const visibleYears = visibleUnits / dpy;
+  const tier: Tier = ms ? (visibleUnits > 40 ? "season" : "detail") : tierOf(visibleYears);
   const knownX0 = xOf(nav.knownLo), knownX1 = xOf(nav.knownHi);
+  function switchMode(m: "story" | "ms") { if (m === axisMode) return; modeChosen.current = true; setAxisMode(m); setFitDone(false); }
 
   // Frame a day range (+10% pad) with a smooth ~340ms cubic-out animation.
   // Zoom is interpolated GEOMETRICALLY (§7.3) — linear scale rushes then crawls.
@@ -400,10 +432,10 @@ export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) =
   // A dated chapter's band. Year/month precision → hatched band across its whole
   // span; day precision → a solid mark. Colour from its segment's swatch.
   const chapterBand = (c: Chapter, sw: string, top: number, showTitle: boolean) => {
-    const x1 = xOf(c.day_num_start!);
-    const x2 = xOf(c.day_num_end ?? c.day_num_start!);
+    const a = startU(c)!, b = endU(c) ?? a;
+    const x1 = xOf(a), x2 = xOf(b);
     const w = Math.max(x2 - x1, 7);
-    const hatched = c.time_precision !== "day";
+    const hatched = !ms && c.time_precision !== "day";
     const num = c.planned ? "✎" : String(c.manuscript_order).padStart(2, "0");
     return (
       <div key={c.id} className={"wt2-chband" + (hatched ? " hatch" : "") + (c.planned ? " planned" : "")}
@@ -420,27 +452,28 @@ export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) =
   //  season/chapter → pixel-proximity clusters: singles as bands, groups as a
   //                   "N chapters" badge (double-click to frame)
   //  detail → every chapter as a titled band, lane-stacked for same-day overlap
+  const midU = (c: Chapter) => { const a = startU(c) ?? 0, b = endU(c) ?? a; return (a + b) / 2; };
   const chapterLayer = (chs: Chapter[], sw: string, top: number): React.ReactNode => {
     if (tier === "era") return null;                     // Era shows only top-level bars
-    const dated = chs.filter((c) => c.day_num_start != null);
+    const dated = chs.filter((c) => startU(c) != null);
     if (dated.length === 0) return null;
     if (tier === "work") {
       return dated.map((c) => (
         <span key={c.id} className="wt2-density" title={`${dated.length} chapters here`}
-          style={{ left: xOf(midDay(c)), top: top + 4, background: `var(--k-entity-${sw})` }} />
+          style={{ left: xOf(midU(c)), top: top + 4, background: `var(--k-entity-${sw})` }} />
       ));
     }
     if (tier === "detail") {
-      const lanes = laneAssign(dated, xOf);
+      const lanes = laneAssign(dated, (c) => xOf(startU(c)!), (c) => xOf(endU(c) ?? startU(c)!));
       return dated.map((c) => chapterBand(c, sw, top + (lanes.get(c.id) ?? 0) * (CH_H + 3), true));
     }
     // season / chapter: cluster by pixel proximity
-    const groups = clusterByPixel(dated.map((c) => ({ c, x: xOf(midDay(c)) })), 56);
+    const groups = clusterByPixel(dated.map((c) => ({ c, x: xOf(midU(c)) })), 56);
     return groups.map((g, i) => {
       if (g.items.length === 1) return chapterBand(g.items[0], sw, top, false);
       const cx = (g.x0 + g.x1) / 2;
-      const dLo = Math.min(...g.items.map((c) => c.day_num_start!));
-      const dHi = Math.max(...g.items.map((c) => c.day_num_end ?? c.day_num_start!));
+      const dLo = Math.min(...g.items.map((c) => startU(c)!));
+      const dHi = Math.max(...g.items.map((c) => endU(c) ?? startU(c)!));
       return (
         <span key={"cl" + i} className="wt2-cluster" style={{ left: cx, top }}
           title={g.items.map((c) => c.title).join(", ") + " — double-click to open up"}
@@ -456,17 +489,24 @@ export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) =
       <div className="row" style={{ borderBottom: "none", padding: 0, marginBottom: 4, gap: 8, flexWrap: "wrap" }}>
         <h2 className="scope-title" style={{ margin: 0 }}>World Timeline</h2>
         <span className="faint" style={{ fontSize: 11 }}>
-          <b style={{ textTransform: "capitalize", color: "var(--sub)" }}>{tier}</b> · {fmtSpan(visibleYears)} in view · scroll to zoom · drag to pan · ⌘Z undo
+          {ms
+            ? <>Manuscript order · {Math.round(visibleUnits)} chapters in view</>
+            : <><b style={{ textTransform: "capitalize", color: "var(--sub)" }}>{tier}</b> · {fmtSpan(visibleYears)} in view</>}
+          {" "}· scroll to zoom · drag to pan · ⌘Z undo
         </span>
         <span className="spacer" />
+        <span className="seg" style={{ fontSize: 11.5 }} title="Story time places chapters by their in-world date; Manuscript order spaces every chapter evenly by chapter number">
+          <span className={!ms ? "on" : ""} onClick={() => switchMode("story")}>Story time</span>
+          <span className={ms ? "on" : ""} onClick={() => switchMode("ms")}>Manuscript order</span>
+        </span>
         <button onClick={() => void undo()} title="Undo (⌘Z)">↶ Undo</button>
         <span className="seg" style={{ fontSize: 13 }}>
           <span onClick={() => zoomBy(1 / 1.4)} title="Zoom out">−</span>
           <span onClick={fitKnown} title="Fit known time" style={{ fontSize: 12 }}>Fit</span>
           <span onClick={() => zoomBy(1.4)} title="Zoom in">+</span>
         </span>
-        <button onClick={() => { setKtStart(String(known.start)); setKtEnd(String(known.end)); setWarn(null); setKtOpen(true); }}
-          title="The stretch of history your world covers — it bounds the timeline">Known time · {known.start}–{known.end}</button>
+        {!ms && <button onClick={() => { setKtStart(String(known.start)); setKtEnd(String(known.end)); setWarn(null); setKtOpen(true); }}
+          title="The stretch of history your world covers — it bounds the timeline">Known time · {known.start}–{known.end}</button>}
         <button onClick={() => { setNoteText(""); setNoteYear(String(dayToYear(dayOf(nowW / 2)))); setNoteOpen(true); }}>+ Note</button>
         <button onClick={() => { const yr = dayToYear(dayOf(nowW / 2)); setFName(""); setFKind("series"); setFParent(""); setFStart(String(yr)); setFEnd(String(yr + 50)); setAdding(true); }}>+ Segment</button>
       </div>
@@ -539,26 +579,28 @@ export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) =
 
       <div className="wt2-wrap">
         <div ref={boardRef} className="wt2-board" onMouseDown={onDown} onMouseMove={onMove} onMouseUp={onUp} onMouseLeave={onUp}>
-          {/* out-of-bounds: everything outside known time renders dimmed + hatched (§5.3) */}
-          {knownX0 > 0 && <div className="wt2-oob" style={{ left: 0, width: Math.min(nowW, knownX0) }} />}
-          {knownX1 < nowW && <div className="wt2-oob" style={{ left: Math.max(0, knownX1), right: 0 }} />}
-          {/* known-time edges + labels */}
-          {knownX0 > 0 && knownX0 < nowW && <>
-            <div className="wt2-knownedge" style={{ left: knownX0 }} />
-            <span className="wt2-edgelab" style={{ left: knownX0 }}>known time begins {known.start}</span>
-            <span className="wt2-extend" style={{ left: knownX0 }} onClick={() => extendKnown("start")} title="Extend known time earlier">＋ extend to {known.start - niceRound(Math.max(1, known.end - known.start) * 0.25)}</span>
-          </>}
-          {knownX1 > 0 && knownX1 < nowW && <>
-            <div className="wt2-knownedge" style={{ left: knownX1 }} />
-            <span className="wt2-edgelab" style={{ left: knownX1 }}>known time ends {known.end}</span>
-            <span className="wt2-extend" style={{ left: knownX1 }} onClick={() => extendKnown("end")} title="Extend known time later">＋ extend to {known.end + niceRound(Math.max(1, known.end - known.start) * 0.25)}</span>
+          {/* known time only applies on the story-time axis */}
+          {!ms && <>
+            {/* out-of-bounds: everything outside known time renders dimmed + hatched (§5.3) */}
+            {knownX0 > 0 && <div className="wt2-oob" style={{ left: 0, width: Math.min(nowW, knownX0) }} />}
+            {knownX1 < nowW && <div className="wt2-oob" style={{ left: Math.max(0, knownX1), right: 0 }} />}
+            {knownX0 > 0 && knownX0 < nowW && <>
+              <div className="wt2-knownedge" style={{ left: knownX0 }} />
+              <span className="wt2-edgelab" style={{ left: knownX0 }}>known time begins {known.start}</span>
+              <span className="wt2-extend" style={{ left: knownX0 }} onClick={() => extendKnown("start")} title="Extend known time earlier">＋ extend to {known.start - niceRound(Math.max(1, known.end - known.start) * 0.25)}</span>
+            </>}
+            {knownX1 > 0 && knownX1 < nowW && <>
+              <div className="wt2-knownedge" style={{ left: knownX1 }} />
+              <span className="wt2-edgelab" style={{ left: knownX1 }}>known time ends {known.end}</span>
+              <span className="wt2-extend" style={{ left: knownX1 }} onClick={() => extendKnown("end")} title="Extend known time later">＋ extend to {known.end + niceRound(Math.max(1, known.end - known.start) * 0.25)}</span>
+            </>}
           </>}
 
           <div className="wt2-ruler">
-            {ticks.map((t) => <span key={t} className="wt2-tick" style={{ left: xOf(yearToDay(t)) }}>{t}</span>)}
+            {ticks.map((t) => <span key={t.pos} className="wt2-tick" style={{ left: xOf(t.pos) }}>{t.label}</span>)}
           </div>
           <div className="wt2-gridlayer">
-            {ticks.map((t) => <div key={"g" + t} className="wt2-grid" style={{ left: xOf(yearToDay(t)) }} />)}
+            {ticks.map((t) => <div key={"g" + t.pos} className="wt2-grid" style={{ left: xOf(t.pos) }} />)}
           </div>
 
           <div className="wt2-content" style={{ transform: `translateY(${view.ty}px)`, height: rows.height, bottom: "auto" }}>
@@ -662,7 +704,6 @@ export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) =
 }
 
 const trunc = (s: string, n = 12) => (s.length > n ? s.slice(0, n) + "…" : s);
-const midDay = (c: Chapter) => ((c.day_num_start ?? 0) + (c.day_num_end ?? c.day_num_start ?? 0)) / 2;
 // Round to a friendly 1/2/5×10^k, for proportional "extend by" increments.
 function niceRound(n: number): number {
   if (n <= 0) return 1;
@@ -695,9 +736,9 @@ function clusterByPixel(items: { c: Chapter; x: number }[], gap: number) {
 }
 
 // Greedy lane assignment for genuinely-overlapping chapters at Detail tier (§7.2).
-function laneAssign(chs: Chapter[], xOf: (d: number) => number): Map<string, number> {
+function laneAssign(chs: Chapter[], x0Of: (c: Chapter) => number, x1Of: (c: Chapter) => number): Map<string, number> {
   const items = chs
-    .map((c) => ({ id: c.id, x0: xOf(c.day_num_start!), x1: Math.max(xOf(c.day_num_end ?? c.day_num_start!), xOf(c.day_num_start!) + 7) }))
+    .map((c) => ({ id: c.id, x0: x0Of(c), x1: Math.max(x1Of(c), x0Of(c) + 7) }))
     .sort((a, b) => a.x0 - b.x0);
   const laneEnds: number[] = [];
   const m = new Map<string, number>();

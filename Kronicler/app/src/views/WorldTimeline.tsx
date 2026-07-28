@@ -42,6 +42,8 @@ export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) =
   const [sideOpen, setSideOpen] = useState(true);
   const [sel, setSel] = useState<Set<string>>(new Set());
   const [bulkSeg, setBulkSeg] = useState("");
+  // Live placement guide while an undated chapter is dragged over the canvas.
+  const [dropHint, setDropHint] = useState<{ x: number; year: number } | null>(null);
   const [noteOpen, setNoteOpen] = useState(false);
   const [noteYear, setNoteYear] = useState(""); const [noteText, setNoteText] = useState("");
   const [addMenu, setAddMenu] = useState(false);
@@ -358,6 +360,26 @@ export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) =
     }
   }
 
+  // Drag-to-place dating (the "Both" half of the core loop): drag an undated
+  // chapter out of the sidebar and drop it on the canvas — the year under the
+  // cursor becomes its date. Only on the story axis (manuscript order isn't a date).
+  const DRAG_KEY = "application/x-kronicler-chapter";
+  const draggingChapter = (e: React.DragEvent) => e.dataTransfer.types.includes(DRAG_KEY);
+  function onBoardDragOver(e: React.DragEvent) {
+    if (ms || !draggingChapter(e)) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "copy";
+    const lx = localX(e.clientX);
+    setDropHint({ x: lx, year: dayToYear(dayOf(lx)) });
+  }
+  function onBoardDrop(e: React.DragEvent) {
+    const id = e.dataTransfer.getData(DRAG_KEY);
+    setDropHint(null);
+    if (ms || !id) return;
+    e.preventDefault();
+    void dateChapter(id, String(dayToYear(dayOf(localX(e.clientX)))));
+  }
+
   async function submitAdd() {
     if (!fName.trim()) { setErr("Name the segment."); return; }
     try {
@@ -560,7 +582,8 @@ export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) =
       )}
 
       <div className="wt2-wrap">
-        <div ref={boardRef} className="wt2-board" onMouseDown={onDown} onMouseMove={onMove} onMouseUp={onUp} onMouseLeave={onUp}>
+        <div ref={boardRef} className="wt2-board" onMouseDown={onDown} onMouseMove={onMove} onMouseUp={onUp} onMouseLeave={onUp}
+          onDragOver={onBoardDragOver} onDrop={onBoardDrop} onDragLeave={() => setDropHint(null)}>
           {/* Known time is the bright focus; the buffer is dim. Editing lives in
               the panel's World clock section, not on the canvas. */}
           {!ms && <>
@@ -568,6 +591,12 @@ export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) =
             {knownX0 > 0 && <div className="wt2-oob" style={{ left: 0, width: Math.min(nowW, knownX0) }} />}
             {knownX1 < nowW && <div className="wt2-oob" style={{ left: Math.max(0, knownX1), right: 0 }} />}
           </>}
+
+          {dropHint && !ms && (
+            <div className="wt2-drophint" style={{ left: dropHint.x }}>
+              <span className="wt2-drophint-lab">{dropHint.year}</span>
+            </div>
+          )}
 
           <div className="wt2-ruler">
             {ticks.map((t) => <span key={t.pos} className="wt2-tick" style={{ left: xOf(t.pos) }}>{t.label}</span>)}
@@ -634,7 +663,7 @@ export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) =
             {undatedSidebar.length === 0
               ? <div className="wt2-sidesub" style={{ margin: 0 }}>Every chapter has a date 🎉</div>
               : <>
-                  <div className="wt2-sidesub" style={{ marginTop: 0 }}>Type a year and the chapter drops onto the line.</div>
+                  <div className="wt2-sidesub" style={{ marginTop: 0 }}>Type a year, or drag a chapter onto the line to place it.</div>
                   {sel.size > 0 && (
                     <div className="wt2-sidefile">
                       <span style={{ fontSize: 11.5, fontWeight: 600 }}>{sel.size} selected</span>
@@ -648,6 +677,12 @@ export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) =
                   )}
                   {undatedSidebar.map((c) => (
                     <div key={c.id} className={"wt2-und" + (sel.has(c.id) ? " on" : "")}>
+                      <span className="wt2-grip" title="Drag onto the timeline to date"
+                        draggable={!ms}
+                        onDragStart={(e) => { e.dataTransfer.setData(DRAG_KEY, c.id); e.dataTransfer.effectAllowed = "copy"; }}
+                        onDragEnd={() => setDropHint(null)}>
+                        <Icon name="grip" size={13} />
+                      </span>
                       <input type="checkbox" checked={sel.has(c.id)} onChange={() => toggleSel(c.id)} aria-label={`select ${c.title}`}
                         style={{ width: 14, height: 14, accentColor: "var(--bond)" }} />
                       <span className="wt2-und-title" title={c.title} onClick={() => go({ scope: "manuscript", chapterId: c.id })}>

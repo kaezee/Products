@@ -1,14 +1,11 @@
 import { useState, type ReactNode } from "react";
+import { Icon } from "./icons";
 
-// A real "side panel" toggle icon: a rounded rectangle with a vertical divider
-// marking a panel on the right edge (like Claude's open/close-sidebar control).
-export function PanelToggleIcon({ size = 15 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" aria-hidden="true">
-      <rect x="1.5" y="2.5" width="13" height="11" rx="2.2" />
-      <line x1="10" y1="2.5" x2="10" y2="13.5" />
-    </svg>
-  );
+// The "side panel" toggle: a rounded rectangle with a vertical divider marking a
+// panel on the right edge. Drawn from the shared icon library so it matches
+// every other icon's weight and sizing.
+export function PanelToggleIcon({ size = 16 }: { size?: number }) {
+  return <Icon name="panel" size={size} />;
 }
 
 // A toggleable right-hand contextual panel with progressive-disclosure sections
@@ -42,7 +39,7 @@ export function Disclosure({ label, count, right, defaultOpen = false, children 
   return (
     <section className={"disc" + (open ? " open" : "")}>
       <button className="disc-head" onClick={() => setOpen((o) => !o)} aria-expanded={open}>
-        <span className="disc-chev">›</span>
+        <span className="disc-chev"><Icon name="chevron" size={15} /></span>
         <span className="disc-label">{label}</span>
         {count != null && <span className="disc-count">{count}</span>}
       </button>

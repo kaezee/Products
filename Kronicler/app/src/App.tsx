@@ -15,9 +15,10 @@ import { SearchResults } from "./views/SearchResults";
 import { Palette } from "./views/Palette";
 import { getStoredTheme, setTheme, type Theme } from "./lib/theme";
 import { PanelToggleIcon } from "./components/SidePanel";
+import { Icon, ICON_SIZE, type IconName } from "./components/icons";
 
 const THEME_CYCLE: Theme[] = ["paper", "grey", "dark", "system"];
-const THEME_ICON: Record<Theme, string> = { paper: "○", grey: "◐", dark: "●", system: "◑" };
+const THEME_ICON: Record<Theme, IconName> = { paper: "theme-paper", grey: "theme-grey", dark: "theme-dark", system: "theme-system" };
 const THEME_LABEL: Record<Theme, string> = { paper: "Paper", grey: "Grey", dark: "Dark", system: "System" };
 
 export function App() {
@@ -27,13 +28,13 @@ export function App() {
 type Scope = "overview" | "library" | "manuscript" | "timeline" | "relationships" | "notes" | "settings";
 export interface Nav { scope: Scope; entityId?: string; chapterId?: string }
 
-const RAIL: [Scope, string, string][] = [
-  ["overview", "Overview", "◫"],
-  ["library", "Library", "❖"],
-  ["manuscript", "Manuscript", "▤"],
-  ["timeline", "Timeline", "◷"],
-  ["relationships", "Relationships", "✳"],
-  ["notes", "Notes", "✎"],
+const RAIL: [Scope, string, IconName][] = [
+  ["overview", "Overview", "overview"],
+  ["library", "Library", "library"],
+  ["manuscript", "Manuscript", "manuscript"],
+  ["timeline", "Timeline", "timeline"],
+  ["relationships", "Relationships", "relationships"],
+  ["notes", "Notes", "notes"],
 ];
 
 function Workspace({ session }: { session: Session }) {
@@ -150,15 +151,15 @@ function Workspace({ session }: { session: Session }) {
               ) : <span style={{ fontWeight: 600 }}>Kronicler</span>}
               {worldId && !renamingWorld && (
                 <span title="Rename this world" onClick={startRename}
-                  style={{ cursor: "pointer", color: "var(--muted)", fontSize: 12.5, padding: "0 2px" }}>✎</span>
+                  style={{ cursor: "pointer", color: "var(--muted)", display: "inline-flex", padding: "0 2px" }}><Icon name="edit" size={ICON_SIZE.sm} /></span>
               )}
               {!renamingWorld && (
                 <span title="New world" onClick={makeWorld}
-                  style={{ cursor: "pointer", color: "var(--muted)", fontSize: 15, padding: "0 2px" }}>＋</span>
+                  style={{ cursor: "pointer", color: "var(--muted)", display: "inline-flex", padding: "0 2px" }}><Icon name="plus" size={ICON_SIZE.md} /></span>
               )}
             </div>
             <div className="searchwrap">
-              <span className="ic">⌕</span>
+              <span className="ic"><Icon name="search" size={ICON_SIZE.md} /></span>
               <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search world content — try a name, a place, a line…" />
             </div>
             <div className="kbtn" onClick={() => setPaletteOpen(true)}>
@@ -172,21 +173,21 @@ function Workspace({ session }: { session: Session }) {
               {RAIL.map(([s, label, g]) => (
                 <div key={s} className={"railitem" + (!searching && nav.scope === s ? " on" : "")}
                   onClick={() => go({ scope: s })} title={railCollapsed ? label : undefined}>
-                  <span className="g">{g}</span>{!railCollapsed && label}
+                  <span className="g"><Icon name={g} size={ICON_SIZE.lg} /></span>{!railCollapsed && label}
                 </div>
               ))}
               <div className="spacer" />
               <div className="railfoot">
                 <div className={"railitem" + (!searching && nav.scope === "settings" ? " on" : "")}
                   onClick={() => go({ scope: "settings" })} title={railCollapsed ? "Settings" : undefined}>
-                  <span className="g">⚙</span>{!railCollapsed && "Settings"}
+                  <span className="g"><Icon name="settings" size={ICON_SIZE.lg} /></span>{!railCollapsed && "Settings"}
                 </div>
                 <div className="railitem" onClick={cycleTheme}
                   title={`Appearance: ${THEME_LABEL[theme]} — click to cycle (Paper → Grey → Dark → System)`}>
-                  <span className="g">{THEME_ICON[theme]}</span>{!railCollapsed && <>Theme<span className="spacer" /><span className="muted">{THEME_LABEL[theme]}</span></>}
+                  <span className="g"><Icon name={THEME_ICON[theme]} size={ICON_SIZE.lg} /></span>{!railCollapsed && <>Theme<span className="spacer" /><span className="muted">{THEME_LABEL[theme]}</span></>}
                 </div>
                 <div className="railitem" title={railCollapsed ? (session.user.email ?? "Account") : (session.user.email ?? "")}>
-                  <span className="g">◍</span>
+                  <span className="g"><Icon name="account" size={ICON_SIZE.lg} /></span>
                   {!railCollapsed && <>Account<span className="spacer" />
                     <span className="muted" style={{ cursor: "pointer" }} onClick={() => supabase.auth.signOut()}>out</span></>}
                 </div>

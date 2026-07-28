@@ -2,6 +2,7 @@ import { useState } from "react";
 import { appendPairwiseState, createRelationshipType } from "../lib/api";
 import type { Entity, RelationshipType, Chapter, Note, Valence } from "../lib/types";
 import { VALENCE_COLOR } from "../lib/valence";
+import { Icon } from "../components/icons";
 
 const VALENCES: Valence[] = ["bond", "hostile", "obligation", "neutral"];
 
@@ -62,7 +63,7 @@ export function NoteToState({ worldId, note, entities, types, chapters, onClose,
         <div className="row" style={{ borderBottom: "none", padding: 0, marginBottom: 10 }}>
           <span className="label" style={{ margin: 0 }}>Turn note into a concealed state</span>
           <span className="spacer" />
-          <span style={{ cursor: "pointer", color: "var(--muted)" }} onClick={onClose}>✕</span>
+          <span style={{ cursor: "pointer", color: "var(--muted)" }} onClick={onClose}><Icon name="close" size={15} /></span>
         </div>
 
         <p className="note" style={{ borderLeft: "2px solid var(--line)", paddingLeft: 10, margin: "0 0 14px", fontStyle: "italic" }}>

@@ -6,6 +6,7 @@ import { findIssues } from "../lib/continuity";
 import { findDuplicates } from "../lib/dedupe";
 import type { Nav } from "../App";
 import { VALENCE_COLOR } from "../lib/valence";
+import { Icon } from "../components/icons";
 
 const DORMANT_GAP = 5;
 
@@ -151,7 +152,7 @@ export function Overview({ worldId, go }: { worldId: string; go: (n: Nav) => voi
                 <span className="spacer" />
                 <span className="muted">no relationships yet</span>
                 <span title={`Delete ${e.title}`} onClick={(ev) => delOrphan(e, ev)}
-                  style={{ color: "var(--faint)", cursor: "pointer", padding: "0 4px", fontSize: 13 }}>✕</span>
+                  style={{ color: "var(--faint)", cursor: "pointer", padding: "0 4px", display: "inline-flex" }}><Icon name="close" size={14} /></span>
               </div>
             ))}
             {orphans.length > ORPHAN_CAP && (

@@ -7,6 +7,7 @@ import { streamPhrase } from "../lib/direction";
 import { visibleUnderLens, latestTruthByRel, latestByRel, isBelief, believersOf, ironyLabel } from "../lib/knowledge";
 import { Graph } from "./Graph";
 import { TypeDictionary } from "./TypeDictionary";
+import { Icon } from "../components/icons";
 
 // Relationships (§9.2): two lenses — Stream + Graph — over one persistent filter
 // set (type, knowledge viewer, as-of scrub). Filters survive lens switches.
@@ -116,7 +117,7 @@ export function Relationships({ worldId, go }: { worldId: string; go: (n: Nav) =
           </select>
         )}
         {hasSecrets && viewer !== "all" && <span style={{ fontSize: 11.5, color: "var(--hostile)" }}>their world — concealed truths vanish, their own beliefs stand in</span>}
-        {ego && <span className="chip on click" onClick={() => setEgo(null)}>ego · {entities.find((e) => e.id === ego)?.title.split(" ")[0]} ✕</span>}
+        {ego && <span className="chip on click" onClick={() => setEgo(null)}>ego · {entities.find((e) => e.id === ego)?.title.split(" ")[0]} <Icon name="close" size={12} /></span>}
       </div>
 
       {lens === "stream" ? (
@@ -156,7 +157,7 @@ export function Relationships({ worldId, go }: { worldId: string; go: (n: Nav) =
                   <span className="muted" style={{ whiteSpace: "nowrap" }} title="Not tied to a specific chapter — a standing fact, true throughout">{s.manuscript_order != null ? `ch. ${s.manuscript_order}` : "no chapter"}</span>
                   <span className="rowact" title="Remove this relationship"
                     onClick={() => removeRelationship(s.relationship_id, s.type_label)}
-                    style={{ cursor: "pointer", color: "var(--faint)", fontSize: 13, padding: "0 2px" }}>✕</span>
+                    style={{ cursor: "pointer", color: "var(--faint)", padding: "0 2px", display: "inline-flex" }}><Icon name="close" size={13} /></span>
                 </div>
               );
             })}
@@ -184,7 +185,7 @@ export function Relationships({ worldId, go }: { worldId: string; go: (n: Nav) =
               <span className="muted" style={{ marginLeft: 10 }}>the relationship dictionary for this world</span>
               <span className="spacer" />
               <span onClick={() => setTypesOpen(false)} title="Close (Esc)"
-                style={{ cursor: "pointer", color: "var(--muted)", fontSize: 16 }}>✕</span>
+                style={{ cursor: "pointer", color: "var(--muted)", display: "inline-flex" }}><Icon name="close" size={16} /></span>
             </div>
             <TypeDictionary worldId={worldId} />
           </div>

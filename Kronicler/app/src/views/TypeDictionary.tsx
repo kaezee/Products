@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { getRelationshipTypes, getStream, updateRelationshipType, softDeleteRelationshipType } from "../lib/api";
 import type { RelationshipType, StreamRow } from "../lib/types";
 import { VALENCE_COLOR, VALENCE_ORDER, VALENCE_LABEL } from "../lib/valence";
+import { Icon } from "../components/icons";
 
 // The relationship dictionary — every label the world uses, its valence family,
 // and whether it's ambient. Lives under Relationships (it's relationship
@@ -79,7 +80,7 @@ export function TypeDictionary({ worldId }: { worldId: string }) {
                 onClick={() => { if (!uses) remove(t.id); }}
                 title={uses ? "In use — merge before deleting (later)" : "Delete"}
                 style={{ color: uses ? "var(--faint)" : "var(--hostile)", cursor: uses ? "not-allowed" : "pointer", fontSize: 13 }}
-              >✕</span>
+              ><Icon name="close" size={13} /></span>
             </div>
           );
         })}

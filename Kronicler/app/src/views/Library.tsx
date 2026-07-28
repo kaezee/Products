@@ -5,6 +5,7 @@ import { CANONICAL_ENTITY_TYPES, CUSTOM_TYPE, plural, buildTypeSwatches } from "
 import { EntityPage } from "./EntityPage";
 import { ImportDocx } from "./ImportDocx";
 import { TypeStyleEditor } from "./TypeStyleEditor";
+import { Icon } from "../components/icons";
 
 export function Library({ worldId, focusEntityId }: { worldId: string; focusEntityId?: string }) {
   const [entities, setEntities] = useState<Entity[] | null>(null);
@@ -136,9 +137,9 @@ export function Library({ worldId, focusEntityId }: { worldId: string; focusEnti
       {renameId !== e.id && e.aliases.length > 0 && <span className="note">"{e.aliases.join('", "')}"</span>}
       <span className="rowact" title={`Rename ${e.title}`}
         onClick={(ev) => { ev.stopPropagation(); setRenameId(e.id); setNameDraft(e.title); }}
-        style={{ color: "var(--muted)", cursor: "pointer", padding: "0 2px", fontSize: 12 }}>✎</span>
+        style={{ color: "var(--muted)", cursor: "pointer", padding: "0 2px", display: "inline-flex" }}><Icon name="edit" size={13} /></span>
       <span title={`Delete ${e.title}`} onClick={(ev) => del(e, ev)}
-        style={{ color: "var(--faint)", cursor: "pointer", padding: "0 4px", fontSize: 13 }}>✕</span>
+        style={{ color: "var(--faint)", cursor: "pointer", padding: "0 4px", display: "inline-flex" }}><Icon name="close" size={13} /></span>
     </div>
   );
 
@@ -163,7 +164,7 @@ export function Library({ worldId, focusEntityId }: { worldId: string; focusEnti
             onKeyDown={(e) => { if (e.key === "Enter") create(); if (e.key === "Escape") setAddMode(null); }} />
           <select className="sel" value={formType} onChange={(e) => setFormType(e.target.value)}>
             {typeOptions.map((t) => <option key={t} value={t}>{t}</option>)}
-            <option value={CUSTOM_TYPE}>＋ Custom type…</option>
+            <option value={CUSTOM_TYPE}>+ Custom type…</option>
           </select>
           {formType === CUSTOM_TYPE && (
             <input value={customType} placeholder="New type (e.g. Deity)" style={{ width: 150 }}

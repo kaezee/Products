@@ -2,6 +2,7 @@ import { useMemo, useRef, useState } from "react";
 import { appendPairwiseState, createRelationshipType, setStateKnownBy } from "../lib/api";
 import type { Entity, RelationshipType, Valence } from "../lib/types";
 import { VALENCE_COLOR } from "../lib/valence";
+import { Icon } from "../components/icons";
 
 const VALENCES: Valence[] = ["bond", "hostile", "obligation", "neutral"];
 
@@ -95,7 +96,7 @@ export function Composer(props: {
         <div className="row" style={{ borderBottom: "none", padding: 0, marginBottom: 4 }}>
           <span className="label" style={{ margin: 0 }}>Record a moment</span>
           <span className="spacer" />
-          <span style={{ cursor: "pointer", color: "var(--muted)" }} onClick={onClose}>✕</span>
+          <span style={{ cursor: "pointer", color: "var(--muted)" }} onClick={onClose}><Icon name="close" size={15} /></span>
         </div>
         <p className="muted" style={{ margin: "0 0 10px", fontSize: 12 }}>
           What happens between two characters here? It joins their relationship history, filed under

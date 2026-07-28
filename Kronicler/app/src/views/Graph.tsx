@@ -4,6 +4,7 @@ import type { Nav } from "../App";
 import { computeLayout } from "../lib/layout";
 import { VALENCE_COLOR } from "../lib/valence";
 import { sideLabel } from "../lib/direction";
+import { Icon } from "../components/icons";
 
 const W = 720, H = 420;
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
@@ -160,7 +161,7 @@ export function Graph({ entities, latest, ego, setEgo, go }: {
 
       {ego && (
         <div style={{ position: "absolute", top: 10, right: 12 }}>
-          <span className="chip on click" onClick={() => setEgo(null)}>ego · {entById.get(ego)?.title.split(" ")[0]} ✕</span>
+          <span className="chip on click" onClick={() => setEgo(null)}>ego · {entById.get(ego)?.title.split(" ")[0]} <Icon name="close" size={12} /></span>
         </div>
       )}
 
@@ -168,7 +169,7 @@ export function Graph({ entities, latest, ego, setEgo, go }: {
         <div className="pop" style={{ position: "absolute", bottom: 14, right: 14, width: 240, background: "var(--surface)", border: "1px solid var(--lineStrong)", borderRadius: 13, padding: "13px 15px", boxShadow: "var(--pop)" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 9 }}>
             <span className="title-serif" style={{ fontSize: 15.5, flex: 1 }}>{selEntity.title}</span>
-            <span onClick={() => setSel(null)} style={{ color: "var(--muted)", cursor: "pointer" }}>✕</span>
+            <span onClick={() => setSel(null)} style={{ color: "var(--muted)", cursor: "pointer", display: "inline-flex" }}><Icon name="close" size={15} /></span>
           </div>
           <div style={{ fontSize: 12, color: "var(--sub)", display: "flex", flexDirection: "column", gap: 5, marginBottom: 11 }}>
             {selStates.slice(0, 4).map((s) => {

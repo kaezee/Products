@@ -1,0 +1,85 @@
+import type { CSSProperties } from "react";
+import {
+  LayoutDashboard,
+  Library as LibraryIcon,
+  FileText,
+  CalendarClock,
+  Share2,
+  NotebookPen,
+  Settings,
+  Sun,
+  Contrast,
+  Moon,
+  Monitor,
+  CircleUser,
+  Search,
+  Plus,
+  Pencil,
+  Trash2,
+  ChevronRight,
+  ChevronDown,
+  ChevronLeft,
+  X,
+  Undo2,
+  ArrowRight,
+  Check,
+  PanelRight,
+  GripVertical,
+  type LucideIcon,
+} from "lucide-react";
+
+// One icon library for the whole app. Every icon is drawn from Lucide (stroke
+// based, 24-unit grid) and rendered through <Icon>, so sizing and stroke weight
+// stay uniform everywhere — no more mismatched unicode glyphs at random sizes.
+const REGISTRY = {
+  // rail / navigation
+  overview: LayoutDashboard,
+  library: LibraryIcon,
+  manuscript: FileText,
+  timeline: CalendarClock,
+  relationships: Share2,
+  notes: NotebookPen,
+  settings: Settings,
+  // appearance cycle (paper → grey → dark → system)
+  "theme-paper": Sun,
+  "theme-grey": Contrast,
+  "theme-dark": Moon,
+  "theme-system": Monitor,
+  account: CircleUser,
+  // actions / affordances
+  search: Search,
+  plus: Plus,
+  edit: Pencil,
+  trash: Trash2,
+  chevron: ChevronRight,
+  "chevron-down": ChevronDown,
+  "chevron-left": ChevronLeft,
+  close: X,
+  undo: Undo2,
+  arrow: ArrowRight,
+  check: Check,
+  panel: PanelRight,
+  grip: GripVertical,
+} satisfies Record<string, LucideIcon>;
+
+export type IconName = keyof typeof REGISTRY;
+
+// Sizes are role-based, not ad hoc. Callers pick a role; the module owns the px.
+export const ICON_SIZE = { sm: 14, md: 16, lg: 18, xl: 20 } as const;
+
+export function Icon({
+  name,
+  size = ICON_SIZE.md,
+  strokeWidth = 1.75,
+  className,
+  style,
+}: {
+  name: IconName;
+  size?: number;
+  strokeWidth?: number;
+  className?: string;
+  style?: CSSProperties;
+}) {
+  const Glyph = REGISTRY[name];
+  return <Glyph size={size} strokeWidth={strokeWidth} className={className} style={style} aria-hidden />;
+}

@@ -2,6 +2,7 @@ import { useRef, useState } from "react";
 import { createChapter, createEntity } from "../lib/api";
 import { parseDocxHtml, suggestEntityStrategy, type ParsedItem } from "../lib/docimport";
 import { CANONICAL_ENTITY_TYPES } from "../lib/entityTypes";
+import { Icon } from "../components/icons";
 
 // Bulk-import a .docx: a manuscript into chapters, or a lore doc into entities.
 // Split by Word heading styles (Heading 1/2/3). A preview + per-item selection
@@ -87,7 +88,7 @@ export function ImportDocx({ worldId, mode, startOrder, onClose, onDone }: {
             Import {mode === "chapters" ? "manuscript" : "lore"} · .docx
           </h3>
           <span className="spacer" />
-          {stage !== "importing" && <span onClick={onClose} style={{ cursor: "pointer", color: "var(--muted)", fontSize: 16 }}>✕</span>}
+          {stage !== "importing" && <span onClick={onClose} style={{ cursor: "pointer", color: "var(--muted)", display: "inline-flex" }}><Icon name="close" size={16} /></span>}
         </div>
 
         {err && <p className="err">{err}</p>}

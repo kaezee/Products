@@ -14,6 +14,7 @@ import { BriefPanel } from "./BriefPanel";
 import { RichProse } from "./RichProse";
 import { ChapterDate } from "./ChapterDate";
 import { SidePanel, Disclosure, PanelToggleIcon } from "../components/SidePanel";
+import { Icon } from "../components/icons";
 import {
   READ_FACES, READ_SIZE_MIN, READ_SIZE_MAX, getReadFace, getReadSize, setReadFace, setReadSize, type ReadFace,
 } from "../lib/readingPrefs";
@@ -208,7 +209,7 @@ export function ChapterEditor(props: {
   return (
     <div>
       <div className="row" style={{ borderBottom: "none", padding: 0, marginBottom: 10 }}>
-        <span className="tab" onClick={onBack} style={{ paddingLeft: 0 }}>← Manuscript</span>
+        <span className="tab" onClick={onBack} style={{ paddingLeft: 0, display: "inline-flex", alignItems: "center", gap: 4 }}><Icon name="chevron-left" size={15} /> Manuscript</span>
         <span className="spacer" />
         <span className="muted">{saveState === "saved" ? "saved" : saveState === "saving" ? "saving…" : "unsaved changes"}</span>
         <button className="iconbtn" onClick={togglePanel} title={panelOpen ? "Hide panel" : "Show panel"} aria-pressed={panelOpen}
@@ -260,7 +261,7 @@ export function ChapterEditor(props: {
               <span className="title-serif">“{selWord}”</span>
               <select className="sel" value={newType} onChange={(e) => setNewType(e.target.value)}>
                 {CANONICAL_ENTITY_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
-                <option value={CUSTOM_TYPE}>＋ Custom type…</option>
+                <option value={CUSTOM_TYPE}>+ Custom type…</option>
               </select>
               {newType === CUSTOM_TYPE && (
                 <input autoFocus value={customType} placeholder="New type (e.g. Deity)" style={{ width: 140 }}
@@ -341,7 +342,7 @@ export function ChapterEditor(props: {
                         ? <span className="muted" style={{ fontSize: 11 }}>linked</span>
                         : <button style={{ padding: "3px 8px", fontSize: 11 }} onClick={() => link(e.id)} title="Confirm — add to this chapter's cast">link</button>}
                       <span title="Not this — hide the suggestion" onClick={() => setDismissed((d) => new Set(d).add(e.id))}
-                        style={{ cursor: "pointer", color: "var(--faint)", fontSize: 13 }}>✕</span>
+                        style={{ cursor: "pointer", color: "var(--faint)", display: "inline-flex" }}><Icon name="close" size={13} /></span>
                     </div>
                   );
                 })}

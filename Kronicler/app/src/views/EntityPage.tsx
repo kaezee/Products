@@ -12,6 +12,7 @@ import { CANONICAL_ENTITY_TYPES, CUSTOM_TYPE } from "../lib/entityTypes";
 import { sideLabel, suggestInverse } from "../lib/direction";
 import { isBelief } from "../lib/knowledge";
 import { ArcSparkline } from "./ArcSparkline";
+import { Icon } from "../components/icons";
 
 // The direction picker shared by the add-form and the edit-panel: "both ways"
 // (symmetric) vs "directional", with an optional other-side word. When the
@@ -233,7 +234,7 @@ export function EntityPage({ entity, onBack, onChanged, startEditing }: {
   return (
     <div className="fi">
       <div className="row" style={{ borderBottom: "none", padding: 0, marginBottom: 8 }}>
-        <span className="tab" onClick={onBack} style={{ paddingLeft: 0 }}>← Library</span>
+        <span className="tab" onClick={onBack} style={{ paddingLeft: 0, display: "inline-flex", alignItems: "center", gap: 4 }}><Icon name="chevron-left" size={15} /> Library</span>
         <span className="spacer" />
         {!editing ? (
           <>
@@ -260,7 +261,7 @@ export function EntityPage({ entity, onBack, onChanged, startEditing }: {
             <select className="sel" value={isCanonical(type) ? type : CUSTOM_TYPE} style={{ width: 140 }}
               onChange={(e) => setType(e.target.value === CUSTOM_TYPE ? (isCanonical(type) ? "" : type) : e.target.value)}>
               {CANONICAL_ENTITY_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
-              <option value={CUSTOM_TYPE}>＋ Custom type…</option>
+              <option value={CUSTOM_TYPE}>+ Custom type…</option>
             </select>
             {!isCanonical(type) && (
               <input value={type} onChange={(e) => setType(e.target.value)} placeholder="Custom type" style={{ width: 130 }} />
@@ -320,7 +321,7 @@ export function EntityPage({ entity, onBack, onChanged, startEditing }: {
             <div key={relId} style={{ borderBottom: "1px solid var(--line)" }}>
               <div className="row" style={{ borderBottom: "none" }} title="Double-click to edit"
                 onDoubleClick={() => setEditingRel(relId)}>
-                <span className="muted" style={{ width: 10, cursor: "pointer" }} onClick={toggle}>{isOpen ? "▾" : "▸"}</span>
+                <span className="muted" style={{ width: 10, cursor: "pointer" }} onClick={toggle}><Icon name={isOpen ? "chevron-down" : "chevron"} size={13} /></span>
                 <span className="dot" style={{ background: VALENCE_COLOR[latest.valence] }} />
                 {side.incoming ? (
                   // self is the object of a one-way link: read it passively (the other is the subject)
@@ -339,7 +340,7 @@ export function EntityPage({ entity, onBack, onChanged, startEditing }: {
                 <span className="rowact" title="Edit this connection" onClick={() => setEditingRel(isEditing ? null : relId)}
                   style={{ cursor: "pointer", color: isEditing ? "var(--bond)" : "var(--muted)", fontSize: 12, padding: "0 2px" }}>edit</span>
                 <span className="rowact" title="Remove connection" onClick={() => removeConnection(relId, latest.type_label)}
-                  style={{ cursor: "pointer", color: "var(--faint)", fontSize: 13, padding: "0 2px" }}>✕</span>
+                  style={{ cursor: "pointer", color: "var(--faint)", padding: "0 2px", display: "inline-flex" }}><Icon name="close" size={13} /></span>
               </div>
 
               {isEditing && (
@@ -498,7 +499,7 @@ function AddConnection({ worldId, selfId, selfTitle, others, types, onAdded, onC
           const e = others.find((o) => o.id === id);
           return (
             <span key={id} className="chip on" style={{ cursor: "pointer" }} onClick={() => setPicked((p) => p.filter((x) => x !== id))}>
-              {e?.title ?? "?"} ✕
+              {e?.title ?? "?"} <Icon name="close" size={12} />
             </span>
           );
         })}

@@ -10,6 +10,7 @@ import { buildKindSwatches } from "../lib/segmentKinds";
 import { ChapterEditor } from "./ChapterEditor";
 import { ImportDocx } from "./ImportDocx";
 import type { Nav } from "../App";
+import { Icon } from "../components/icons";
 
 // Segments are the one grouping shared with the Timeline — Series › Book ›
 // Season › Volume, nested to any depth. Here each is a collapsible section so a
@@ -211,7 +212,7 @@ export function Manuscript({ worldId, focusChapterId, go }: { worldId: string; f
         ) : (
           <span className="title-serif" style={{ flex: 1 }}>
             {c.title}
-            {c.planned && <span className="chip" style={{ marginLeft: 8, fontSize: 10, padding: "2px 7px", borderColor: "var(--bondLine)", color: "var(--bond)" }} title="A planned beat — not written yet.">✎ planned</span>}
+            {c.planned && <span className="chip" style={{ marginLeft: 8, fontSize: 10, padding: "2px 7px", borderColor: "var(--bondLine)", color: "var(--bond)" }} title="A planned beat — not written yet."><Icon name="edit" size={11} /> planned</span>}
           </span>
         )}
         <input key={"d" + c.id + (c.story_time_label ?? "") + (c.story_time_ref ?? "")}
@@ -224,9 +225,9 @@ export function Manuscript({ worldId, focusChapterId, go }: { worldId: string; f
         <span className="faint">{c.body.trim() ? `${c.body.trim().split(/\s+/).length} words` : "empty"}</span>
         <span className="rowact" title="Rename chapter"
           onClick={(e) => { e.stopPropagation(); setRenameId(c.id); setRenameDraft(c.title); }}
-          style={{ cursor: "pointer", color: "var(--muted)", fontSize: 12, padding: "0 2px" }}>✎</span>
+          style={{ cursor: "pointer", color: "var(--muted)", padding: "0 2px", display: "inline-flex" }}><Icon name="edit" size={13} /></span>
         <span className="rowact" title="Delete chapter" onClick={(e) => del(c, e)}
-          style={{ cursor: "pointer", color: "var(--faint)", fontSize: 13, padding: "0 2px" }}>✕</span>
+          style={{ cursor: "pointer", color: "var(--faint)", padding: "0 2px", display: "inline-flex" }}><Icon name="close" size={13} /></span>
       </div>
     );
   };
@@ -243,7 +244,7 @@ export function Manuscript({ worldId, focusChapterId, go }: { worldId: string; f
     return (
       <div key={s.id} style={{ marginLeft: depth * 16 }}>
         <div className="row" style={{ background: tint, borderBottom: `1px solid ${color}`, gap: 8, borderRadius: depth ? 8 : 0, marginTop: depth ? 6 : 0 }}>
-          <span onClick={() => toggle(s.id)} style={{ cursor: "pointer", color, width: 12, fontSize: 12 }}>{isCollapsed ? "▸" : "▾"}</span>
+          <span onClick={() => toggle(s.id)} style={{ cursor: "pointer", color, display: "inline-flex" }}><Icon name={isCollapsed ? "chevron" : "chevron-down"} size={14} /></span>
           <span className="dot" style={{ background: color }} />
           <input value={s.name} onChange={(e) => renameSegment(s, e.target.value)}
             style={{ fontFamily: "var(--serif)", fontSize: 14.5, fontWeight: 600, color, border: "none", background: "transparent", padding: 0, minWidth: 80, width: 200 }} />
@@ -255,9 +256,9 @@ export function Manuscript({ worldId, focusChapterId, go }: { worldId: string; f
           <span className="faint" style={{ fontSize: 11.5 }}>{total} chapter{total === 1 ? "" : "s"}{isCollapsed && total ? " · ▸ open" : ""}</span>
           <span className="spacer" />
           <span className="rowact" title="Add a sub-segment (e.g. a season inside this series)" onClick={() => addSegment(s.id)}
-            style={{ cursor: "pointer", color, fontSize: 12, padding: "0 4px", fontWeight: 600 }}>＋ sub</span>
+            style={{ cursor: "pointer", color, fontSize: 12, padding: "0 4px", fontWeight: 600, display: "inline-flex", alignItems: "center", gap: 2 }}><Icon name="plus" size={12} /> sub</span>
           <span className="rowact" title="Delete segment" onClick={() => removeSegment(s)}
-            style={{ cursor: "pointer", color: "var(--faint)", fontSize: 13, padding: "0 2px" }}>✕</span>
+            style={{ cursor: "pointer", color: "var(--faint)", padding: "0 2px", display: "inline-flex" }}><Icon name="close" size={13} /></span>
         </div>
         {!isCollapsed && (
           <>

@@ -22,9 +22,17 @@ import {
   X,
   Undo2,
   ArrowRight,
+  ArrowUpRight,
   Check,
+  CircleCheck,
   PanelRight,
   GripVertical,
+  Lock,
+  LockOpen,
+  BookOpen,
+  CalendarDays,
+  Clock3,
+  TriangleAlert,
   type LucideIcon,
 } from "lucide-react";
 
@@ -57,9 +65,17 @@ const REGISTRY = {
   close: X,
   undo: Undo2,
   arrow: ArrowRight,
+  jump: ArrowUpRight,
   check: Check,
+  done: CircleCheck,
   panel: PanelRight,
   grip: GripVertical,
+  lock: Lock,
+  unlock: LockOpen,
+  book: BookOpen,
+  calendar: CalendarDays,
+  clock: Clock3,
+  alert: TriangleAlert,
 } satisfies Record<string, LucideIcon>;
 
 export type IconName = keyof typeof REGISTRY;

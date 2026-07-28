@@ -201,7 +201,7 @@ export function Manuscript({ worldId, focusChapterId, go }: { worldId: string; f
           onClick={(e) => e.stopPropagation()}
           onDragStart={(e) => { setDragIndex(i); e.dataTransfer.effectAllowed = "move"; }}
           onDragEnd={() => { setDragIndex(null); setOverIndex(null); }}
-          style={{ cursor: "grab", color: "var(--faint)", padding: "0 4px 0 0", fontSize: 15, userSelect: "none" }}>⠿</span>
+          style={{ cursor: "grab", color: "var(--faint)", padding: "0 4px 0 0", userSelect: "none", display: "inline-flex" }}><Icon name="grip" size={14} /></span>
         <span className="muted" style={{ width: 26, fontVariantNumeric: "tabular-nums" }}>{String(c.manuscript_order).padStart(2, "0")}</span>
         {renameId === c.id ? (
           <input autoFocus value={renameDraft} style={{ flex: 1, fontFamily: "var(--serif)", fontSize: 15, padding: "4px 8px" }}
@@ -217,7 +217,7 @@ export function Manuscript({ worldId, focusChapterId, go }: { worldId: string; f
         )}
         <input key={"d" + c.id + (c.story_time_label ?? "") + (c.story_time_ref ?? "")}
           className="tl-pick" defaultValue={c.story_time_label ?? (c.story_time_ref != null ? String(c.story_time_ref) : "")}
-          placeholder="🕐 date" title="In-world date (e.g. 1150 AE) — sets this chapter's place on the timeline"
+          placeholder="in-world date" title="In-world date (e.g. 1150 AE) — sets this chapter's place on the timeline"
           onClick={(e) => e.stopPropagation()}
           onKeyDown={(e) => { e.stopPropagation(); if (e.key === "Enter" || e.key === "Escape") (e.target as HTMLInputElement).blur(); }}
           onBlur={(e) => setDate(c.id, e.target.value)}
@@ -253,7 +253,7 @@ export function Manuscript({ worldId, focusChapterId, go }: { worldId: string; f
             style={{ fontSize: 11, padding: "2px 6px", color, background: "transparent", border: `1px solid ${color}`, borderRadius: 6 }}>
             {kindNames.map((k) => <option key={k} value={k} style={{ color: "var(--ink)" }}>{k}</option>)}
           </select>
-          <span className="faint" style={{ fontSize: 11.5 }}>{total} chapter{total === 1 ? "" : "s"}{isCollapsed && total ? " · ▸ open" : ""}</span>
+          <span className="faint" style={{ fontSize: 11.5 }}>{total} chapter{total === 1 ? "" : "s"}{isCollapsed && total ? " · collapsed" : ""}</span>
           <span className="spacer" />
           <span className="rowact" title="Add a sub-segment (e.g. a season inside this series)" onClick={() => addSegment(s.id)}
             style={{ cursor: "pointer", color, fontSize: 12, padding: "0 4px", fontWeight: 600, display: "inline-flex", alignItems: "center", gap: 2 }}><Icon name="plus" size={12} /> sub</span>
@@ -339,7 +339,7 @@ export function Manuscript({ worldId, focusChapterId, go }: { worldId: string; f
               {unfiled.map(chapterRow)}
             </div>
           )}
-          {chapters.length > 1 && <p className="muted" style={{ marginTop: 8 }}>Tick chapters and use the bar to move them, or drag the ⠿ handle to reorder / drop into a segment.</p>}
+          {chapters.length > 1 && <p className="muted" style={{ marginTop: 8 }}>Tick chapters and use the bar to move them, or drag the grip handle to reorder / drop into a segment.</p>}
         </>
       )}
     </div>

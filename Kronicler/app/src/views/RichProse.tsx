@@ -5,6 +5,7 @@ import { getEntityTypes } from "../lib/api";
 import { buildTypeSwatches } from "../lib/entityTypes";
 import { VALENCE_COLOR } from "../lib/valence";
 import type { MentionState } from "../lib/mentionState";
+import { Icon } from "../components/icons";
 
 const escapeHtml = (s: string) => s.replace(/[&<>]/g, (c) => (c === "&" ? "&amp;" : c === "<" ? "&lt;" : "&gt;"));
 
@@ -286,7 +287,7 @@ export function RichProse({ value, entities, onChange, onSelectText, onOpenEntit
                     <span style={{ flex: 1 }}>
                       <span style={{ color: "var(--ink)" }}>{s.label}</span>
                       <span style={{ color: "var(--sub)" }}> · {s.other}</span>
-                      {s.concealed && <span title="hidden from someone at this point" style={{ marginLeft: 4 }}>🔒</span>}
+                      {s.concealed && <span title="hidden from someone at this point" style={{ marginLeft: 4, display: "inline-flex", color: "var(--obligation)" }}><Icon name="lock" size={11} /></span>}
                       {s.isCorrection && <span className="faint" style={{ marginLeft: 4, fontSize: 10 }}>(revised)</span>}
                     </span>
                   </div>

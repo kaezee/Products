@@ -4,6 +4,7 @@ import { getWorld, setChapterStructuredDate } from "../lib/api";
 import {
   deriveCalendar, DEFAULT_CALENDAR, spanStart, spanEnd, formatWorldDate, monthName, type DerivedCalendar, type Precision,
 } from "../lib/worldTime";
+import { Icon } from "../components/icons";
 
 // Structured in-world date editor (design doc 3 §12): pick a precision, then the
 // year (and month, and day) it needs. Writes authored fields + derived day
@@ -53,7 +54,7 @@ export function ChapterDate({ worldId, chapter, onChanged }: {
 
   return (
     <span style={{ display: "inline-flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-      <span className="muted" style={{ fontSize: 11 }}>🕐 in-world</span>
+      <span className="muted" style={{ fontSize: 11, display: "inline-flex", alignItems: "center", gap: 4 }}><Icon name="clock" size={11} /> in-world</span>
       <select className="sel" value={prec} title="How precisely you know when this happens"
         onChange={(e) => { const p = e.target.value as Precision; setPrec(p); void commit(p); }}
         style={{ fontSize: 11, padding: "3px 6px" }}>

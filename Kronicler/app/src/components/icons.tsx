@@ -34,6 +34,11 @@ import {
   CalendarDays,
   Clock3,
   TriangleAlert,
+  Users,
+  MapPin,
+  Type as TypeIcon,
+  Drama,
+  PenLine,
   type LucideIcon,
 } from "lucide-react";
 
@@ -78,6 +83,11 @@ const REGISTRY = {
   calendar: CalendarDays,
   clock: Clock3,
   alert: TriangleAlert,
+  cast: Users,
+  place: MapPin,
+  words: TypeIcon,
+  drama: Drama,
+  write: PenLine,
 } satisfies Record<string, LucideIcon>;
 
 export type IconName = keyof typeof REGISTRY;

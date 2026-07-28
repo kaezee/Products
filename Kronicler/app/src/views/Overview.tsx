@@ -1,21 +1,27 @@
 import { useEffect, useMemo, useState } from "react";
-import { getStream, getEntities, getRelationshipTypes, softDeleteEntity } from "../lib/api";
-import type { StreamRow, Entity, RelationshipType } from "../lib/types";
+import { getStream, getEntities, getRelationshipTypes, getChapters, softDeleteEntity } from "../lib/api";
+import type { StreamRow, Entity, RelationshipType, Chapter } from "../lib/types";
 import { isBelief } from "../lib/knowledge";
 import { findIssues } from "../lib/continuity";
 import { findDuplicates } from "../lib/dedupe";
 import type { Nav } from "../App";
 import { VALENCE_COLOR } from "../lib/valence";
-import { Icon } from "../components/icons";
+import { Icon, type IconName } from "../components/icons";
 import { confirmDialog } from "../components/confirm";
 
 const DORMANT_GAP = 5;
 
-// Overview (§9.2): read-only orientation. Owns nothing, links everywhere.
+const wordsOf = (body: string) => (body || "").replace(/<[^>]*>/g, " ").trim().split(/\s+/).filter(Boolean).length;
+const fmt = (n: number) => n.toLocaleString();
+
+// Overview — the world's home. Orients (a row of at-a-glance stats), launches
+// (pick up where you left off), and flags what needs attention. Owns nothing,
+// links everywhere.
 export function Overview({ worldId, go }: { worldId: string; go: (n: Nav) => void }) {
   const [stream, setStream] = useState<StreamRow[] | null>(null);
   const [entities, setEntities] = useState<Entity[]>([]);
   const [types, setTypes] = useState<RelationshipType[]>([]);
+  const [chapters, setChapters] = useState<Chapter[]>([]);
   const [err, setErr] = useState<string | null>(null);
   const [allOrphans, setAllOrphans] = useState(false);
 
@@ -23,8 +29,8 @@ export function Overview({ worldId, go }: { worldId: string; go: (n: Nav) => voi
 
   useEffect(() => {
     let alive = true;
-    Promise.all([getStream(worldId), getEntities(worldId), getRelationshipTypes(worldId)])
-      .then(([s, e, t]) => { if (!alive) return; setStream(s); setEntities(e); setTypes(t); })
+    Promise.all([getStream(worldId), getEntities(worldId), getRelationshipTypes(worldId), getChapters(worldId)])
+      .then(([s, e, t, c]) => { if (!alive) return; setStream(s); setEntities(e); setTypes(t); setChapters(c); })
       .catch((x) => alive && setErr(String(x)));
     return () => { alive = false; };
   }, [worldId]);
@@ -71,6 +77,24 @@ export function Overview({ worldId, go }: { worldId: string; go: (n: Nav) => voi
   const ironies = useMemo(() => issues.flatMap((i) => i.kind === "belief-clash" ? [i] : []), [issues]);
   const duplicates = useMemo(() => findDuplicates(entities), [entities]);
 
+  // ── world shape (the at-a-glance stats) ──────────────────────────────────
+  const stats = useMemo(() => {
+    const byType = (t: string) => entities.filter((e) => e.type.toLowerCase() === t).length;
+    const written = chapters.filter((c) => !c.planned).length;
+    const words = chapters.reduce((n, c) => n + wordsOf(c.body), 0);
+    const relCount = stream ? new Set(stream.map((s) => s.relationship_id)).size : 0;
+    const dated = chapters.filter((c) => c.day_num_start != null).length;
+    return { cast: byType("character"), places: byType("place"), entities: entities.length,
+      written, total: chapters.length, planned: chapters.length - written, words, relCount, dated };
+  }, [entities, chapters, stream]);
+
+  // Pick up where you left off: the furthest-along written chapter.
+  const continueCh = useMemo(() => {
+    if (!chapters.length) return null;
+    const byOrder = [...chapters].sort((a, b) => b.manuscript_order - a.manuscript_order);
+    return byOrder.find((c) => !c.planned && (c.body || "").trim().length > 0) ?? byOrder.find((c) => !c.planned) ?? byOrder[0];
+  }, [chapters]);
+
   async function delOrphan(e: Entity, ev: React.MouseEvent) {
     ev.stopPropagation();
     if (!(await confirmDialog({ title: "Delete entity", message: `Delete "${e.title}"? It's soft-deleted — recoverable, nothing is truly lost.`, confirmLabel: "Delete", tone: "danger" }))) return;
@@ -84,17 +108,72 @@ export function Overview({ worldId, go }: { worldId: string; go: (n: Nav) => voi
   if (!stream) return <p className="muted">Loading…</p>;
 
   const who = (s: StreamRow) => s.participants.map((p) => p.title).join(" · ");
+  const attentionCount = duplicates.length + contradictions.length + orphaned.length + dormant.length + orphans.length + ironies.length;
+
+  // shape sentence
+  const shapeBits: string[] = [];
+  if (stats.cast) shapeBits.push(`${stats.cast} character${stats.cast === 1 ? "" : "s"}`);
+  if (stats.places) shapeBits.push(`${stats.places} place${stats.places === 1 ? "" : "s"}`);
+  if (stats.total) shapeBits.push(`${stats.written} of ${stats.total} chapters written`);
+  if (stats.words) shapeBits.push(`${fmt(stats.words)} words`);
+  const shape = shapeBits.length ? shapeBits.join(" · ") : "A new world — nothing in it yet. Start below.";
+
+  const tiles: { key: string; icon: IconName; label: string; value: string; sub: string; nav: Nav }[] = [
+    { key: "cast", icon: "cast", label: "Cast", value: fmt(stats.cast), sub: `${fmt(stats.entities)} entities`, nav: { scope: "library" } },
+    { key: "places", icon: "place", label: "Places", value: fmt(stats.places), sub: "in the library", nav: { scope: "library" } },
+    { key: "chapters", icon: "manuscript", label: "Chapters", value: fmt(stats.written), sub: stats.planned ? `+ ${stats.planned} planned` : `of ${stats.total}`, nav: { scope: "manuscript" } },
+    { key: "words", icon: "words", label: "Words", value: fmt(stats.words), sub: "in the manuscript", nav: { scope: "manuscript" } },
+    { key: "rel", icon: "relationships", label: "Relationships", value: fmt(stats.relCount), sub: `${fmt(stream.length)} states`, nav: { scope: "relationships" } },
+    { key: "dated", icon: "timeline", label: "Dated", value: `${fmt(stats.dated)}/${fmt(stats.total)}`, sub: "on the timeline", nav: { scope: "timeline" } },
+  ];
 
   return (
     <div className="fi">
       <h2 className="scope-title">Overview</h2>
-      <p className="scope-sub">What changed and what needs attention. Everything here lives somewhere else.</p>
+      <p className="scope-sub">{shape}</p>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(340px, 100%), 1fr))", gap: 18 }}>
+      {/* World at a glance */}
+      <div className="dash-stats">
+        {tiles.map((t) => (
+          <button key={t.key} className="stat" onClick={() => go(t.nav)}>
+            <span className="stat-top"><Icon name={t.icon} size={13} /><span className="stat-lab">{t.label}</span></span>
+            <span className="stat-num">{t.value}</span>
+            <span className="stat-sub">{t.sub}</span>
+          </button>
+        ))}
+      </div>
+
+      {/* Continue writing / launchpad */}
+      <div className="dash-continue">
+        <span className="dash-continue-ic"><Icon name="write" size={20} /></span>
+        {continueCh ? (
+          <>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div className="dash-continue-lab">Pick up where you left off</div>
+              <div className="dash-continue-title">{continueCh.title}</div>
+              <div className="dash-continue-sub">ch. {continueCh.manuscript_order} · {fmt(wordsOf(continueCh.body))} words</div>
+            </div>
+            <button className="primary" onClick={() => go({ scope: "manuscript", chapterId: continueCh.id })}
+              style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>Open chapter <Icon name="arrow" size={14} /></button>
+          </>
+        ) : (
+          <>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div className="dash-continue-lab">Your manuscript is empty</div>
+              <div className="dash-continue-title">Start chapter one</div>
+              <div className="dash-continue-sub">Write, and known names light up as you type.</div>
+            </div>
+            <button className="primary" onClick={() => go({ scope: "manuscript" })}
+              style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>Open Manuscript <Icon name="arrow" size={14} /></button>
+          </>
+        )}
+      </div>
+
+      <div className="dash-cols">
         <div>
-          <div className="label" style={{ marginTop: 0 }}>Recent state changes</div>
+          <div className="label" style={{ marginTop: 0 }}>Recent activity</div>
           <div className="card">
-            {recent.length === 0 && <div className="row"><span className="muted">No states recorded yet.</span></div>}
+            {recent.length === 0 && <div className="row"><span className="muted">No state changes yet — mark a moment in a chapter and it shows here.</span></div>}
             {recent.map((s) => (
               <div className="row click" key={s.state_id} onClick={() => go({ scope: "relationships" })}>
                 <span className="dot" style={{ background: VALENCE_COLOR[s.valence] }} />
@@ -109,10 +188,12 @@ export function Overview({ worldId, go }: { worldId: string; go: (n: Nav) => voi
         </div>
 
         <div>
-          <div className="label" style={{ marginTop: 0 }}>Needs attention</div>
+          <div className="label" style={{ marginTop: 0, display: "flex", alignItems: "center", gap: 8 }}>
+            Needs attention {attentionCount > 0 && <span className="dash-count">{attentionCount}</span>}
+          </div>
           <div className="card">
-            {dormant.length === 0 && orphans.length === 0 && contradictions.length === 0 && orphaned.length === 0 && duplicates.length === 0 && (
-              <div className="row"><span className="muted">Nothing flagged — every thread is live and every entity connected.</span></div>
+            {attentionCount === 0 && (
+              <div className="row"><span className="muted" style={{ display: "inline-flex", alignItems: "center", gap: 6 }}><Icon name="done" size={14} style={{ color: "var(--bond)" }} /> Nothing flagged — every thread is live and every entity connected.</span></div>
             )}
             {duplicates.map((d) => (
               <div className="row click" key={"dup" + d.key} onClick={() => go({ scope: "library", entityId: d.entities[0].id })}>
@@ -137,6 +218,14 @@ export function Overview({ worldId, go }: { worldId: string; go: (n: Nav) => voi
                 <span className="chip warn">lost chapter</span>
                 <span style={{ fontSize: 12.5 }}>
                   <b>{c.who}</b> · {c.label} — marked in a chapter that's since been deleted, so it shows as “standing”. Re-mark it{c.note ? <> (“{c.note.slice(0, 40)}{c.note.length > 40 ? "…" : ""}”)</> : null}.
+                </span>
+              </div>
+            ))}
+            {ironies.map((c) => (
+              <div className="row click" key={"i" + c.relId} onClick={() => go({ scope: "relationships" })}>
+                <span className="chip" style={{ borderColor: "var(--obligation)", background: "var(--obligationBg)", color: "var(--obligation)", display: "inline-flex", alignItems: "center", gap: 4 }}><Icon name="drama" size={11} /> irony</span>
+                <span style={{ fontSize: 12.5 }}>
+                  <b>{c.believers}</b> believe{c.believers.includes(",") ? "" : "s"} it's <span style={{ color: "var(--obligation)", fontWeight: 600 }}>{c.belief}</span> — the reader knows it's <span style={{ color: "var(--hostile)", fontWeight: 600 }}>{c.truth}</span>.
                 </span>
               </div>
             ))}
@@ -166,22 +255,6 @@ export function Overview({ worldId, go }: { worldId: string; go: (n: Nav) => voi
           </div>
         </div>
       </div>
-
-      {ironies.length > 0 && (
-        <>
-          <div className="label" style={{ marginTop: 22 }}>🎭 Dramatic irony in play</div>
-          <div className="card" style={{ maxWidth: 760 }}>
-            {ironies.map((c) => (
-              <div className="row click" key={"i" + c.relId} onClick={() => go({ scope: "relationships" })}>
-                <span className="chip" style={{ borderColor: "var(--obligation)", background: "var(--obligationBg)", color: "var(--obligation)" }}>irony</span>
-                <span style={{ fontSize: 12.5 }}>
-                  <b>{c.believers}</b> believe{c.believers.includes(",") ? "" : "s"} it's <span style={{ color: "var(--obligation)", fontWeight: 600 }}>{c.belief}</span> — but it's actually <span style={{ color: "var(--hostile)", fontWeight: 600 }}>{c.truth}</span>. The reader knows; they don't.
-                </span>
-              </div>
-            ))}
-          </div>
-        </>
-      )}
     </div>
   );
 }

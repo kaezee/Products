@@ -13,6 +13,7 @@ import { sideLabel, suggestInverse } from "../lib/direction";
 import { isBelief } from "../lib/knowledge";
 import { ArcSparkline } from "./ArcSparkline";
 import { Icon } from "../components/icons";
+import { confirmDialog } from "../components/confirm";
 
 // The direction picker shared by the add-form and the edit-panel: "both ways"
 // (symmetric) vs "directional", with an optional other-side word. When the
@@ -209,7 +210,7 @@ export function EntityPage({ entity, onBack, onChanged, startEditing }: {
   }
 
   async function del() {
-    if (!confirm(`Delete "${ent.title}"? It's soft-deleted — recoverable, nothing is truly lost.`)) return;
+    if (!(await confirmDialog({ title: "Delete entity", message: `Delete "${ent.title}"? It's soft-deleted — recoverable, nothing is truly lost.`, confirmLabel: "Delete", tone: "danger" }))) return;
     try { await softDeleteEntity(ent.id); onChanged?.(); onBack(); } catch (x) { setErr(String(x)); }
   }
 
@@ -227,7 +228,7 @@ export function EntityPage({ entity, onBack, onChanged, startEditing }: {
   }
 
   async function removeConnection(relId: string, label: string) {
-    if (!confirm(`Remove the "${label}" connection? It's soft-deleted — recoverable, nothing is truly lost.`)) return;
+    if (!(await confirmDialog({ title: "Remove connection", message: `Remove the "${label}" connection? It's soft-deleted — recoverable, nothing is truly lost.`, confirmLabel: "Remove", tone: "danger" }))) return;
     try { await softDeleteRelationship(relId); loadConnections(); } catch (x) { setErr(String(x)); }
   }
 

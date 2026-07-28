@@ -7,6 +7,7 @@ import { findDuplicates } from "../lib/dedupe";
 import type { Nav } from "../App";
 import { VALENCE_COLOR } from "../lib/valence";
 import { Icon } from "../components/icons";
+import { confirmDialog } from "../components/confirm";
 
 const DORMANT_GAP = 5;
 
@@ -72,7 +73,7 @@ export function Overview({ worldId, go }: { worldId: string; go: (n: Nav) => voi
 
   async function delOrphan(e: Entity, ev: React.MouseEvent) {
     ev.stopPropagation();
-    if (!confirm(`Delete "${e.title}"? It's soft-deleted — recoverable, nothing is truly lost.`)) return;
+    if (!(await confirmDialog({ title: "Delete entity", message: `Delete "${e.title}"? It's soft-deleted — recoverable, nothing is truly lost.`, confirmLabel: "Delete", tone: "danger" }))) return;
     try {
       await softDeleteEntity(e.id);
       setEntities((prev) => prev.filter((x) => x.id !== e.id));

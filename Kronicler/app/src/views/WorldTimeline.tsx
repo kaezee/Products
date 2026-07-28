@@ -11,6 +11,7 @@ import { deriveCalendar, DEFAULT_CALENDAR, type DerivedCalendar } from "../lib/w
 import { SidePanel, Disclosure } from "../components/SidePanel";
 import { Icon } from "../components/icons";
 import { SwatchPicker } from "../components/SwatchPicker";
+import { confirmDialog } from "../components/confirm";
 
 // The World Timeline (design doc 3). Everything positions on a signed DAY NUMBER;
 // the axis is calendar-aware and the navigable range is bounded by "known time"
@@ -396,7 +397,7 @@ export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) =
     try { await updateSegment(id, { color }); } catch (x) { setErr(String(x)); }
   }
   async function delSeg(s: Segment) {
-    if (!confirm(`Delete "${s.name}" and its nested segments? Chapters return to the sidebar. Recoverable.`)) return;
+    if (!(await confirmDialog({ title: "Delete segment", message: `Delete "${s.name}" and its nested segments? Chapters return to the sidebar. Recoverable.`, confirmLabel: "Delete", tone: "danger" }))) return;
     try { await softDeleteSegment(s.id); pushUndo(() => restoreSegment(s.id)); await reload(); } catch (x) { setErr(String(x)); }
   }
   async function addSelectedTo(segId: string) {

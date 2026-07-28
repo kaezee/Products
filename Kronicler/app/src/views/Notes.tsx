@@ -3,6 +3,7 @@ import { getNotes, createNote, updateNote, softDeleteNote, getEntities, getRelat
 import type { Note, Entity, RelationshipType, Chapter } from "../lib/types";
 import { NoteToState } from "./NoteToState";
 import { Icon } from "../components/icons";
+import { confirmDialog } from "../components/confirm";
 
 const CARD_W = 230, CARD_H = 150; // CARD_H is a nominal height, for framing math only
 const MIN_SCALE = 0.3, MAX_SCALE = 2.2;
@@ -185,7 +186,7 @@ export function Notes({ worldId }: { worldId: string }) {
               onResizeStart={(e) => startResize(n, e)}
               onToLens={() => setLensNote(n)}
               onChange={(p) => { patch(n.id, p); updateNote(n.id, p).catch((x) => setErr(String(x))); }}
-              onDelete={async () => { if (!confirm("Delete this note?")) return; try { await softDeleteNote(n.id); setNotes((prev) => (prev ?? []).filter((x) => x.id !== n.id)); } catch (x) { setErr(String(x)); } }} />
+              onDelete={async () => { if (!(await confirmDialog({ title: "Delete note", message: "Delete this note?", confirmLabel: "Delete", tone: "danger" }))) return; try { await softDeleteNote(n.id); setNotes((prev) => (prev ?? []).filter((x) => x.id !== n.id)); } catch (x) { setErr(String(x)); } }} />
           ))}
         </div>
 

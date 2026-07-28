@@ -12,6 +12,7 @@ import { ImportDocx } from "./ImportDocx";
 import type { Nav } from "../App";
 import { Icon } from "../components/icons";
 import { SwatchPicker } from "../components/SwatchPicker";
+import { confirmDialog } from "../components/confirm";
 
 // Segments are the one grouping shared with the Timeline — Series › Book ›
 // Season › Volume, nested to any depth. Here each is a collapsible section so a
@@ -67,7 +68,7 @@ export function Manuscript({ worldId, focusChapterId, go }: { worldId: string; f
 
   async function del(c: Chapter, ev: React.MouseEvent) {
     ev.stopPropagation();
-    if (!confirm(`Delete chapter “${c.title}”? It's soft-deleted — recoverable from Settings → Trash.`)) return;
+    if (!(await confirmDialog({ title: "Delete chapter", message: `Delete chapter “${c.title}”? It's soft-deleted — recoverable from Settings → Trash.`, confirmLabel: "Delete", tone: "danger" }))) return;
     try { await softDeleteChapter(c.id); setChapters((prev) => (prev ?? []).filter((x) => x.id !== c.id)); }
     catch (x) { setErr(String(x)); }
   }
@@ -139,7 +140,7 @@ export function Manuscript({ worldId, focusChapterId, go }: { worldId: string; f
     const msg = kids.length
       ? `Delete “${s.name}” and un-nest its ${kids.length} sub-segment(s)? Chapters stay in the manuscript.`
       : `Delete “${s.name}”? Its chapters stay in the manuscript, just unfiled — nothing is lost.`;
-    if (!confirm(msg)) return;
+    if (!(await confirmDialog({ title: "Delete segment", message: msg, confirmLabel: "Delete", tone: "danger" }))) return;
     try {
       await softDeleteSegment(s.id);
       setSegments((p) => p.filter((z) => z.id !== s.id));

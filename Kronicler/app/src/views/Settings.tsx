@@ -4,6 +4,7 @@ import { exportWorld, getChapters, getEntities } from "../lib/api";
 import type { Entity } from "../lib/types";
 import { Trash } from "./Trash";
 import { Icon } from "../components/icons";
+import { confirmDialog } from "../components/confirm";
 
 function slug(s: string) { return (s || "world").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "world"; }
 function stamp() { return new Date().toISOString().slice(0, 10); }
@@ -132,8 +133,8 @@ export function Settings({ worldId, worldName, userEmail, onDeleteWorld, onWorld
           </div>
           <button
             style={{ color: "var(--hostile)", borderColor: "var(--hostile)" }}
-            onClick={() => {
-              if (confirm(`Delete the world “${worldName}”?\n\nEverything in it is hidden and recoverable — nothing is truly erased. You'll be switched to another world.`)) {
+            onClick={async () => {
+              if (await confirmDialog({ title: "Delete world", message: `Delete the world “${worldName}”?\n\nEverything in it is hidden and recoverable — nothing is truly erased. You'll be switched to another world.`, confirmLabel: "Delete world", tone: "danger" })) {
                 onDeleteWorld();
               }
             }}

@@ -143,6 +143,42 @@ textarea { font-family: var(--serif); }
    --k-ment-color / --k-ment-tint, set inline per span from the type registry.
    The underline is uniform (this is a tracked entity); the tint fill appears
    only on hover/focus, so dense prose still reads as prose. */
+/* Toggleable contextual side panel + progressive-disclosure sections. */
+.sidepanel { flex: 0 0 264px; min-width: 0; min-height: 0; position: relative; display: flex; flex-direction: column;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow); overflow: hidden; }
+.sidepanel-body { flex: 1; min-height: 0; overflow-y: auto; }
+.sidepanel-close { position: absolute; top: 8px; right: 8px; z-index: 2; width: 26px; height: 26px; padding: 0; display: flex; align-items: center; justify-content: center;
+  border: 1px solid var(--line); border-radius: 7px; background: var(--surface); color: var(--sub); font-size: 14px; }
+.sidepanel-close:hover:not(:disabled) { background: var(--wash); color: var(--ink); }
+.disc + .disc { border-top: 1px solid var(--line); }
+.disc-head { width: 100%; display: flex; align-items: center; gap: 8px; padding: 12px 40px 12px 12px; background: none; border: none; border-radius: 0; cursor: pointer;
+  font-family: var(--sans); color: var(--sub); }
+.disc:first-child .disc-head { padding-right: 44px; }
+.disc-head:hover { background: var(--wash); }
+.disc-chev { display: inline-block; font-size: 14px; color: var(--muted); transition: transform var(--k-duration-fast, 120ms) var(--k-ease, ease); }
+.disc.open .disc-chev { transform: rotate(90deg); }
+.disc-label { flex: 1; text-align: left; font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.disc-count { font-family: var(--k-font-mono); font-size: 11px; color: var(--sub); }
+.disc-body { padding: 0 12px 14px; }
+
+/* Timeline toolbar bits + panel contents */
+.iconbtn { padding: 8px 10px; font-size: 14px; line-height: 1; }
+.wt2-addmenu { position: absolute; top: calc(100% + 6px); right: 0; z-index: 20; display: flex; flex-direction: column; gap: 2px;
+  background: var(--raised); border: 1px solid var(--lineStrong); border-radius: 10px; box-shadow: var(--pop); padding: 4px; min-width: 150px; }
+.wt2-addmenu button { border: none; background: none; text-align: left; font-weight: 500; padding: 8px 10px; border-radius: 7px; }
+.wt2-addmenu button:hover:not(:disabled) { background: var(--wash); }
+.wt2-sidefile { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; padding: 8px; margin-bottom: 8px; border: 1px solid var(--bondLine); background: var(--bondBg); border-radius: 8px; }
+.wt2-und { display: flex; align-items: center; gap: 7px; padding: 5px 2px; border-bottom: 1px solid var(--line); }
+.wt2-und:last-child { border-bottom: none; }
+.wt2-und-title { flex: 1; min-width: 0; font-size: 12px; color: var(--sub); cursor: pointer; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-variant-numeric: tabular-nums; }
+.wt2-und-title:hover { color: var(--bond); }
+.wt2-und.on .wt2-und-title { color: var(--bond); font-weight: 600; }
+.wt2-und-date { width: 52px; font-size: 11px; padding: 4px 6px; }
+.wt2-outline { display: flex; align-items: center; gap: 7px; padding: 5px 2px; }
+.wt2-outline-dot { width: 8px; height: 8px; border-radius: 50%; flex: 0 0 auto; }
+.wt2-outline-name { flex: 1; min-width: 0; font-size: 12px; color: var(--sub); cursor: pointer; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.wt2-outline-name:hover { color: var(--bond); }
+
 .ment {
   text-decoration-line: underline;
   text-decoration-color: var(--k-ment-color, var(--k-entity-slate));

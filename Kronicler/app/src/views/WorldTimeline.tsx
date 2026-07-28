@@ -1,13 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   getSegments, createSegment, updateSegment, softDeleteSegment, restoreSegment, setChapterSegment,
-  getChapters, getMarkers, createMarker, softDeleteMarker, restoreMarker, getSegmentKinds, getWorld, setKnownTime,
+  getChapters, getMarkers, createMarker, softDeleteMarker, restoreMarker, getSegmentKinds, getWorld, setKnownTime, setChapterDate,
 } from "../lib/api";
 import type { Segment, Chapter, TimelineMarker, SegmentKind } from "../lib/types";
 import type { Nav } from "../App";
 import { parseStoryTime } from "../lib/time";
 import { buildKindSwatches } from "../lib/segmentKinds";
 import { deriveCalendar, DEFAULT_CALENDAR, type DerivedCalendar } from "../lib/worldTime";
+import { SidePanel, Disclosure } from "../components/SidePanel";
 
 // The World Timeline (design doc 3). Everything positions on a signed DAY NUMBER;
 // the axis is calendar-aware and the navigable range is bounded by "known time"
@@ -42,7 +43,7 @@ export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) =
   const [bulkSeg, setBulkSeg] = useState("");
   const [noteOpen, setNoteOpen] = useState(false);
   const [noteYear, setNoteYear] = useState(""); const [noteText, setNoteText] = useState("");
-  const [ktOpen, setKtOpen] = useState(false);
+  const [addMenu, setAddMenu] = useState(false);
   const [ktStart, setKtStart] = useState(""); const [ktEnd, setKtEnd] = useState("");
   const [warn, setWarn] = useState<null | { segs: { id: string; name: string; lo: number; hi: number }[]; chs: { id: string; title: string; year: number }[]; contain: [number, number]; want: [number, number] }>(null);
 
@@ -87,6 +88,8 @@ export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) =
   }
   useEffect(() => { setLoading(true); setFitDone(false); modeChosen.current = false; undoStack.current = []; void reload(); /* eslint-disable-next-line */ }, [worldId]);
   useEffect(() => () => { if (animRef.current) cancelAnimationFrame(animRef.current); }, []);
+  // Keep the World-clock inputs in sync with the loaded/edited known range.
+  useEffect(() => { setKtStart(String(known.start)); setKtEnd(String(known.end)); }, [known]);
   // Default axis: Manuscript order when fewer than 20% of chapters are dated (§8).
   useEffect(() => {
     if (loading || modeChosen.current || chapters.length === 0) return;
@@ -273,10 +276,6 @@ export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) =
     // scroll-to-zoom is wired to nothing. eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading]);
 
-  function zoomBy(factor: number) {
-    cancelAnim();
-    setView((v) => { const lx = nowW / 2, day = v.start + lx / v.ppd; return clampView({ ...v, ppd: v.ppd * factor, start: day - lx / (v.ppd * factor) }, nowW); });
-  }
   // Fit frames known time with its ±500y buffer (the whole navigable range), so
   // known time sits in focus in the middle with a little room either side.
   function fitKnown() {
@@ -289,7 +288,7 @@ export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) =
     const prev = known;
     setKnown({ start: startYr, end: endYr });
     pushUndo(() => setKnownTime(worldId, prev.start, prev.end));
-    setWarn(null); setKtOpen(false);
+    setWarn(null);
     try { await setKnownTime(worldId, startYr, endYr); } catch (x) { setErr(String(x)); }
   }
   // Validate a proposed range: which segments fall (partly) outside, and which
@@ -313,6 +312,12 @@ export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) =
     const cLo = content ? dayToYear(content.lo) : ns, cHi = content ? dayToYear(content.hi) : ne;
     return { segs, chs, contain: [Math.min(ns, cLo), Math.max(ne, cHi)], want: [ns, ne] };
   }
+  // Quick date-a-chapter from the panel (year precision) — the core loop.
+  async function dateChapter(chapterId: string, raw: string) {
+    const yr = raw.trim() ? parseStoryTime(raw) : null;
+    setChapters((prev) => prev.map((c) => c.id === chapterId ? { ...c, story_time_ref: yr, day_num_start: yr == null ? null : yr * dpy } : c));
+    try { await setChapterDate(chapterId, yr, raw.trim() || null); await reload(); } catch (x) { setErr(String(x)); }
+  }
   function requestKnown() {
     const ns = ktStart.trim() ? parseStoryTime(ktStart) ?? known.start : known.start;
     const ne = ktEnd.trim() ? parseStoryTime(ktEnd) ?? known.end : known.end;
@@ -320,13 +325,6 @@ export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) =
     const v = validateShrink(ns, ne);
     if (!v) void applyKnown(ns, ne); else setWarn(v);
   }
-  function extendKnown(side: "start" | "end") {
-    const span = Math.max(1, known.end - known.start);
-    const inc = niceRound(span * 0.25);
-    if (side === "end") void applyKnown(known.start, known.end + inc);
-    else void applyKnown(known.start - inc, known.end);
-  }
-
   function onDown(e: React.MouseEvent) {
     cancelAnim();
     const t = e.target as HTMLElement;
@@ -485,39 +483,25 @@ export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) =
 
   return (
     <div className="fi wt2-fill">
-      <div className="row" style={{ borderBottom: "none", padding: 0, marginBottom: 4, gap: 8, flexWrap: "wrap", flexShrink: 0 }}>
+      <div className="row" style={{ borderBottom: "none", padding: 0, marginBottom: 4, gap: 8, flexWrap: "wrap", flexShrink: 0, alignItems: "baseline" }}>
         <h2 className="scope-title" style={{ margin: 0 }}>World Timeline</h2>
-        <span className="faint" style={{ fontSize: 11 }}>
+        <span className="faint" style={{ fontSize: 11 }} title="Scroll to zoom · shift-scroll / drag to pan · double-click a bar to frame · ⌘Z undo">
           {ms ? <>{Math.round(visibleUnits)} chapters in view</> : <>{fmtSpan(visibleYears)} in view</>}
-          {" "}· scroll to zoom · shift-scroll / drag to pan · ⌘Z undo
         </span>
         <span className="spacer" />
-        <span className="seg" style={{ fontSize: 11.5 }} title="Story time places chapters by their in-world date; Manuscript order spaces every chapter evenly by chapter number">
-          <span className={!ms ? "on" : ""} onClick={() => switchMode("story")}>Story time</span>
-          <span className={ms ? "on" : ""} onClick={() => switchMode("ms")}>Manuscript order</span>
-        </span>
-        <button onClick={() => void undo()} title="Undo (⌘Z)">↶ Undo</button>
-        <span className="seg" style={{ fontSize: 13 }}>
-          <span onClick={() => zoomBy(1 / 1.4)} title="Zoom out">−</span>
-          <span onClick={fitKnown} title="Fit known time" style={{ fontSize: 12 }}>Fit</span>
-          <span onClick={() => zoomBy(1.4)} title="Zoom in">+</span>
-        </span>
-        {!ms && <button onClick={() => { setKtStart(String(known.start)); setKtEnd(String(known.end)); setWarn(null); setKtOpen(true); }}
-          title="The stretch of history your world covers — it bounds the timeline">Known time · {known.start}–{known.end}</button>}
-        <button onClick={() => { setNoteText(""); setNoteYear(String(dayToYear(dayOf(nowW / 2)))); setNoteOpen(true); }}>+ Note</button>
-        <button onClick={() => { const yr = dayToYear(dayOf(nowW / 2)); setFName(""); setFKind("series"); setFParent(""); setFStart(String(yr)); setFEnd(String(yr + 50)); setAdding(true); }}>+ Segment</button>
-      </div>
-
-      {ktOpen && (
-        <div className="card" style={{ padding: 10, marginBottom: 10, display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-          <span className="muted" style={{ fontSize: 12 }}>Known time — the years your world's history spans</span>
-          <input placeholder="start year" value={ktStart} onChange={(e) => setKtStart(e.target.value)} style={{ width: 100 }} />
-          <span className="muted">→</span>
-          <input placeholder="end year" value={ktEnd} onChange={(e) => setKtEnd(e.target.value)} style={{ width: 100 }} />
-          <button className="primary" onClick={requestKnown}>Apply</button>
-          <button onClick={() => { setKtOpen(false); setWarn(null); }}>Cancel</button>
+        <button className="iconbtn" onClick={() => void undo()} title="Undo (⌘Z)">↶</button>
+        <button onClick={fitKnown} title="Frame known time">Fit</button>
+        <div style={{ position: "relative" }}>
+          <button className="primary" onClick={() => setAddMenu((v) => !v)}>＋ Add</button>
+          {addMenu && (
+            <div className="wt2-addmenu" onMouseLeave={() => setAddMenu(false)}>
+              <button onClick={() => { setAddMenu(false); const yr = dayToYear(dayOf(nowW / 2)); setFName(""); setFKind("series"); setFParent(""); setFStart(String(yr)); setFEnd(String(yr + 50)); setAdding(true); }}>＋ Segment</button>
+              <button onClick={() => { setAddMenu(false); setNoteText(""); setNoteYear(String(dayToYear(dayOf(nowW / 2)))); setNoteOpen(true); }}>✎ Note</button>
+            </div>
+          )}
         </div>
-      )}
+        <button className="iconbtn" onClick={() => setSideOpen((v) => !v)} title={sideOpen ? "Hide panel" : "Show panel"} aria-pressed={sideOpen}>⊟</button>
+      </div>
 
       {warn && (
         <div className="wt2-warn">
@@ -576,22 +560,12 @@ export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) =
 
       <div className="wt2-wrap">
         <div ref={boardRef} className="wt2-board" onMouseDown={onDown} onMouseMove={onMove} onMouseUp={onUp} onMouseLeave={onUp}>
-          {/* known time only applies on the story-time axis */}
+          {/* Known time is the bright focus; the buffer is dim. Editing lives in
+              the panel's World clock section, not on the canvas. */}
           {!ms && <>
-            {/* known time is the bright focus; everything else is the dim buffer */}
             <div className="wt2-known" style={{ left: Math.max(0, knownX0), width: Math.max(0, Math.min(nowW, knownX1) - Math.max(0, knownX0)) }} />
             {knownX0 > 0 && <div className="wt2-oob" style={{ left: 0, width: Math.min(nowW, knownX0) }} />}
             {knownX1 < nowW && <div className="wt2-oob" style={{ left: Math.max(0, knownX1), right: 0 }} />}
-            {knownX0 > 0 && knownX0 < nowW && <>
-              <div className="wt2-knownedge" style={{ left: knownX0 }} />
-              <span className="wt2-edgelab" style={{ left: knownX0 }}>known time begins {known.start}</span>
-              <span className="wt2-extend" style={{ left: knownX0 }} onClick={() => extendKnown("start")} title="Extend known time earlier">＋ extend to {known.start - niceRound(Math.max(1, known.end - known.start) * 0.25)}</span>
-            </>}
-            {knownX1 > 0 && knownX1 < nowW && <>
-              <div className="wt2-knownedge" style={{ left: knownX1 }} />
-              <span className="wt2-edgelab" style={{ left: knownX1 }}>known time ends {known.end}</span>
-              <span className="wt2-extend" style={{ left: knownX1 }} onClick={() => extendKnown("end")} title="Extend known time later">＋ extend to {known.end + niceRound(Math.max(1, known.end - known.start) * 0.25)}</span>
-            </>}
           </>}
 
           <div className="wt2-ruler">
@@ -653,61 +627,85 @@ export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) =
           </div>
         </div>
 
-        {sideOpen ? (
-          <div className="wt2-side">
-            <div className="row" style={{ borderBottom: "none", padding: 0, gap: 6 }}>
-              <span className="wt2-sidelab">Undated · {undatedSidebar.length}</span>
-              <span className="spacer" />
-              <span className="wt2-x" title="Collapse" style={{ margin: 0, fontSize: 13 }} onClick={() => setSideOpen(false)}>»</span>
+        <SidePanel open={sideOpen} onClose={() => setSideOpen(false)}>
+          {/* Undated — the core loop. Type a year to drop a chapter on the line. */}
+          <Disclosure label="Undated" count={undatedSidebar.length} defaultOpen>
+            {undatedSidebar.length === 0
+              ? <div className="wt2-sidesub" style={{ margin: 0 }}>Every chapter has a date 🎉</div>
+              : <>
+                  <div className="wt2-sidesub" style={{ marginTop: 0 }}>Type a year and the chapter drops onto the line.</div>
+                  {sel.size > 0 && (
+                    <div className="wt2-sidefile">
+                      <span style={{ fontSize: 11.5, fontWeight: 600 }}>{sel.size} selected</span>
+                      <select className="sel" value={bulkSeg} style={{ fontSize: 11, padding: "4px 6px", flex: 1 }}
+                        onChange={(e) => { setBulkSeg(e.target.value); if (e.target.value) addSelectedTo(e.target.value); }}>
+                        <option value="">file into…</option>
+                        {segments.map((s) => <option key={s.id} value={s.id}>{s.kind} · {s.name}</option>)}
+                      </select>
+                      <span className="wt2-open" onClick={() => setSel(new Set())}>clear</span>
+                    </div>
+                  )}
+                  {undatedSidebar.map((c) => (
+                    <div key={c.id} className={"wt2-und" + (sel.has(c.id) ? " on" : "")}>
+                      <input type="checkbox" checked={sel.has(c.id)} onChange={() => toggleSel(c.id)} aria-label={`select ${c.title}`}
+                        style={{ width: 14, height: 14, accentColor: "var(--bond)" }} />
+                      <span className="wt2-und-title" title={c.title} onClick={() => go({ scope: "manuscript", chapterId: c.id })}>
+                        {c.planned ? "✎" : String(c.manuscript_order).padStart(2, "0")} · {trunc(c.title, 16)}
+                      </span>
+                      <input className="wt2-und-date" placeholder="year"
+                        onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
+                        onBlur={(e) => { if (e.target.value.trim()) void dateChapter(c.id, e.target.value); }} />
+                    </div>
+                  ))}
+                </>}
+          </Disclosure>
+
+          {/* World clock — set once, so it lives here, not on the canvas. */}
+          <Disclosure label="World clock">
+            <div className="wt2-sidesub" style={{ marginTop: 0 }}>The years your world's history spans — it frames the timeline.</div>
+            <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap", marginBottom: 10 }}>
+              <input value={ktStart} onChange={(e) => setKtStart(e.target.value)} style={{ width: 68, fontSize: 12 }} aria-label="known start year" />
+              <span className="muted">→</span>
+              <input value={ktEnd} onChange={(e) => setKtEnd(e.target.value)} style={{ width: 68, fontSize: 12 }} aria-label="known end year" />
+              <button className="primary" style={{ padding: "6px 12px" }} onClick={requestKnown}>Set</button>
             </div>
-            <div className="wt2-sidesub">give a chapter an in-world date and it moves onto the line</div>
-            {sel.size > 0 && (
-              <div className="card" style={{ padding: 8, marginBottom: 8, display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
-                <span style={{ fontSize: 11.5, fontWeight: 600 }}>{sel.size} picked</span>
-                <select className="sel" value={bulkSeg} style={{ fontSize: 11, padding: "4px 6px" }}
-                  onChange={(e) => { setBulkSeg(e.target.value); if (e.target.value) addSelectedTo(e.target.value); }}>
-                  <option value="">file into…</option>
-                  {segments.map((s) => <option key={s.id} value={s.id}>{s.kind} · {s.name}</option>)}
-                </select>
-                <span className="wt2-x" style={{ margin: 0 }} onClick={() => setSel(new Set())}>clear</span>
-              </div>
-            )}
-            {undatedSidebar.length === 0 && <span className="faint" style={{ fontSize: 11 }}>Every chapter has a date 🎉</span>}
-            {undatedSidebar.map((c) => (
-              <div key={c.id} className={"wt2-sideitem" + (sel.has(c.id) ? " on" : "")} onClick={() => toggleSel(c.id)} title="Click to select · ↗ to open">
-                <span>{sel.has(c.id) ? "☑" : "☐"} {c.planned ? "✎" : String(c.manuscript_order).padStart(2, "0")} · {trunc(c.title, 20)}</span>
-                <span className="wt2-open" onClick={(e) => { e.stopPropagation(); go({ scope: "manuscript", chapterId: c.id }); }}>↗</span>
+            <div className="wt2-sidesub" style={{ margin: "0 0 5px" }}>How chapters are placed</div>
+            <span className="seg" style={{ fontSize: 11 }}>
+              <span className={!ms ? "on" : ""} onClick={() => switchMode("story")}>Story time</span>
+              <span className={ms ? "on" : ""} onClick={() => switchMode("ms")}>Manuscript</span>
+            </span>
+          </Disclosure>
+
+          {/* Structure — jump to any segment; add a top-level one. */}
+          <Disclosure label="Structure" count={segments.length}>
+            {segments.length === 0 && <div className="wt2-sidesub" style={{ marginTop: 0 }}>No segments yet — use ＋ Add · Segment.</div>}
+            {rows.list.map(({ seg, depth }) => (
+              <div key={seg.id} className="wt2-outline" style={{ paddingLeft: 4 + depth * 12 }}>
+                <span className="wt2-outline-dot" style={{ background: `var(--k-entity-${swatchOf(seg)})` }} />
+                <span className="wt2-outline-name" title={`${seg.kind} · ${seg.name}`}
+                  onClick={() => { const sp = spanOf(seg); if (sp) frameRange(sp[0], sp[1]); }}>{trunc(seg.name, 18)}</span>
+                <span className="wt2-open" title="Delete" onClick={() => delSeg(seg)}>✕</span>
               </div>
             ))}
-            {markers.some((m) => m.day_num_start == null) && (
-              <>
-                <div className="wt2-sidelab" style={{ marginTop: 16 }}>Notes · no time</div>
-                {markers.filter((m) => m.day_num_start == null).map((m) => (
-                  <div key={m.id} className="wt2-sideitem" title={m.label ?? ""}>
-                    <span>✎ {trunc(m.label ?? "note", 20)}</span>
-                    <span className="wt2-open" onClick={() => delMarker(m.id)}>✕</span>
-                  </div>
-                ))}
-              </>
-            )}
-          </div>
-        ) : (
-          <div className="wt2-side collapsed" onClick={() => setSideOpen(true)} title="Show chapters">
-            <span>«</span><span className="wt2-sidecount">{undatedSidebar.length}</span><span className="wt2-sidevert">undated</span>
-          </div>
-        )}
+          </Disclosure>
+
+          {/* Notes */}
+          <Disclosure label="Notes" count={markers.length}>
+            {markers.length === 0 && <div className="wt2-sidesub" style={{ marginTop: 0 }}>No notes yet — use ＋ Add · Note.</div>}
+            {markers.map((m) => (
+              <div key={m.id} className="wt2-outline">
+                <span className="wt2-outline-name" title={m.label ?? ""}>✎ {trunc(m.label ?? "note", 20)}{m.day_num_start == null ? "" : ` · ${dayToYear(m.day_num_start)}`}</span>
+                <span className="wt2-open" title="Delete" onClick={() => delMarker(m.id)}>✕</span>
+              </div>
+            ))}
+          </Disclosure>
+        </SidePanel>
       </div>
     </div>
   );
 }
 
 const trunc = (s: string, n = 12) => (s.length > n ? s.slice(0, n) + "…" : s);
-// Round to a friendly 1/2/5×10^k, for proportional "extend by" increments.
-function niceRound(n: number): number {
-  if (n <= 0) return 1;
-  const mag = Math.pow(10, Math.floor(Math.log10(n))), norm = n / mag;
-  return (norm < 1.5 ? 1 : norm < 3.5 ? 2 : norm < 7.5 ? 5 : 10) * mag;
-}
 
 // LOD tier from the visible span in years (§6). Different objects at different
 // altitudes; this is what makes the surface feel like a canvas, not a scaled drawing.

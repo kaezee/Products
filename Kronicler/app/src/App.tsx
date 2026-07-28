@@ -16,13 +16,19 @@ import { Palette } from "./views/Palette";
 import { getStoredTheme, setTheme, type Theme } from "./lib/theme";
 import { PanelToggleIcon } from "./components/SidePanel";
 import { Icon, ICON_SIZE, type IconName } from "./components/icons";
+import { ConfirmHost } from "./components/confirm";
 
 const THEME_CYCLE: Theme[] = ["paper", "grey", "dark", "system"];
 const THEME_ICON: Record<Theme, IconName> = { paper: "theme-paper", grey: "theme-grey", dark: "theme-dark", system: "theme-system" };
 const THEME_LABEL: Record<Theme, string> = { paper: "Paper", grey: "Grey", dark: "Dark", system: "System" };
 
 export function App() {
-  return <AuthGate>{(session) => <Workspace session={session} />}</AuthGate>;
+  return (
+    <>
+      <AuthGate>{(session) => <Workspace session={session} />}</AuthGate>
+      <ConfirmHost />
+    </>
+  );
 }
 
 type Scope = "overview" | "library" | "manuscript" | "timeline" | "relationships" | "notes" | "settings";

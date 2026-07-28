@@ -15,6 +15,7 @@ import { RichProse } from "./RichProse";
 import { ChapterDate } from "./ChapterDate";
 import { SidePanel, Disclosure } from "../components/SidePanel";
 import { Icon } from "../components/icons";
+import { confirmDialog } from "../components/confirm";
 import {
   READ_FACES, READ_SIZE_MIN, READ_SIZE_MAX, getReadFace, getReadSize, setReadFace, setReadSize, type ReadFace,
 } from "../lib/readingPrefs";
@@ -195,7 +196,7 @@ export function ChapterEditor(props: {
   }
 
   async function restore(v: ChapterVersion) {
-    if (!confirm("Restore this version? Your current text is snapshotted first, so nothing is lost.")) return;
+    if (!(await confirmDialog({ title: "Restore version", message: "Restore this version? Your current text is snapshotted first, so nothing is lost.", confirmLabel: "Restore" }))) return;
     try {
       await saveChapterBody(chapter.id, v.body);
       setBody(v.body);

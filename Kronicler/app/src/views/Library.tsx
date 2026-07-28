@@ -6,6 +6,7 @@ import { EntityPage } from "./EntityPage";
 import { ImportDocx } from "./ImportDocx";
 import { TypeStyleEditor } from "./TypeStyleEditor";
 import { Icon } from "../components/icons";
+import { confirmDialog } from "../components/confirm";
 
 export function Library({ worldId, focusEntityId }: { worldId: string; focusEntityId?: string }) {
   const [entities, setEntities] = useState<Entity[] | null>(null);
@@ -72,7 +73,7 @@ export function Library({ worldId, focusEntityId }: { worldId: string; focusEnti
 
   async function del(e: Entity, ev: React.MouseEvent) {
     ev.stopPropagation();
-    if (!confirm(`Delete "${e.title}"? It's soft-deleted — recoverable, nothing is truly lost.`)) return;
+    if (!(await confirmDialog({ title: "Delete entity", message: `Delete "${e.title}"? It's soft-deleted — recoverable, nothing is truly lost.`, confirmLabel: "Delete", tone: "danger" }))) return;
     try { await softDeleteEntity(e.id); await reload(); } catch (x) { setErr(String(x)); }
   }
 

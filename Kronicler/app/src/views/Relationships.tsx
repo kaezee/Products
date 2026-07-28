@@ -8,6 +8,7 @@ import { visibleUnderLens, latestTruthByRel, latestByRel, isBelief, believersOf,
 import { Graph } from "./Graph";
 import { TypeDictionary } from "./TypeDictionary";
 import { Icon } from "../components/icons";
+import { confirmDialog } from "../components/confirm";
 
 // Relationships (§9.2): two lenses — Stream + Graph — over one persistent filter
 // set (type, knowledge viewer, as-of scrub). Filters survive lens switches.
@@ -79,7 +80,7 @@ export function Relationships({ worldId, go }: { worldId: string; go: (n: Nav) =
   );
 
   async function removeRelationship(relId: string, label: string) {
-    if (!confirm(`Remove the "${label}" relationship and its whole history? It's soft-deleted — recoverable, nothing is truly lost.`)) return;
+    if (!(await confirmDialog({ title: "Remove relationship", message: `Remove the "${label}" relationship and its whole history? It's soft-deleted — recoverable, nothing is truly lost.`, confirmLabel: "Remove", tone: "danger" }))) return;
     try {
       await softDeleteRelationship(relId);
       setRows((prev) => (prev ?? []).filter((r) => r.relationship_id !== relId));

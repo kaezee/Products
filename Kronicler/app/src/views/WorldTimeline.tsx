@@ -8,7 +8,7 @@ import type { Nav } from "../App";
 import { parseStoryTime } from "../lib/time";
 import { buildKindSwatches } from "../lib/segmentKinds";
 import { deriveCalendar, DEFAULT_CALENDAR, type DerivedCalendar } from "../lib/worldTime";
-import { SidePanel, Disclosure } from "../components/SidePanel";
+import { SidePanel, Disclosure, PanelToggleIcon } from "../components/SidePanel";
 
 // The World Timeline (design doc 3). Everything positions on a signed DAY NUMBER;
 // the axis is calendar-aware and the navigable range is bounded by "known time"
@@ -500,7 +500,7 @@ export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) =
             </div>
           )}
         </div>
-        <button className="iconbtn" onClick={() => setSideOpen((v) => !v)} title={sideOpen ? "Hide panel" : "Show panel"} aria-pressed={sideOpen}>⊟</button>
+        <button className="iconbtn" onClick={() => setSideOpen((v) => !v)} title={sideOpen ? "Hide panel" : "Show panel"} aria-pressed={sideOpen}><PanelToggleIcon /></button>
       </div>
 
       {warn && (

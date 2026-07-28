@@ -194,6 +194,12 @@ function Workspace({ session }: { session: Session }) {
           <div className="shellbody">
             {/* rail */}
             <div className={"rail" + (railCollapsed ? " rail-collapsed" : "")}>
+              <div className="rail-top">
+                <button className="rail-toggle-btn" onClick={toggleRail}
+                  title={railCollapsed ? "Expand sidebar" : "Collapse sidebar"} aria-label={railCollapsed ? "Expand sidebar" : "Collapse sidebar"}>
+                  <PanelToggleIcon size={16} />
+                </button>
+              </div>
               {RAIL.map(([s, label, g]) => (
                 <div key={s} className={"railitem" + (!searching && nav.scope === s ? " on" : "")}
                   onClick={() => go({ scope: s })} title={railCollapsed ? label : undefined}>
@@ -209,10 +215,6 @@ function Workspace({ session }: { session: Session }) {
                 <div className="railitem" onClick={() => supabase.auth.signOut()}
                   title={railCollapsed ? "Log out" : (session.user.email ?? "Log out")}>
                   <span className="g"><Icon name="logout" size={ICON_SIZE.lg} /></span>{!railCollapsed && "Log out"}
-                </div>
-                <div className="railitem rail-toggle" onClick={toggleRail}
-                  title={railCollapsed ? "Expand sidebar" : "Collapse sidebar"}>
-                  <span className="g" style={{ display: "inline-flex", alignItems: "center", justifyContent: "center" }}><PanelToggleIcon size={16} /></span>{!railCollapsed && "Collapse"}
                 </div>
               </div>
             </div>

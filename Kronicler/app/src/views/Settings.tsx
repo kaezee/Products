@@ -3,6 +3,7 @@ import { supabase } from "../lib/supabase";
 import { exportWorld, getChapters, getEntities } from "../lib/api";
 import type { Entity } from "../lib/types";
 import { Trash } from "./Trash";
+import { Icon } from "../components/icons";
 
 function slug(s: string) { return (s || "world").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "world"; }
 function stamp() { return new Date().toISOString().slice(0, 10); }
@@ -24,6 +25,7 @@ export function Settings({ worldId, worldName, userEmail, onDeleteWorld, onWorld
 }) {
   const [busy, setBusy] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  const [trashOpen, setTrashOpen] = useState(false);
 
   async function backupJson() {
     setBusy("json"); setErr(null);
@@ -107,7 +109,17 @@ export function Settings({ worldId, worldName, userEmail, onDeleteWorld, onWorld
       {err && <p className="err" style={{ maxWidth: 680 }}>{err}</p>}
 
       <div className="label" style={{ marginTop: 28 }}>Trash · recently deleted</div>
-      <Trash worldId={worldId} onWorldsChanged={onWorldsChanged} />
+      <div className="card" style={{ maxWidth: 680 }}>
+        <div className="row" style={{ borderBottom: "none" }}>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontWeight: 500 }}>Recover deleted items</div>
+            <span className="muted" style={{ fontSize: 12.5 }}>Nothing is truly erased — restore deleted entities, chapters, and worlds from here.</span>
+          </div>
+          <button onClick={() => setTrashOpen(true)} style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+            <Icon name="trash" size={14} /> Open trash
+          </button>
+        </div>
+      </div>
 
       <div className="label" style={{ marginTop: 28, color: "var(--hostile)" }}>Danger zone</div>
       <div className="card" style={{ maxWidth: 680, borderColor: "var(--hostile)" }}>
@@ -128,6 +140,22 @@ export function Settings({ worldId, worldName, userEmail, onDeleteWorld, onWorld
           >Delete world</button>
         </div>
       </div>
+
+      {trashOpen && (
+        <div className="overlay" onClick={() => setTrashOpen(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <div className="row" style={{ borderBottom: "none", padding: 0, marginBottom: 12 }}>
+              <h3 style={{ fontFamily: "var(--serif)", fontWeight: 500, margin: 0, fontSize: 19, display: "inline-flex", alignItems: "center", gap: 8 }}>
+                <Icon name="trash" size={17} /> Trash
+              </h3>
+              <span className="spacer" style={{ flex: 1 }} />
+              <span onClick={() => setTrashOpen(false)} style={{ cursor: "pointer", color: "var(--muted)", display: "inline-flex" }} title="Close"><Icon name="close" size={16} /></span>
+            </div>
+            <p className="muted" style={{ fontSize: 12.5, margin: "0 0 14px" }}>Recently deleted — restore anything below. Nothing is truly erased.</p>
+            <Trash worldId={worldId} onWorldsChanged={onWorldsChanged} />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -9,7 +9,10 @@
    picks up the unified palette without being rewritten. Call sites migrate to
    --k-* incrementally; this bridge is deleted last. */
 :root {
+  /* surfaces, mapped to their design-system jobs: canvas = ground, surface =
+     cards/rails, sunken = inputs/wells, raised = popovers/menus, wash = hover. */
   --paper: var(--k-bg-canvas); --surface: var(--k-bg-surface); --inset: var(--k-bg-sunken);
+  --raised: var(--k-bg-raised); --wash: var(--k-bg-hover);
   --ink: var(--k-text-primary); --sub: var(--k-text-secondary);
   --muted: var(--k-text-tertiary); --faint: var(--k-text-tertiary);
   --line: var(--k-border); --lineStrong: var(--k-border-strong);
@@ -34,12 +37,12 @@ h2 { font-family: var(--serif); font-weight: 500; }
 button { font-family: var(--sans); font-size: 12.5px; font-weight: 600; cursor: pointer; padding: 8px 14px; border-radius: 8px; border: 1px solid var(--lineStrong); background: var(--surface); color: var(--ink); }
 button.primary { background: var(--k-action-default); color: var(--k-action-on); border: none; }
 button:disabled { opacity: 0.5; cursor: default; }
-input, textarea, select { font-size: 13px; padding: 9px 11px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--ink); }
+input, textarea, select { font-size: 13px; padding: 9px 11px; border: 1px solid var(--line); border-radius: 8px; background: var(--inset); color: var(--ink); }
 
 /* ── shell — fills the viewport as one app surface ─────────── */
 .page { height: 100vh; width: 100vw; padding: 14px; display: flex; overflow: hidden; }
 .shell { flex: 1; min-width: 0; max-width: 1680px; margin: 0 auto; display: flex; flex-direction: column; min-height: 0; }
-.shellcard { flex: 1; min-width: 0; display: flex; flex-direction: column; min-height: 0; background: var(--surface); border: 1px solid var(--line); border-radius: 16px; overflow: hidden; box-shadow: 0 2px 10px rgba(31,29,24,.06); }
+.shellcard { flex: 1; min-width: 0; display: flex; flex-direction: column; min-height: 0; background: var(--surface); border: 1px solid var(--line); border-radius: 16px; overflow: hidden; box-shadow: var(--k-shadow-md); }
 .chrome { display: flex; align-items: center; gap: 12px; padding: 11px 18px; border-bottom: 1px solid var(--line); background: var(--surface); }
 .worldchip { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; padding: 7px 12px; border: 1px solid var(--lineStrong); border-radius: 9px; background: var(--surface); cursor: pointer; white-space: nowrap; }
 .worldchip .k { font-family: var(--serif); font-style: italic; font-weight: 600; font-size: 16px; color: var(--bond); }
@@ -70,7 +73,7 @@ input, textarea, select { font-size: 13px; padding: 9px 11px; border: 1px solid 
 .row { display: flex; gap: 10px; align-items: center; padding: 10px 14px; border-bottom: 1px solid var(--line); font-size: 13px; }
 .row:last-child { border-bottom: none; }
 .row.click { cursor: pointer; transition: background .12s; }
-.row.click:hover { background: var(--inset); }
+.row.click:hover { background: var(--wash); }
 .title-serif { font-family: var(--serif); font-size: 15px; font-weight: 500; }
 .label { font-size: 10.5px; font-weight: 650; letter-spacing: 0.09em; text-transform: uppercase; color: var(--muted); margin: 22px 0 8px; }
 .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; display: inline-block; }
@@ -92,7 +95,7 @@ input, textarea, select { font-size: 13px; padding: 9px 11px; border: 1px solid 
 .chip { font-size: 11.5px; line-height: 1; padding: 5px 11px; border-radius: 999px; white-space: nowrap; display: inline-flex; align-items: center; gap: 5px; border: 1px solid var(--line); background: var(--surface); color: var(--sub); cursor: default; user-select: none; }
 .chip.click { cursor: pointer; }
 .chip.on { border-color: var(--bondLine); background: var(--bondBg); color: var(--bond); font-weight: 600; }
-.chip.warn { border-color: #e0c89a; background: var(--obligationBg); color: var(--obligation); }
+.chip.warn { border-color: color-mix(in srgb, var(--obligation) 45%, transparent); background: var(--obligationBg); color: var(--obligation); }
 
 /* segmented (lens) toggle */
 .seg { display: inline-flex; border: 1px solid var(--lineStrong); border-radius: 9px; overflow: hidden; font-size: 12.5px; }
@@ -167,7 +170,7 @@ textarea { font-family: var(--serif); }
 .rich .ment { border-radius: 3px; padding: 0 1px; background: var(--k-ment-tint, var(--k-action-subtle)); }
 
 /* Notes board (canvas-lite) */
-.notes-board { position: relative; height: 68vh; overflow: hidden; border: 1px solid var(--line); border-radius: 12px; background: #fbfaf5 repeating-linear-gradient(0deg, transparent, transparent 23px, rgba(31,29,24,.03) 24px), repeating-linear-gradient(90deg, transparent, transparent 23px, rgba(31,29,24,.03) 24px); cursor: grab; }
+.notes-board { position: relative; height: 68vh; overflow: hidden; border: 1px solid var(--line); border-radius: 12px; background: var(--k-bg-canvas) repeating-linear-gradient(0deg, transparent, transparent 23px, color-mix(in srgb, var(--k-text-primary) 4%, transparent) 24px), repeating-linear-gradient(90deg, transparent, transparent 23px, color-mix(in srgb, var(--k-text-primary) 4%, transparent) 24px); cursor: grab; }
 .notes-board.panning { cursor: grabbing; }
 .notes-canvas { position: absolute; top: 0; left: 0; width: 0; height: 0; will-change: transform; }
 .canvas-zoom { position: absolute; right: 12px; bottom: 12px; display: flex; align-items: center; gap: 2px; background: var(--surface); border: 1px solid var(--line); border-radius: 9px; box-shadow: var(--pop); padding: 2px; user-select: none; }
@@ -195,7 +198,7 @@ textarea { font-family: var(--serif); }
 /* Known time is the bright focus surface; the buffer stays the dim canvas base. */
 .wt2-known { position: absolute; top: 32px; bottom: 0; background: var(--k-bg-surface); z-index: 0; }
 .wt2-ruler { position: absolute; top: 0; left: 0; right: 0; height: 32px; background: var(--k-bg-surface); border-bottom: 1px solid var(--k-border-strong); z-index: 5; }
-.wt2-tick { position: absolute; top: 8px; transform: translateX(-50%); font-family: var(--k-font-mono); font-size: 12px; color: var(--k-text-secondary); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.wt2-tick { position: absolute; top: 7px; transform: translateX(-50%); font-family: var(--k-font-mono); font-size: 13px; font-weight: 500; color: var(--k-text-secondary); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .wt2-gridlayer { position: absolute; top: 32px; left: 0; right: 0; bottom: 0; overflow: hidden; pointer-events: none; z-index: 1; }
 .wt2-grid { position: absolute; top: 0; bottom: 0; width: 0; border-left: 1px solid var(--k-border); opacity: 0.55; }
 .wt2-content { position: absolute; top: 32px; left: 0; right: 0; bottom: 0; will-change: transform; z-index: 3; }
@@ -309,7 +312,7 @@ textarea { font-family: var(--serif); }
 .typeahead { position: absolute; top: 110%; left: 0; width: 240px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; box-shadow: var(--pop); z-index: 5; overflow: hidden; }
 .ta-row { display: flex; align-items: center; gap: 8px; padding: 8px 12px; font-size: 12.5px; cursor: pointer; border-bottom: 1px solid var(--line); }
 .ta-row:last-child { border-bottom: none; }
-.ta-row:hover { background: var(--inset); }
+.ta-row:hover { background: var(--wash); }
 
 /* ── ⌘K palette ────────────────────────────────────────── */
 .palette-scrim { position: fixed; inset: 0; background: rgba(31,29,24,.4); display: flex; align-items: flex-start; justify-content: center; padding-top: 120px; z-index: 70; }

@@ -47,6 +47,7 @@ export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) =
   const navRef = useRef<{ lo: number; hi: number }>({ lo: 0, hi: 360000 });
   const nowWRef = useRef(nowW); nowWRef.current = nowW;
   const rowsHRef = useRef(360);
+  const animRef = useRef<number | null>(null);
   const undoStack = useRef<Array<() => Promise<void>>>([]);
   const pushUndo = (fn: () => Promise<void>) => { undoStack.current.push(fn); if (undoStack.current.length > 60) undoStack.current.shift(); };
 
@@ -73,6 +74,7 @@ export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) =
     } catch (x) { setErr(String(x)); } finally { setLoading(false); }
   }
   useEffect(() => { setLoading(true); setFitDone(false); undoStack.current = []; void reload(); /* eslint-disable-next-line */ }, [worldId]);
+  useEffect(() => () => { if (animRef.current) cancelAnimationFrame(animRef.current); }, []);
 
   async function undo() {
     const fn = undoStack.current.pop(); if (!fn) return;
@@ -220,6 +222,7 @@ export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) =
     const el = boardRef.current; if (!el) return;
     const onWheel = (e: WheelEvent) => {
       e.preventDefault();
+      if (animRef.current) { cancelAnimationFrame(animRef.current); animRef.current = null; }
       const v = viewRef.current, w = nowWRef.current;
       const pinch = e.ctrlKey || e.metaKey;
       if (!pinch && Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
@@ -239,16 +242,18 @@ export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) =
   }, []);
 
   function zoomBy(factor: number) {
+    cancelAnim();
     setView((v) => { const lx = nowW / 2, day = v.start + lx / v.ppd; return clampView({ ...v, ppd: v.ppd * factor, start: day - lx / (v.ppd * factor) }, nowW); });
   }
   // Fit frames KNOWN TIME exactly + 2% (§5.5) — not the padded navigable range.
   function fitKnown() {
     const w = boardRef.current?.clientWidth ?? nowW;
     const span = Math.max(dpy, nav.knownHi - nav.knownLo);
-    setView(clampView({ start: nav.knownLo - span * 0.01, ppd: w / (span * 1.02), ty: 0 }, w));
+    animateTo({ start: nav.knownLo - span * 0.01, ppd: w / (span * 1.02), ty: 0 });
   }
 
   function onDown(e: React.MouseEvent) {
+    cancelAnim();
     const t = e.target as HTMLElement;
     const handle = t.closest("[data-edge]") as HTMLElement | null;
     if (handle) {
@@ -321,11 +326,29 @@ export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) =
   const tier = tierOf(visibleYears);
   const knownX0 = xOf(nav.knownLo), knownX1 = xOf(nav.knownHi);
 
-  // Instantly frame a day range (+10% pad). Smooth geometric framing lands in
-  // the next batch; for now it's a clamp-jump.
+  // Frame a day range (+10% pad) with a smooth ~340ms cubic-out animation.
+  // Zoom is interpolated GEOMETRICALLY (§7.3) — linear scale rushes then crawls.
   function frameRange(dLo: number, dHi: number) {
-    const w = nowW, span = Math.max(dpy * 0.1, dHi - dLo), pad = span * 0.1;
-    setView((v) => clampView({ ...v, ppd: w / (span + 2 * pad), start: dLo - pad }, w));
+    const w = nowWRef.current, span = Math.max(dpy * 0.1, dHi - dLo), pad = span * 0.1;
+    animateTo({ start: dLo - pad, ppd: w / (span + 2 * pad), ty: viewRef.current.ty });
+  }
+  function cancelAnim() { if (animRef.current) { cancelAnimationFrame(animRef.current); animRef.current = null; } }
+  function animateTo(target: View) {
+    cancelAnim();
+    const from = viewRef.current, w = nowWRef.current;
+    const to = clampView(target, w);
+    if (typeof matchMedia !== "undefined" && matchMedia("(prefers-reduced-motion: reduce)").matches) { setView(to); return; }
+    const t0 = performance.now(), dur = 340;
+    const step = (now: number) => {
+      const p = Math.min(1, (now - t0) / dur);
+      const e = 1 - Math.pow(1 - p, 3);                 // cubic ease-out
+      const ppd = from.ppd * Math.pow(to.ppd / from.ppd, e);   // geometric
+      const start = from.start + (to.start - from.start) * e;
+      setView(clampView({ start, ppd, ty: from.ty + (to.ty - from.ty) * e }, nowWRef.current));
+      if (p < 1) animRef.current = requestAnimationFrame(step);
+      else animRef.current = null;
+    };
+    animRef.current = requestAnimationFrame(step);
   }
 
   // A dated chapter's band. Year/month precision → hatched band across its whole
@@ -472,7 +495,9 @@ export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) =
               const x1 = xOf(sp[0]), w = Math.max(xOf(sp[1]) - x1, RESIZE_MIN_W);
               return (
                 <div key={seg.id}>
-                  <span className="wt2-seglab" style={{ left: x1 + depth * 16, top: y, color }}>
+                  <span className="wt2-seglab" style={{ left: x1 + depth * 16, top: y, color, cursor: sp0 ? "zoom-in" : "default" }}
+                    title={sp0 ? "Double-click to frame this segment" : undefined}
+                    onDoubleClick={() => { if (sp0) frameRange(sp[0], sp[1]); }}>
                     <span className="wt2-kind">{seg.kind}</span>{seg.name}
                     <span className="faint" style={{ fontSize: 10.5, marginLeft: 6 }}>
                       {placeholder ? "＋ drag ends to set" : `${dayToYear(sp[0])}–${dayToYear(sp[1])}`}

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   getSegments, createSegment, updateSegment, softDeleteSegment, restoreSegment, setChapterSegment,
-  getChapters, getMarkers, createMarker, softDeleteMarker, restoreMarker, getSegmentKinds, getWorld,
+  getChapters, getMarkers, createMarker, softDeleteMarker, restoreMarker, getSegmentKinds, getWorld, setKnownTime,
 } from "../lib/api";
 import type { Segment, Chapter, TimelineMarker, SegmentKind } from "../lib/types";
 import type { Nav } from "../App";
@@ -42,6 +42,9 @@ export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) =
   const [bulkSeg, setBulkSeg] = useState("");
   const [noteOpen, setNoteOpen] = useState(false);
   const [noteYear, setNoteYear] = useState(""); const [noteText, setNoteText] = useState("");
+  const [ktOpen, setKtOpen] = useState(false);
+  const [ktStart, setKtStart] = useState(""); const [ktEnd, setKtEnd] = useState("");
+  const [warn, setWarn] = useState<null | { segs: { id: string; name: string; lo: number; hi: number }[]; chs: { id: string; title: string; year: number }[]; contain: [number, number]; want: [number, number] }>(null);
 
   const viewRef = useRef(view); viewRef.current = view;
   const navRef = useRef<{ lo: number; hi: number }>({ lo: 0, hi: 360000 });
@@ -252,6 +255,49 @@ export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) =
     animateTo({ start: nav.knownLo - span * 0.01, ppd: w / (span * 1.02), ty: 0 });
   }
 
+  // ── known time: edit, extend, and the shrink warning (§5.3–5.4) ─────────
+  async function applyKnown(startYr: number, endYr: number) {
+    const prev = known;
+    setKnown({ start: startYr, end: endYr });
+    pushUndo(() => setKnownTime(worldId, prev.start, prev.end));
+    setWarn(null); setKtOpen(false);
+    try { await setKnownTime(worldId, startYr, endYr); } catch (x) { setErr(String(x)); }
+  }
+  // Validate a proposed range: which segments fall (partly) outside, and which
+  // chapters are individually outside while their PARENT is inside (flashbacks).
+  function validateShrink(ns: number, ne: number): typeof warn {
+    const segs: { id: string; name: string; lo: number; hi: number }[] = [];
+    const inside = new Map<string, boolean>();
+    for (const s of segments) {
+      const sp = spanOf(s); if (!sp) { inside.set(s.id, true); continue; }
+      const lo = dayToYear(sp[0]), hi = dayToYear(sp[1]);
+      inside.set(s.id, lo >= ns && hi <= ne);
+      if (lo < ns || hi > ne) segs.push({ id: s.id, name: s.name, lo, hi });
+    }
+    const chs: { id: string; title: string; year: number }[] = [];
+    for (const c of chapters) {
+      if (c.day_num_start == null) continue;
+      const y = dayToYear(c.day_num_start);
+      if ((y < ns || y > ne) && c.segment_id && inside.get(c.segment_id)) chs.push({ id: c.id, title: c.title, year: y });
+    }
+    if (!segs.length && !chs.length) return null;
+    const cLo = content ? dayToYear(content.lo) : ns, cHi = content ? dayToYear(content.hi) : ne;
+    return { segs, chs, contain: [Math.min(ns, cLo), Math.max(ne, cHi)], want: [ns, ne] };
+  }
+  function requestKnown() {
+    const ns = ktStart.trim() ? parseStoryTime(ktStart) ?? known.start : known.start;
+    const ne = ktEnd.trim() ? parseStoryTime(ktEnd) ?? known.end : known.end;
+    if (ne < ns) { setErr("End year must be on or after start."); return; }
+    const v = validateShrink(ns, ne);
+    if (!v) void applyKnown(ns, ne); else setWarn(v);
+  }
+  function extendKnown(side: "start" | "end") {
+    const span = Math.max(1, known.end - known.start);
+    const inc = niceRound(span * 0.25);
+    if (side === "end") void applyKnown(known.start, known.end + inc);
+    else void applyKnown(known.start - inc, known.end);
+  }
+
   function onDown(e: React.MouseEvent) {
     cancelAnim();
     const t = e.target as HTMLElement;
@@ -419,9 +465,50 @@ export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) =
           <span onClick={fitKnown} title="Fit known time" style={{ fontSize: 12 }}>Fit</span>
           <span onClick={() => zoomBy(1.4)} title="Zoom in">+</span>
         </span>
+        <button onClick={() => { setKtStart(String(known.start)); setKtEnd(String(known.end)); setWarn(null); setKtOpen(true); }}
+          title="The stretch of history your world covers — it bounds the timeline">Known time · {known.start}–{known.end}</button>
         <button onClick={() => { setNoteText(""); setNoteYear(String(dayToYear(dayOf(nowW / 2)))); setNoteOpen(true); }}>+ Note</button>
         <button onClick={() => { const yr = dayToYear(dayOf(nowW / 2)); setFName(""); setFKind("series"); setFParent(""); setFStart(String(yr)); setFEnd(String(yr + 50)); setAdding(true); }}>+ Segment</button>
       </div>
+
+      {ktOpen && (
+        <div className="card" style={{ padding: 10, marginBottom: 10, display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+          <span className="muted" style={{ fontSize: 12 }}>Known time — the years your world's history spans</span>
+          <input placeholder="start year" value={ktStart} onChange={(e) => setKtStart(e.target.value)} style={{ width: 100 }} />
+          <span className="muted">→</span>
+          <input placeholder="end year" value={ktEnd} onChange={(e) => setKtEnd(e.target.value)} style={{ width: 100 }} />
+          <button className="primary" onClick={requestKnown}>Apply</button>
+          <button onClick={() => { setKtOpen(false); setWarn(null); }}>Cancel</button>
+        </div>
+      )}
+
+      {warn && (
+        <div className="wt2-warn">
+          <div style={{ fontWeight: 600, marginBottom: 6 }}>⚠ {warn.segs.length + warn.chs.length} thing{warn.segs.length + warn.chs.length === 1 ? "" : "s"} fall outside {warn.want[0]}–{warn.want[1]}</div>
+          {warn.segs.map((s) => (
+            <div key={s.id} className="row" style={{ borderBottom: "none", padding: "3px 0", gap: 8, fontSize: 12.5 }}>
+              <span className="wt2-kind" style={{ color: "var(--obligation)" }}>segment</span>
+              <b>{s.name}</b><span className="faint">{s.lo}–{s.hi}</span>
+              <span className="spacer" />
+              <span className="wt2-open" title="Show it" onClick={() => { const seg = segments.find((z) => z.id === s.id); const sp = seg && spanOf(seg); if (sp) frameRange(sp[0], sp[1]); }}>jump ↗</span>
+            </div>
+          ))}
+          {warn.chs.map((c) => (
+            <div key={c.id} className="row" style={{ borderBottom: "none", padding: "3px 0", gap: 8, fontSize: 12.5 }}>
+              <span className="wt2-kind" style={{ color: "var(--obligation)" }}>chapter</span>
+              <b>{trunc(c.title, 26)}</b><span className="faint">{c.year} · outside, but its segment isn't (a flashback?)</span>
+              <span className="spacer" />
+              <span className="wt2-open" onClick={() => go({ scope: "manuscript", chapterId: c.id })}>open ↗</span>
+            </div>
+          ))}
+          <div className="muted" style={{ fontSize: 11.5, margin: "6px 0 10px" }}>Nothing is deleted or moved — they stay put and you can still pan to them, but they'll sit outside known time and Fit won't show them.</div>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <button className="primary" onClick={() => applyKnown(warn.contain[0], warn.contain[1])}>Use {warn.contain[0]}–{warn.contain[1]} instead</button>
+            <button onClick={() => applyKnown(warn.want[0], warn.want[1])}>Keep {warn.want[0]}–{warn.want[1]} anyway</button>
+            <button onClick={() => setWarn(null)}>Cancel</button>
+          </div>
+        </div>
+      )}
 
       {adding && (
         <div className="card" style={{ padding: 10, marginBottom: 10, display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
@@ -452,9 +539,20 @@ export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) =
 
       <div className="wt2-wrap">
         <div ref={boardRef} className="wt2-board" onMouseDown={onDown} onMouseMove={onMove} onMouseUp={onUp} onMouseLeave={onUp}>
-          {/* known-time edges */}
-          {knownX0 > 0 && <div className="wt2-knownedge" style={{ left: knownX0 }} title={`known time begins ${known.start}`} />}
-          {knownX1 < nowW && <div className="wt2-knownedge" style={{ left: knownX1 }} title={`known time ends ${known.end}`} />}
+          {/* out-of-bounds: everything outside known time renders dimmed + hatched (§5.3) */}
+          {knownX0 > 0 && <div className="wt2-oob" style={{ left: 0, width: Math.min(nowW, knownX0) }} />}
+          {knownX1 < nowW && <div className="wt2-oob" style={{ left: Math.max(0, knownX1), right: 0 }} />}
+          {/* known-time edges + labels */}
+          {knownX0 > 0 && knownX0 < nowW && <>
+            <div className="wt2-knownedge" style={{ left: knownX0 }} />
+            <span className="wt2-edgelab" style={{ left: knownX0 }}>known time begins {known.start}</span>
+            <span className="wt2-extend" style={{ left: knownX0 }} onClick={() => extendKnown("start")} title="Extend known time earlier">＋ extend to {known.start - niceRound(Math.max(1, known.end - known.start) * 0.25)}</span>
+          </>}
+          {knownX1 > 0 && knownX1 < nowW && <>
+            <div className="wt2-knownedge" style={{ left: knownX1 }} />
+            <span className="wt2-edgelab" style={{ left: knownX1 }}>known time ends {known.end}</span>
+            <span className="wt2-extend" style={{ left: knownX1 }} onClick={() => extendKnown("end")} title="Extend known time later">＋ extend to {known.end + niceRound(Math.max(1, known.end - known.start) * 0.25)}</span>
+          </>}
 
           <div className="wt2-ruler">
             {ticks.map((t) => <span key={t} className="wt2-tick" style={{ left: xOf(yearToDay(t)) }}>{t}</span>)}
@@ -565,6 +663,12 @@ export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) =
 
 const trunc = (s: string, n = 12) => (s.length > n ? s.slice(0, n) + "…" : s);
 const midDay = (c: Chapter) => ((c.day_num_start ?? 0) + (c.day_num_end ?? c.day_num_start ?? 0)) / 2;
+// Round to a friendly 1/2/5×10^k, for proportional "extend by" increments.
+function niceRound(n: number): number {
+  if (n <= 0) return 1;
+  const mag = Math.pow(10, Math.floor(Math.log10(n))), norm = n / mag;
+  return (norm < 1.5 ? 1 : norm < 3.5 ? 2 : norm < 7.5 ? 5 : 10) * mag;
+}
 
 // LOD tier from the visible span in years (§6). Different objects at different
 // altitudes; this is what makes the surface feel like a canvas, not a scaled drawing.

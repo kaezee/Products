@@ -39,6 +39,7 @@ import {
   Type as TypeIcon,
   Drama,
   PenLine,
+  Feather,
   type LucideIcon,
 } from "lucide-react";
 
@@ -88,6 +89,7 @@ const REGISTRY = {
   words: TypeIcon,
   drama: Drama,
   write: PenLine,
+  feather: Feather,
 } satisfies Record<string, LucideIcon>;
 
 export type IconName = keyof typeof REGISTRY;

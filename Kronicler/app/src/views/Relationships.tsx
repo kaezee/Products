@@ -92,7 +92,7 @@ export function Relationships({ worldId, go }: { worldId: string; go: (n: Nav) =
   if (!rows) return <SkeletonRows rows={6} />;
 
   return (
-    <div className="fi">
+    <div className={"fi" + (lens === "graph" ? " rel-view" : "")}>
       <div className="row" style={{ borderBottom: "none", padding: 0, marginBottom: 10, gap: 12 }}>
         <h2 className="scope-title" style={{ margin: 0 }}>Relationships</h2>
         <div className="seg">
@@ -166,7 +166,9 @@ export function Relationships({ worldId, go }: { worldId: string; go: (n: Nav) =
           </div>
         )
       ) : (
-        <Graph entities={entities} latest={latest} ego={ego} setEgo={setEgo} go={go} />
+        <div className="rel-stage">
+          <Graph entities={entities} latest={latest} ego={ego} setEgo={setEgo} go={go} />
+        </div>
       )}
 
       {/* as-of scrub */}

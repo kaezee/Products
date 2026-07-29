@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { Entity, StreamRow } from "../lib/types";
 import type { Nav } from "../App";
 import { computeLayout } from "../lib/layout";
@@ -6,7 +6,6 @@ import { VALENCE_COLOR } from "../lib/valence";
 import { sideLabel } from "../lib/direction";
 import { Icon } from "../components/icons";
 
-const W = 720, H = 420;
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
 
 // Node labels: drop a leading honorific/article so a name doesn't read as its
@@ -41,6 +40,23 @@ export function Graph({ entities, latest, ego, setEgo, go }: {
   const svgRef = useRef<SVGSVGElement>(null);
   const drag = useRef<{ x: number; y: number; moved: boolean } | null>(null);
 
+  // The canvas coordinate space tracks the SVG's real pixel size, so the graph
+  // fills its pane like the Notes board — no fixed viewBox, no letterboxing.
+  const [box, setBox] = useState({ w: 960, h: 560 });
+  const W = box.w, H = box.h;
+  useLayoutEffect(() => {
+    const el = svgRef.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(() => {
+      const r = el.getBoundingClientRect();
+      if (r.width > 0 && r.height > 0) {
+        setBox((p) => (Math.abs(p.w - r.width) < 1 && Math.abs(p.h - r.height) < 1 ? p : { w: r.width, h: r.height }));
+      }
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
   const allEdges = useMemo<Edge[]>(() => {
     const out: Edge[] = [];
     for (const r of latest) {
@@ -72,9 +88,11 @@ export function Graph({ entities, latest, ego, setEgo, go }: {
     // a small blob with empty margins.
     const pad = 0.5;
     const spanX = (x1 - x0) + pad * 2 || 1, spanY = (y1 - y0) + pad * 2 || 1;
-    const k = Math.min(W / spanX, H / spanY, 160);
+    // Fill the smaller dimension of the actual canvas; the cap only stops a
+    // 1–2 node graph from spreading absurdly far apart.
+    const k = Math.min(W / spanX, H / spanY, 240);
     return { k, tx: W / 2 - k * (x0 + x1) / 2, ty: H / 2 - k * (y0 + y1) / 2 };
-  }, [pos, nodes]);
+  }, [pos, nodes, W, H]);
 
   const degree = useMemo(() => {
     const d = new Map<string, number>();
@@ -123,9 +141,9 @@ export function Graph({ entities, latest, ego, setEgo, go }: {
   }
 
   return (
-    <div className="card" style={{ position: "relative" }}>
+    <div className="card graph-card">
       <svg ref={svgRef} viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="xMidYMid meet"
-        style={{ display: "block", width: "100%", aspectRatio: `${W} / ${H}`, maxHeight: "64vh", background: "var(--k-bg-surface)", cursor: drag.current ? "grabbing" : "grab", touchAction: "none" }}
+        style={{ display: "block", width: "100%", height: "100%", background: "var(--k-bg-surface)", cursor: drag.current ? "grabbing" : "grab", touchAction: "none" }}
         onMouseDown={(e) => { drag.current = { x: e.clientX, y: e.clientY, moved: false }; }}
         onMouseMove={onMove}
         onMouseUp={() => { const moved = drag.current?.moved; drag.current = null; if (!moved) setSel(null); }}

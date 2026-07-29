@@ -12,6 +12,7 @@ export interface World {
   calendar?: import("./worldTime").Calendar;
   known_start_year?: number;
   known_end_year?: number;
+  is_sample?: boolean; // the seeded example world (Sherlock Holmes)
   deleted_at?: string | null; // set only on trash reads
 }
 

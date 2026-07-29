@@ -57,8 +57,31 @@ input, textarea, select { font-size: 13px; padding: 9px 11px; border: 1px solid 
    the rail sits on the ground; content floats as surface cards inside main. */
 .shellcard { flex: 1; min-width: 0; display: flex; flex-direction: column; min-height: 0; background: var(--k-bg-canvas); border: 1px solid var(--line); border-radius: 16px; overflow: hidden; box-shadow: var(--k-shadow-md); }
 .chrome { display: flex; align-items: center; gap: 12px; padding: 11px 18px; border-bottom: 1px solid var(--line); background: var(--surface); }
-.worldchip { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; padding: 7px 12px; border: 1px solid var(--lineStrong); border-radius: 9px; background: var(--surface); cursor: pointer; white-space: nowrap; }
+.worldchip { position: relative; display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; padding: 5px 8px 5px 12px; border: 1px solid var(--lineStrong); border-radius: 9px; background: var(--surface); white-space: nowrap; }
 .worldchip .k { font-family: var(--serif); font-style: italic; font-weight: 600; font-size: 16px; color: var(--bond); }
+.world-switch { display: inline-flex; align-items: center; gap: 6px; max-width: 200px; border: none; background: none; padding: 3px 5px; border-radius: 7px; font-weight: 600; font-size: 13px; color: var(--ink); cursor: pointer; }
+.world-switch:hover { background: var(--wash); }
+.world-switch-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.world-switch svg { color: var(--muted); flex: 0 0 auto; }
+
+/* Worlds popover — the unified switcher (replaces the native <select>). */
+.worlds-pop { position: absolute; top: calc(100% + 8px); left: 0; z-index: 40; width: 300px; padding: 6px; background: var(--k-bg-raised); border: 1px solid var(--k-border); border-radius: 12px; box-shadow: 0 10px 28px rgba(0,0,0,.16); }
+.worlds-poplab { font-size: 10.5px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); padding: 4px 8px 6px; }
+.worlds-list { max-height: 300px; overflow-y: auto; display: flex; flex-direction: column; gap: 1px; }
+.worlds-row { display: flex; align-items: center; gap: 7px; padding: 7px 8px; border-radius: 8px; cursor: pointer; font-size: 13px; color: var(--sub); min-height: 34px; }
+.worlds-row:hover { background: var(--wash); color: var(--ink); }
+.worlds-row.on { color: var(--ink); font-weight: 600; }
+.worlds-check { display: inline-flex; flex: 0 0 auto; width: 16px; color: var(--bond); }
+.worlds-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.worlds-tag { flex: 0 0 auto; font-size: 9.5px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); background: var(--inset); border: 1px solid var(--line); border-radius: 999px; padding: 1px 6px; }
+.worlds-act { display: inline-flex; flex: 0 0 auto; padding: 4px; border-radius: 6px; color: var(--muted); opacity: 0; }
+.worlds-row:hover .worlds-act { opacity: 1; }
+.worlds-act:hover { background: var(--surface); color: var(--ink); }
+.worlds-act.danger:hover { color: var(--hostile, #c0392b); }
+.worlds-renameinput { width: 100%; font-family: var(--serif); font-size: 13.5px; font-weight: 600; padding: 5px 8px; }
+.worlds-foot { display: flex; gap: 4px; padding: 6px 2px 2px; margin-top: 4px; border-top: 1px solid var(--line); }
+.worlds-action { flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 8px; border: none; border-radius: 8px; background: none; color: var(--sub); font-size: 12.5px; font-weight: 600; cursor: pointer; }
+.worlds-action:hover:not(:disabled) { background: var(--wash); color: var(--ink); }
 .searchwrap { flex: 1; min-width: 0; position: relative; }
 .searchwrap .ic { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); color: var(--muted); display: inline-flex; }
 .searchwrap input { width: 100%; padding-left: 32px; }

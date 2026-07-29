@@ -9,7 +9,7 @@ import { parseStoryTime } from "../lib/time";
 import { buildKindSwatches } from "../lib/segmentKinds";
 import { ChapterEditor } from "./ChapterEditor";
 import { ImportDocx } from "./ImportDocx";
-import type { Nav } from "../App";
+import type { Nav, LeafCrumb } from "../App";
 import { Icon } from "../components/icons";
 import { SwatchPicker } from "../components/SwatchPicker";
 import { confirmDialog } from "../components/confirm";
@@ -18,7 +18,7 @@ import { SkeletonRows } from "../components/Skeleton";
 // Segments are the one grouping shared with the Timeline — Series › Book ›
 // Season › Volume, nested to any depth. Here each is a collapsible section so a
 // long manuscript folds to its parts, and chapters can be filed into them.
-export function Manuscript({ worldId, focusChapterId, go }: { worldId: string; focusChapterId?: string; go: (n: Nav) => void }) {
+export function Manuscript({ worldId, focusChapterId, go, onLeaf }: { worldId: string; focusChapterId?: string; go: (n: Nav) => void; onLeaf?: (l: LeafCrumb | null) => void }) {
   const [chapters, setChapters] = useState<Chapter[] | null>(null);
   const [segments, setSegments] = useState<Segment[]>([]);
   const [kinds, setKinds] = useState<SegmentKind[]>([]);
@@ -47,6 +47,14 @@ export function Manuscript({ worldId, focusChapterId, go }: { worldId: string; f
     } catch (x) { setErr(String(x)); }
   }
   useEffect(() => { void reload(); /* eslint-disable-next-line */ }, [worldId]);
+
+  // Report the open chapter up to the breadcrumb (and clear it on unmount).
+  useEffect(() => {
+    const oc = openId && chapters ? chapters.find((c) => c.id === openId) : null;
+    onLeaf?.(oc ? { label: `Ch. ${oc.manuscript_order} · ${oc.title}`, onClear: () => { setOpenId(null); void reload(); } } : null);
+    // eslint-disable-next-line
+  }, [openId, chapters]);
+  useEffect(() => () => onLeaf?.(null), []); // eslint-disable-line
 
   const kindSwatch = useMemo(() => buildKindSwatches(kinds, segments.map((s) => s.kind)), [kinds, segments]);
   const swatchOf = (s: Segment) => s.color ?? kindSwatch.get(s.kind.toLowerCase()) ?? "slate";

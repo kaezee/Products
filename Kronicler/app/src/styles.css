@@ -141,6 +141,15 @@ textarea { font-family: var(--serif); }
 .composer { width: 440px; max-width: calc(100vw - 32px); background: var(--surface); border: 1px solid var(--lineStrong); border-radius: 14px; padding: 18px 20px; box-shadow: var(--pop); }
 .modal { width: 760px; max-width: calc(100vw - 32px); max-height: calc(100vh - 160px); overflow-y: auto; background: var(--surface); border: 1px solid var(--lineStrong); border-radius: 14px; padding: 18px 20px; box-shadow: var(--pop); }
 
+/* Breadcrumb trail — Overview › Section › Leaf. */
+.crumbs { display: flex; align-items: center; flex-wrap: wrap; gap: 2px; margin: 0 0 14px; font-size: 12px; line-height: 1; }
+.crumb-seg { display: inline-flex; align-items: center; gap: 2px; min-width: 0; }
+.crumb-link { display: inline-flex; align-items: center; gap: 5px; padding: 3px 7px; border: none; border-radius: 7px; background: transparent; color: var(--muted); font-size: 12px; font-weight: 500; cursor: pointer; }
+.crumb-link:hover:not(:disabled) { background: var(--wash); color: var(--ink); border-color: transparent; }
+.crumb-cur { display: inline-flex; align-items: center; gap: 5px; padding: 3px 7px; color: var(--muted); max-width: 340px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.crumb-cur.on { color: var(--ink); font-weight: 650; }
+.crumb-sep { color: var(--faint); font-size: 13px; padding: 0 1px; user-select: none; }
+
 /* Settings — a centered reading column instead of hugging the left edge. */
 .settings-wrap { max-width: 760px; margin: 0 auto; }
 

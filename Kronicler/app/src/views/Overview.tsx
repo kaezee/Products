@@ -141,6 +141,13 @@ export function Overview({ worldId, go }: { worldId: string; go: (n: Nav) => voi
   const showChecklist = !checklistOff && doneCount < steps.length;
   function dismissChecklist() { localStorage.setItem(`k.checklist.${worldId}`, "1"); setChecklistOff(true); }
 
+  // A brand-new world has nothing to orient, continue, or flag — so the stats,
+  // the launchpad, and the activity columns are all empty shells. Until there's
+  // something in the world, the Overview shows only the way in: the Docs
+  // migration door and the getting-started checklist. The dashboard proper
+  // appears the moment the writer has a chapter, a cast member, or a moment.
+  const hasContent = stats.total > 0 || stats.entities > 0 || stats.relCount > 0;
+
   return (
     <div className="fi">
       <h2 className="scope-title">Overview</h2>
@@ -179,6 +186,7 @@ export function Overview({ worldId, go }: { worldId: string; go: (n: Nav) => voi
         </div>
       )}
 
+      {hasContent && <>
       {/* World at a glance */}
       <div className="dash-stats">
         {tiles.map((t) => (
@@ -302,6 +310,7 @@ export function Overview({ worldId, go }: { worldId: string; go: (n: Nav) => voi
           </div>
         </div>
       </div>
+      </>}
     </div>
   );
 }

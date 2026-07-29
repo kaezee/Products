@@ -10,6 +10,7 @@ import { TypeDictionary } from "./TypeDictionary";
 import { Icon } from "../components/icons";
 import { confirmDialog } from "../components/confirm";
 import { SkeletonRows } from "../components/Skeleton";
+import { EmptyState } from "../components/EmptyState";
 
 // Relationships (§9.2): two lenses — Stream + Graph — over one persistent filter
 // set (type, knowledge viewer, as-of scrub). Filters survive lens switches.
@@ -90,6 +91,21 @@ export function Relationships({ worldId, go }: { worldId: string; go: (n: Nav) =
 
   if (err) return <p className="err">{err}</p>;
   if (!rows) return <SkeletonRows rows={6} />;
+
+  // No relationships recorded yet — show the way in, not the empty graph stage
+  // wrapped in filters, lenses, and a scrub bar with nothing to scrub.
+  if (rows.length === 0) {
+    return (
+      <div className="fi">
+        <h2 className="scope-title" style={{ marginBottom: 12 }}>Relationships</h2>
+        <EmptyState icon="relationships"
+          title="No relationships yet"
+          desc="Relationships grow out of your prose. Open a chapter, select a line where two characters connect, and record what passes between them — it appears here as a living web you can filter and rewind."
+          steps={["Add your cast", "Mark a moment in a chapter", "See the web"]}
+          action={{ label: "Open the Manuscript", onClick: () => go({ scope: "manuscript" }) }} />
+      </div>
+    );
+  }
 
   return (
     <div className={"fi" + (lens === "graph" ? " rel-view" : "")}>

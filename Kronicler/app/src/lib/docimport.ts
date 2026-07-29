@@ -85,6 +85,19 @@ export function suggestEntityStrategy(html: string): EntityStrategy {
   return li >= 3 && li > h ? "list" : "headings";
 }
 
+// Turn pasted plain text into the same simple HTML the .docx path produces, so
+// paste reuses the whole parser (chapter splitting, "smart" strategy, etc.).
+// Each non-blank line becomes a <p>; a line that looks like a chapter mark is
+// left as a paragraph too — the "smart" strategy cuts on it by text, not tag.
+export function textToHtml(text: string): string {
+  const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  return text.replace(/\r/g, "").split(/\n/)
+    .map((l) => l.trim())
+    .filter((l) => l.length > 0)
+    .map((l) => `<p>${esc(l)}</p>`)
+    .join("");
+}
+
 export function parseDocxHtml(
   html: string,
   mode: "chapters" | "entities",

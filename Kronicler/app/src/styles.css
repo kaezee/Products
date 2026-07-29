@@ -57,8 +57,31 @@ input, textarea, select { font-size: 13px; padding: 9px 11px; border: 1px solid 
    the rail sits on the ground; content floats as surface cards inside main. */
 .shellcard { flex: 1; min-width: 0; display: flex; flex-direction: column; min-height: 0; background: var(--k-bg-canvas); border: 1px solid var(--line); border-radius: 16px; overflow: hidden; box-shadow: var(--k-shadow-md); }
 .chrome { display: flex; align-items: center; gap: 12px; padding: 11px 18px; border-bottom: 1px solid var(--line); background: var(--surface); }
-.worldchip { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; padding: 7px 12px; border: 1px solid var(--lineStrong); border-radius: 9px; background: var(--surface); cursor: pointer; white-space: nowrap; }
+.worldchip { position: relative; display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; padding: 5px 8px 5px 12px; border: 1px solid var(--lineStrong); border-radius: 9px; background: var(--surface); white-space: nowrap; }
 .worldchip .k { font-family: var(--serif); font-style: italic; font-weight: 600; font-size: 16px; color: var(--bond); }
+.world-switch { display: inline-flex; align-items: center; gap: 6px; max-width: 200px; border: none; background: none; padding: 3px 5px; border-radius: 7px; font-weight: 600; font-size: 13px; color: var(--ink); cursor: pointer; }
+.world-switch:hover { background: var(--wash); }
+.world-switch-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.world-switch svg { color: var(--muted); flex: 0 0 auto; }
+
+/* Worlds popover — the unified switcher (replaces the native <select>). */
+.worlds-pop { position: absolute; top: calc(100% + 8px); left: 0; z-index: 40; width: 300px; padding: 6px; background: var(--k-bg-raised); border: 1px solid var(--k-border); border-radius: 12px; box-shadow: 0 10px 28px rgba(0,0,0,.16); }
+.worlds-poplab { font-size: 10.5px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); padding: 4px 8px 6px; }
+.worlds-list { max-height: 300px; overflow-y: auto; display: flex; flex-direction: column; gap: 1px; }
+.worlds-row { display: flex; align-items: center; gap: 7px; padding: 7px 8px; border-radius: 8px; cursor: pointer; font-size: 13px; color: var(--sub); min-height: 34px; }
+.worlds-row:hover { background: var(--wash); color: var(--ink); }
+.worlds-row.on { color: var(--ink); font-weight: 600; }
+.worlds-check { display: inline-flex; flex: 0 0 auto; width: 16px; color: var(--bond); }
+.worlds-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.worlds-tag { flex: 0 0 auto; font-size: 9.5px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); background: var(--inset); border: 1px solid var(--line); border-radius: 999px; padding: 1px 6px; }
+.worlds-act { display: inline-flex; flex: 0 0 auto; padding: 4px; border-radius: 6px; color: var(--muted); opacity: 0; }
+.worlds-row:hover .worlds-act { opacity: 1; }
+.worlds-act:hover { background: var(--surface); color: var(--ink); }
+.worlds-act.danger:hover { color: var(--hostile, #c0392b); }
+.worlds-renameinput { width: 100%; font-family: var(--serif); font-size: 13.5px; font-weight: 600; padding: 5px 8px; }
+.worlds-foot { display: flex; gap: 4px; padding: 6px 2px 2px; margin-top: 4px; border-top: 1px solid var(--line); }
+.worlds-action { flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 8px; border: none; border-radius: 8px; background: none; color: var(--sub); font-size: 12.5px; font-weight: 600; cursor: pointer; }
+.worlds-action:hover:not(:disabled) { background: var(--wash); color: var(--ink); }
 .searchwrap { flex: 1; min-width: 0; position: relative; }
 .searchwrap .ic { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); color: var(--muted); display: inline-flex; }
 .searchwrap input { width: 100%; padding-left: 32px; }
@@ -153,20 +176,32 @@ textarea { font-family: var(--serif); }
 .empty-hero { max-width: 560px; padding: 32px 4px; display: flex; flex-direction: column; gap: 4px; }
 
 /* Timeline empty state (overlaid on the board). */
-.wt2-empty { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; text-align: center; padding: 24px; z-index: 5; pointer-events: none; }
-.wt2-empty > * { pointer-events: auto; }
-.wt2-empty-title { font-family: var(--serif); font-size: 19px; font-weight: 600; color: var(--ink); }
-.wt2-empty-sub { font-size: 13px; color: var(--muted); max-width: 42ch; margin-bottom: 6px; }
+/* Shared empty state (components/EmptyState.tsx) — one calm card, used across
+   every section that has nothing yet. */
+.empty-state { display: flex; align-items: center; justify-content: center; padding: 40px 24px; min-height: 320px; flex: 1; }
+.empty-card { display: flex; flex-direction: column; align-items: center; gap: 9px; text-align: center;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 30px 34px; box-shadow: var(--k-shadow-md); max-width: 460px; }
+.empty-icon { display: inline-flex; align-items: center; justify-content: center; width: 48px; height: 48px; border-radius: 12px;
+  background: var(--bondBg); border: 1px solid var(--bondLine); color: var(--bond); margin-bottom: 2px; }
+.empty-title { font-family: var(--serif); font-size: 19px; font-weight: 600; color: var(--ink); line-height: 1.3; }
+.empty-desc { font-size: 13px; color: var(--muted); max-width: 42ch; line-height: 1.5; }
+.empty-steps { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: center; margin: 4px 0 8px; font-size: 12px; color: var(--muted); }
+.empty-steps b { display: inline-flex; align-items: center; justify-content: center; width: 17px; height: 17px; border-radius: 50%;
+  background: var(--inset); border: 1px solid var(--line); font-family: var(--k-font-mono); font-size: 10.5px; font-weight: 700; color: var(--ink); }
+.empty-arrow { color: var(--faint); display: inline-flex; }
+
+/* Timeline reuses the shared card, positioned as an overlay on the board. */
+.wt2-empty { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; padding: 24px; z-index: 5; }
 
 /* Getting-started checklist (dashboard "taking shape" state). */
-.checklist { background: var(--bondBg); border: 1px solid var(--bondLine); border-radius: 14px; padding: 6px 8px 8px; margin-bottom: 18px; }
+.checklist { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 6px 8px 8px; margin-bottom: 18px; box-shadow: var(--k-shadow-sm); }
 .checklist-head { display: flex; align-items: center; gap: 8px; padding: 8px 10px 6px; }
 .checklist-title { font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--bond); }
-.checklist-count { font-family: var(--k-font-mono); font-size: 11px; color: var(--bond); background: var(--surface); border: 1px solid var(--bondLine); border-radius: 999px; padding: 1px 7px; }
+.checklist-count { font-family: var(--k-font-mono); font-size: 11px; color: var(--muted); background: var(--inset); border: 1px solid var(--line); border-radius: 999px; padding: 1px 7px; }
 .checklist-dismiss { display: inline-flex; cursor: pointer; color: var(--muted); padding: 2px; border-radius: 6px; }
-.checklist-dismiss:hover { background: var(--surface); color: var(--ink); }
+.checklist-dismiss:hover { background: var(--wash); color: var(--ink); }
 .checklist-step { display: flex; align-items: center; gap: 10px; padding: 9px 10px; border-radius: 9px; cursor: pointer; }
-.checklist-step:hover:not(.done) { background: var(--surface); }
+.checklist-step:hover:not(.done) { background: var(--wash); }
 .checklist-step.done { cursor: default; }
 .checklist-mark { display: inline-flex; flex: 0 0 auto; color: var(--allied); }
 .checklist-circle { width: 15px; height: 15px; border: 1.8px solid var(--lineStrong); border-radius: 50%; display: inline-block; }
@@ -174,6 +209,16 @@ textarea { font-family: var(--serif); }
 .checklist-step.done .checklist-label { color: var(--muted); text-decoration: line-through; text-decoration-color: var(--faint); }
 .checklist-desc { display: block; font-size: 12px; color: var(--muted); }
 .checklist-step.done .checklist-desc { display: none; }
+
+/* Docs/Word migration front-door — shown on an empty world's Overview. */
+.migrate-cta { display: flex; align-items: center; gap: 12px; width: 100%; text-align: left;
+  background: var(--bondBg); border: 1px solid var(--bondLine); border-radius: 14px;
+  padding: 13px 15px; margin-bottom: 18px; cursor: pointer; transition: border-color .15s, background .15s; }
+.migrate-cta:hover { border-color: var(--bond); background: var(--surface); }
+.migrate-icon { display: inline-flex; flex: 0 0 auto; width: 34px; height: 34px; border-radius: 9px;
+  align-items: center; justify-content: center; background: var(--surface); border: 1px solid var(--bondLine); color: var(--bond); }
+.migrate-title { display: block; font-weight: 600; font-size: 13.5px; color: var(--ink); }
+.migrate-desc { display: block; font-size: 12px; color: var(--muted); margin-top: 1px; }
 
 /* Breadcrumb trail — Overview › Section › Leaf. */
 .crumbs { display: flex; align-items: center; flex-wrap: wrap; gap: 2px; margin: 0 0 14px; font-size: 12px; line-height: 1; }
@@ -374,7 +419,7 @@ button.danger:hover:not(:disabled) { filter: brightness(0.93); background: var(-
 .wt2-gridlayer { position: absolute; top: 32px; left: 0; right: 0; bottom: 0; overflow: hidden; pointer-events: none; z-index: 1; }
 .wt2-grid { position: absolute; top: 0; bottom: 0; width: 0; border-left: 1px solid var(--k-border); opacity: 0.55; }
 .wt2-content { position: absolute; top: 32px; left: 0; right: 0; bottom: 0; will-change: transform; z-index: 3; }
-.wt2-empty { position: absolute; top: 20px; left: 20px; color: var(--muted); font-size: 13px; max-width: 400px; }
+.wt2-empty-hint { position: absolute; top: 20px; left: 20px; color: var(--muted); font-size: 13px; max-width: 400px; }
 .wt2-note { position: absolute; top: 4px; display: flex; align-items: center; gap: 4px; z-index: 4; white-space: nowrap; transform: translateX(-3px); }
 .wt2-notedot { width: 7px; height: 7px; border-radius: 50%; background: var(--obligation); flex: 0 0 auto; }
 .wt2-notelab { font-size: 10px; color: var(--obligation); background: var(--obligationBg); border: 1px solid var(--obligation); border-radius: 5px; padding: 1px 6px; }

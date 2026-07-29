@@ -5,6 +5,7 @@ import { NoteToState } from "./NoteToState";
 import { Icon } from "../components/icons";
 import { confirmDialog } from "../components/confirm";
 import { Skeleton } from "../components/Skeleton";
+import { EmptyState } from "../components/EmptyState";
 
 const CARD_W = 230, CARD_H = 150; // CARD_H is a nominal height, for framing math only
 const MIN_SCALE = 0.3, MAX_SCALE = 2.2;
@@ -173,6 +174,20 @@ export function Notes({ worldId }: { worldId: string }) {
 
   const secretCount = notes.filter((n) => n.is_secret).length;
   const visible = show === "secrets" ? notes.filter((n) => n.is_secret) : notes;
+
+  // Nothing on the board yet — show what it's for and one way to start, not an
+  // empty canvas with pan/zoom controls and filter tabs over blank space.
+  if (notes.length === 0) {
+    return (
+      <div className="fi">
+        <h2 className="scope-title" style={{ marginBottom: 12 }}>Notes</h2>
+        <EmptyState icon="notes"
+          title="A blank planning board"
+          desc="Notes are a freeform canvas for the thinking around your story — theories, beats you haven’t written yet, secrets to plant. Drop a card, tag who it’s about, and promote a secret into a lens-enforced reveal when the time comes."
+          action={{ label: "Add your first note", onClick: () => void createAt(60, 60) }} />
+      </div>
+    );
+  }
 
   return (
     <div className="fi notes-view">

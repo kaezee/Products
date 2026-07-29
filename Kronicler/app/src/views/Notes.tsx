@@ -4,6 +4,7 @@ import type { Note, Entity, RelationshipType, Chapter } from "../lib/types";
 import { NoteToState } from "./NoteToState";
 import { Icon } from "../components/icons";
 import { confirmDialog } from "../components/confirm";
+import { Skeleton } from "../components/Skeleton";
 
 const CARD_W = 230, CARD_H = 150; // CARD_H is a nominal height, for framing math only
 const MIN_SCALE = 0.3, MAX_SCALE = 2.2;
@@ -159,13 +160,22 @@ export function Notes({ worldId }: { worldId: string }) {
   }
 
   if (err) return <p className="err">{err}</p>;
-  if (!notes) return <p className="muted">Loading notes…</p>;
+  if (!notes) return (
+    <div className="fi notes-view">
+      <div className="row" style={{ borderBottom: "none", padding: 0, marginBottom: 12 }}>
+        <Skeleton w={90} h={26} r={7} />
+        <span className="spacer" style={{ flex: 1 }} />
+        <Skeleton w={130} h={28} r={9} />
+      </div>
+      <Skeleton h="100%" r={12} style={{ flex: 1, minHeight: 240 }} />
+    </div>
+  );
 
   const secretCount = notes.filter((n) => n.is_secret).length;
   const visible = show === "secrets" ? notes.filter((n) => n.is_secret) : notes;
 
   return (
-    <div className="fi">
+    <div className="fi notes-view">
       <div className="row" style={{ borderBottom: "none", padding: 0, marginBottom: 12, gap: 10 }}>
         <h2 className="scope-title">Notes</h2>
         <span className="faint" style={{ fontSize: 11 }}>drag to pan · scroll to zoom · double-click to add</span>

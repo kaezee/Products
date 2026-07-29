@@ -141,6 +141,26 @@ textarea { font-family: var(--serif); }
 .composer { width: 440px; max-width: calc(100vw - 32px); background: var(--surface); border: 1px solid var(--lineStrong); border-radius: 14px; padding: 18px 20px; box-shadow: var(--pop); }
 .modal { width: 760px; max-width: calc(100vw - 32px); max-height: calc(100vh - 160px); overflow-y: auto; background: var(--surface); border: 1px solid var(--lineStrong); border-radius: 14px; padding: 18px 20px; box-shadow: var(--pop); }
 
+/* Settings — a centered reading column instead of hugging the left edge. */
+.settings-wrap { max-width: 760px; margin: 0 auto; }
+
+/* Count badge (trash, and reusable) + wider modal + trash affordances. */
+.count-badge { display: inline-flex; align-items: center; justify-content: center; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px; font-family: var(--k-font-mono); font-size: 10.5px; font-weight: 600; line-height: 1; color: var(--k-action-on); background: var(--bond); }
+.modal-wide { width: 920px; max-height: calc(100vh - 120px); }
+.trash-search { flex: none; margin-bottom: 14px; max-width: 320px; }
+.trash-search input { background: var(--inset); }
+.trash-when { font-size: 11px; white-space: nowrap; }
+.trash-forever { display: inline-flex; align-items: center; gap: 5px; font-size: 11.5px; font-weight: 600; color: var(--muted); cursor: pointer; padding: 3px 8px; border-radius: 7px; white-space: nowrap; user-select: none; }
+.trash-forever:hover { color: var(--hostile); background: var(--hostileBg); }
+
+/* Loading — skeletons (shape preview) + spinner (inline busy). */
+.skel { display: inline-block; background: linear-gradient(100deg, var(--k-bg-hover) 30%, color-mix(in srgb, var(--k-text-primary) 8%, var(--k-bg-hover)) 50%, var(--k-bg-hover) 70%); background-size: 220% 100%; animation: skel 1.3s var(--k-ease, ease) infinite; }
+@keyframes skel { 0% { background-position: 120% 0; } 100% { background-position: -120% 0; } }
+.spin { display: inline-block; border: 2px solid var(--k-border-strong); border-top-color: var(--bond); border-radius: 50%; animation: spin .7s linear infinite; vertical-align: -2px; }
+.spin.on-accent { border-color: color-mix(in srgb, var(--k-action-on) 45%, transparent); border-top-color: var(--k-action-on); }
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .skel { animation-duration: 0s; } .spin { animation-duration: 1.4s; } }
+
 /* Dashboard (Overview) — stat tiles, the continue launchpad, and columns. */
 .dash-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(148px, 1fr)); gap: 12px; margin: 14px 0 18px; }
 .stat { text-align: left; display: flex; flex-direction: column; gap: 3px; padding: 13px 15px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; cursor: pointer; transition: background var(--k-duration-fast,120ms) var(--k-ease,ease), border-color var(--k-duration-fast,120ms) var(--k-ease,ease); }
@@ -271,7 +291,9 @@ button.danger:hover:not(:disabled) { filter: brightness(0.93); background: var(-
 .rich .ment { border-radius: 3px; padding: 0 1px; background: var(--k-ment-tint, var(--k-action-subtle)); }
 
 /* Notes board (canvas-lite) */
-.notes-board { position: relative; height: 68vh; overflow: hidden; border: 1px solid var(--line); border-radius: 12px; background: var(--surface) repeating-linear-gradient(0deg, transparent, transparent 23px, color-mix(in srgb, var(--k-text-primary) 4%, transparent) 24px), repeating-linear-gradient(90deg, transparent, transparent 23px, color-mix(in srgb, var(--k-text-primary) 4%, transparent) 24px); cursor: grab; }
+/* Notes fills the pane instead of a fixed 68vh (which left dead space below). */
+.notes-view { height: 100%; display: flex; flex-direction: column; min-height: 0; }
+.notes-board { position: relative; flex: 1; min-height: 320px; overflow: hidden; border: 1px solid var(--line); border-radius: 12px; background: var(--k-bg-surface) repeating-linear-gradient(0deg, transparent, transparent 23px, color-mix(in srgb, var(--k-text-primary) 4%, transparent) 24px), repeating-linear-gradient(90deg, transparent, transparent 23px, color-mix(in srgb, var(--k-text-primary) 4%, transparent) 24px); cursor: grab; }
 .notes-board.panning { cursor: grabbing; }
 .notes-canvas { position: absolute; top: 0; left: 0; width: 0; height: 0; will-change: transform; }
 .canvas-zoom { position: absolute; right: 12px; bottom: 12px; display: flex; align-items: center; gap: 2px; background: var(--surface); border: 1px solid var(--line); border-radius: 9px; box-shadow: var(--pop); padding: 2px; user-select: none; }

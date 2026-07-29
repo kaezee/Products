@@ -17,6 +17,7 @@ import { getStoredTheme, setTheme, type Theme } from "./lib/theme";
 import { PanelToggleIcon } from "./components/SidePanel";
 import { Icon, ICON_SIZE, type IconName } from "./components/icons";
 import { ConfirmHost } from "./components/confirm";
+import { Spinner } from "./components/Skeleton";
 
 const THEME_CYCLE: Theme[] = ["paper", "grey", "dark", "system"];
 const THEME_ICON: Record<Theme, IconName> = { paper: "theme-paper", grey: "theme-grey", dark: "theme-dark", system: "theme-system" };
@@ -137,7 +138,7 @@ function Workspace({ session }: { session: Session }) {
 
   function go(n: Nav) { setQuery(""); setNav(n); }
 
-  if (!worlds) return <div className="center"><span className="muted">Loading…</span></div>;
+  if (!worlds) return <div className="center"><Spinner size={26} /><span className="muted">Loading your worlds…</span></div>;
 
   const searching = query.trim().length >= 2;
 

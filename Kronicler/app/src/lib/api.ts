@@ -713,6 +713,26 @@ export async function restoreWorld(id: string): Promise<void> {
   if (error) throw error;
 }
 
+// Trash badge count — soft-deleted entities + chapters (this world) + worlds
+// (account). Cheap head-only counts; the modal fetches the rows themselves.
+export async function getTrashCount(worldId: string): Promise<number> {
+  const [e, c, w] = await Promise.all([
+    supabase.from("entities").select("id", { count: "exact", head: true }).eq("world_id", worldId).not("deleted_at", "is", null),
+    supabase.from("chapters").select("id", { count: "exact", head: true }).eq("world_id", worldId).not("deleted_at", "is", null),
+    supabase.from("worlds").select("id", { count: "exact", head: true }).not("deleted_at", "is", null),
+  ]);
+  if (e.error) throw e.error; if (c.error) throw c.error; if (w.error) throw w.error;
+  return (e.count ?? 0) + (c.count ?? 0) + (w.count ?? 0);
+}
+
+// Permanently erase one trashed item and everything that hangs off it, in
+// FK-safe order (server-side, ownership-checked). Irreversible — the counterpart
+// to the 30-day auto-purge. See migration 0022.
+export async function purgeTrashItem(kind: "entity" | "chapter" | "world", id: string): Promise<void> {
+  const { error } = await supabase.rpc("purge_trash_item", { p_kind: kind, p_id: id });
+  if (error) throw error;
+}
+
 // ── Doc view (Phase 4) ───────────────────────────────────────────────────
 
 // The stream rows for every relationship a given entity participates in —

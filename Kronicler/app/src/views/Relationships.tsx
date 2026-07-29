@@ -9,6 +9,7 @@ import { Graph } from "./Graph";
 import { TypeDictionary } from "./TypeDictionary";
 import { Icon } from "../components/icons";
 import { confirmDialog } from "../components/confirm";
+import { SkeletonRows } from "../components/Skeleton";
 
 // Relationships (§9.2): two lenses — Stream + Graph — over one persistent filter
 // set (type, knowledge viewer, as-of scrub). Filters survive lens switches.
@@ -18,7 +19,7 @@ export function Relationships({ worldId, go }: { worldId: string; go: (n: Nav) =
   const [types, setTypes] = useState<RelationshipType[]>([]);
   const [err, setErr] = useState<string | null>(null);
 
-  const [lens, setLens] = useState<"stream" | "graph">("stream");
+  const [lens, setLens] = useState<"stream" | "graph">("graph");
   const [typesOpen, setTypesOpen] = useState(false);
   const [typeId, setTypeId] = useState("all");
   const [viewer, setViewer] = useState("all"); // knowledge lens: 'all' (writer) or an entity id
@@ -88,15 +89,15 @@ export function Relationships({ worldId, go }: { worldId: string; go: (n: Nav) =
   }
 
   if (err) return <p className="err">{err}</p>;
-  if (!rows) return <p className="muted">Loading…</p>;
+  if (!rows) return <SkeletonRows rows={6} />;
 
   return (
     <div className="fi">
       <div className="row" style={{ borderBottom: "none", padding: 0, marginBottom: 10, gap: 12 }}>
         <h2 className="scope-title" style={{ margin: 0 }}>Relationships</h2>
         <div className="seg">
-          <span className={lens === "stream" ? "on" : ""} onClick={() => setLens("stream")}>Stream</span>
           <span className={lens === "graph" ? "on" : ""} onClick={() => setLens("graph")}>Graph</span>
+          <span className={lens === "stream" ? "on" : ""} onClick={() => setLens("stream")}>Stream</span>
         </div>
         <span className="faint" style={{ fontSize: 11 }}>filters persist across lenses</span>
         <span className="spacer" />

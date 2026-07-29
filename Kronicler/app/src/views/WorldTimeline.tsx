@@ -12,6 +12,7 @@ import { SidePanel, Disclosure } from "../components/SidePanel";
 import { Icon } from "../components/icons";
 import { SwatchPicker } from "../components/SwatchPicker";
 import { confirmDialog } from "../components/confirm";
+import { SkeletonRows } from "../components/Skeleton";
 
 // The World Timeline (design doc 3). Everything positions on a signed DAY NUMBER;
 // the axis is calendar-aware and the navigable range is bounded by "known time"
@@ -422,7 +423,7 @@ export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) =
   async function delMarker(id: string) { try { await softDeleteMarker(id); pushUndo(() => restoreMarker(id)); await reload(); } catch (x) { setErr(String(x)); } }
 
   if (err) return <p className="err">{err}</p>;
-  if (loading) return <p className="muted">Loading world timeline…</p>;
+  if (loading) return <SkeletonRows rows={6} />;
 
   const visibleUnits = nowW / view.ppd;
   const visibleYears = visibleUnits / dpy;

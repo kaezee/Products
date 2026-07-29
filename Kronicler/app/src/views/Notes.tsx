@@ -340,8 +340,8 @@ function NoteCard({ note, entities, chapters, onChange, onDelete, onDragStart, o
       </div>
       {note.is_secret && (
         <div className="notecard-foot" onMouseDown={(e) => e.stopPropagation()}>
-          <span className="chip click" title="Turn this secret into a real, lens-enforced concealed state" onClick={onToLens}>
-            → concealed state
+          <span className="chip click" title="Promote this note into a real, lens-enforced secret" onClick={onToLens}>
+            → make it a secret
           </span>
         </div>
       )}

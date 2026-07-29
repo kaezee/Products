@@ -91,6 +91,7 @@ input, textarea, select { font-size: 13px; padding: 9px 11px; border: 1px solid 
 .railitem .g { display: inline-flex; align-items: center; justify-content: center; width: 18px; opacity: 0.75; }
 .railitem.on { background: var(--bondBg); color: var(--bond); font-weight: 650; }
 .railitem.on .g { opacity: 1; }
+.rail-div { height: 1px; background: var(--line); margin: 8px 10px; }
 .railfoot { border-top: 1px solid var(--line); padding-top: 8px; margin-top: 8px; display: flex; flex-direction: column; gap: 2px; }
 .main { flex: 1; min-width: 0; padding: 20px 24px; overflow-x: hidden; overflow-y: auto; }
 

@@ -64,7 +64,7 @@ export function Settings({ worldId, worldName, userEmail, onDeleteWorld, onWorld
       const entities = await getEntities(worldId);
       const byType = new Map<string, Entity[]>();
       for (const e of entities) { const a = byType.get(e.type) ?? []; a.push(e); byType.set(e.type, a); }
-      let md = `# ${worldName} — Codex\n\n_Exported ${stamp()} · ${entities.length} entries_\n`;
+      let md = `# ${worldName} — Collection\n\n_Exported ${stamp()} · ${entities.length} entries_\n`;
       for (const [type, list] of [...byType.entries()].sort()) {
         md += `\n---\n\n## ${type}\n\n`;
         for (const e of list.sort((a, b) => a.title.localeCompare(b.title))) {
@@ -73,7 +73,7 @@ export function Settings({ worldId, worldName, userEmail, onDeleteWorld, onWorld
           md += `\n${(e.body || "").trim() || "_(no description)_"}\n\n`;
         }
       }
-      download(`${slug(worldName)}-codex-${stamp()}.md`, md, "text/markdown");
+      download(`${slug(worldName)}-collection-${stamp()}.md`, md, "text/markdown");
     } catch (x) { setErr(String(x)); } finally { setBusy(null); }
   }
 
@@ -105,7 +105,7 @@ export function Settings({ worldId, worldName, userEmail, onDeleteWorld, onWorld
         </div>
         <div className="row" style={{ borderBottom: "none" }}>
           <div style={{ flex: 1 }}>
-            <div style={{ fontWeight: 500 }}>Codex <span className="chip" style={{ fontSize: 10 }}>.md</span></div>
+            <div style={{ fontWeight: 500 }}>Collection <span className="chip" style={{ fontSize: 10 }}>.md</span></div>
             <span className="muted" style={{ fontSize: 12.5 }}>Every entity by type, with aliases and descriptions — a readable reference document.</span>
           </div>
           <button onClick={bibleMd} disabled={!!busy}>{busy === "bible" ? <Spinner size={13} /> : "Download"}</button>

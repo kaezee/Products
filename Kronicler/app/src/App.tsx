@@ -36,19 +36,24 @@ export function App() {
 type Scope = "overview" | "library" | "manuscript" | "timeline" | "relationships" | "notes" | "settings";
 export interface Nav { scope: Scope; entityId?: string; chapterId?: string }
 
-const RAIL: [Scope, string, IconName][] = [
+// The rail is split write-first: the everyday writing tools up top, the
+// analysis tools (timeline, relationships) under a divider — so a newcomer
+// isn't met with a flat wall of seven equal sections.
+const RAIL_CORE: [Scope, string, IconName][] = [
   ["overview", "Overview", "overview"],
-  ["library", "Codex", "library"],
   ["manuscript", "Manuscript", "manuscript"],
+  ["library", "Collection", "library"],
+  ["notes", "Notes", "notes"],
+];
+const RAIL_MORE: [Scope, string, IconName][] = [
   ["timeline", "Timeline", "timeline"],
   ["relationships", "Relationships", "relationships"],
-  ["notes", "Notes", "notes"],
 ];
 
 // Label + icon per scope, for the breadcrumb trail (settings isn't in the rail).
 const SCOPE_META: Record<Scope, { label: string; icon: IconName }> = {
   overview: { label: "Overview", icon: "overview" },
-  library: { label: "Codex", icon: "library" },
+  library: { label: "Collection", icon: "library" },
   manuscript: { label: "Manuscript", icon: "manuscript" },
   timeline: { label: "Timeline", icon: "timeline" },
   relationships: { label: "Relationships", icon: "relationships" },
@@ -279,7 +284,14 @@ function Workspace({ session }: { session: Session }) {
                   <PanelToggleIcon size={16} />
                 </button>
               </div>
-              {RAIL.map(([s, label, g]) => (
+              {RAIL_CORE.map(([s, label, g]) => (
+                <div key={s} className={"railitem" + (!searching && nav.scope === s ? " on" : "")}
+                  onClick={() => go({ scope: s })} title={railCollapsed ? label : undefined}>
+                  <span className="g"><Icon name={g} size={ICON_SIZE.lg} /></span>{!railCollapsed && label}
+                </div>
+              ))}
+              <div className="rail-div" />
+              {RAIL_MORE.map(([s, label, g]) => (
                 <div key={s} className={"railitem" + (!searching && nav.scope === s ? " on" : "")}
                   onClick={() => go({ scope: s })} title={railCollapsed ? label : undefined}>
                   <span className="g"><Icon name={g} size={ICON_SIZE.lg} /></span>{!railCollapsed && label}

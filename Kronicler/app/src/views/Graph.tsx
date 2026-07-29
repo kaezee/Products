@@ -9,6 +9,19 @@ import { Icon } from "../components/icons";
 const W = 720, H = 420;
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
 
+// Node labels: drop a leading honorific/article so a name doesn't read as its
+// title ("Dr John Watson" → "John Watson", "Mrs Hudson" → "Hudson", "The Baker
+// Street Irregulars" → "Baker Street"). Keeps at most the two leading words.
+const HONORIFICS = new Set(["the", "a", "an", "mr", "mrs", "ms", "miss", "dr", "prof", "professor",
+  "inspector", "sir", "lord", "lady", "detective", "sergeant", "sgt", "captain", "capt", "colonel",
+  "major", "rev", "reverend", "madame", "madam", "count", "countess", "king", "queen", "st", "saint"]);
+function shortLabel(title: string): string {
+  const words = title.trim().split(/\s+/);
+  let i = 0;
+  while (i < words.length - 1 && HONORIFICS.has(words[i].toLowerCase().replace(/\.$/, ""))) i++;
+  return words.slice(i, i + 2).join(" ");
+}
+
 interface Edge { a: string; b: string; row: StreamRow }
 
 // The relational canvas (§9.3). Click a node to focus it and its neighbours
@@ -88,11 +101,16 @@ export function Graph({ entities, latest, ego, setEgo, go }: {
   }, []);
 
   function onMove(e: React.MouseEvent) {
-    if (!drag.current) return;
+    const d = drag.current;
+    if (!d) return;
     const rect = svgRef.current!.getBoundingClientRect();
     const f = W / rect.width;
-    setPan((p) => ({ x: p.x + (e.clientX - drag.current!.x) * f, y: p.y + (e.clientY - drag.current!.y) * f }));
-    drag.current = { x: e.clientX, y: e.clientY, moved: true };
+    // Compute the delta NOW, before advancing the drag anchor. The old code read
+    // drag.current inside the setPan updater, which React runs after this handler
+    // has already reset the anchor to the current point → delta always 0 → no pan.
+    const dx = (e.clientX - d.x) * f, dy = (e.clientY - d.y) * f;
+    d.x = e.clientX; d.y = e.clientY; d.moved = true;
+    setPan((p) => ({ x: p.x + dx, y: p.y + dy }));
   }
 
   const selEntity = sel ? entById.get(sel) : null;
@@ -104,14 +122,16 @@ export function Graph({ entities, latest, ego, setEgo, go }: {
 
   return (
     <div className="card" style={{ position: "relative" }}>
-      <svg ref={svgRef} width="100%" viewBox={`0 0 ${W} ${H}`}
-        style={{ display: "block", background: "var(--k-bg-surface)", cursor: drag.current ? "grabbing" : "grab", touchAction: "none" }}
+      <svg ref={svgRef} width="100%" height="100%" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="xMidYMid meet"
+        style={{ display: "block", aspectRatio: `${W} / ${H}`, background: "var(--k-bg-surface)", cursor: drag.current ? "grabbing" : "grab", touchAction: "none" }}
         onMouseDown={(e) => { drag.current = { x: e.clientX, y: e.clientY, moved: false }; }}
         onMouseMove={onMove}
         onMouseUp={() => { const moved = drag.current?.moved; drag.current = null; if (!moved) setSel(null); }}
         onMouseLeave={() => { drag.current = null; }}>
-        <g transform={`translate(${pan.x} ${pan.y}) translate(${W / 2} ${H / 2}) scale(${zoom}) translate(${-W / 2} ${-H / 2})`}>
-          <g style={{ transform: `translate(${cam.tx}px, ${cam.ty}px) scale(${cam.k})`, transition: "transform .5s cubic-bezier(.4,0,.2,1)" }}>
+        {/* One transform, via the SVG attribute (not a CSS transform on a <g>,
+            which Safari/Firefox position differently): pan/zoom composed with the
+            auto-fit camera. Keeps content on-screen and pan/zoom reliable. */}
+        <g transform={`translate(${pan.x} ${pan.y}) translate(${W / 2} ${H / 2}) scale(${zoom}) translate(${-W / 2} ${-H / 2}) translate(${cam.tx} ${cam.ty}) scale(${cam.k})`}>
             {edges.map((e, i) => {
               const p = pos.get(e.a), q = pos.get(e.b);
               if (!p || !q) return null;
@@ -137,16 +157,15 @@ export function Graph({ entities, latest, ego, setEgo, go }: {
                   onMouseDown={(ev) => ev.stopPropagation()}
                   onClick={(ev) => { ev.stopPropagation(); setSel(id); }}
                   onDoubleClick={(ev) => { ev.stopPropagation(); setEgo(ego === id ? null : id); setSel(null); }}>
-                  <circle cx={p.x} cy={p.y} r={r} fill={isSel ? "var(--bondBg)" : "color-mix(in srgb, var(--k-text-primary) 7%, var(--k-bg-surface))"}
+                  <circle cx={p.x} cy={p.y} r={r} fill={isSel ? "var(--bondBg)" : "var(--wash)"}
                     stroke={isSel ? "var(--bond)" : "var(--lineStrong)"} strokeWidth={(isSel ? 2.5 : 1.4) / cam.k} />
                   <text x={p.x} y={p.y + r + 13 / cam.k} fontSize={11 / cam.k} textAnchor="middle"
                     fill={isSel ? "var(--bond)" : "var(--sub)"} fontWeight={isSel || deg >= 3 ? 600 : 450} fontFamily="var(--sans)">
-                    {ent?.title.startsWith("The ") ? ent.title.split(" ").slice(0, 2).join(" ") : ent?.title.split(" ")[0]}
+                    {ent ? shortLabel(ent.title) : ""}
                   </text>
                 </g>
               );
             })}
-          </g>
         </g>
       </svg>
 

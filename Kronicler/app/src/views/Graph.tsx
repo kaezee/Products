@@ -122,8 +122,8 @@ export function Graph({ entities, latest, ego, setEgo, go }: {
 
   return (
     <div className="card" style={{ position: "relative" }}>
-      <svg ref={svgRef} width="100%" height="100%" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="xMidYMid meet"
-        style={{ display: "block", aspectRatio: `${W} / ${H}`, background: "var(--k-bg-surface)", cursor: drag.current ? "grabbing" : "grab", touchAction: "none" }}
+      <svg ref={svgRef} viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="xMidYMid meet"
+        style={{ display: "block", width: "100%", aspectRatio: `${W} / ${H}`, maxHeight: "64vh", background: "var(--k-bg-surface)", cursor: drag.current ? "grabbing" : "grab", touchAction: "none" }}
         onMouseDown={(e) => { drag.current = { x: e.clientX, y: e.clientY, moved: false }; }}
         onMouseMove={onMove}
         onMouseUp={() => { const moved = drag.current?.moved; drag.current = null; if (!moved) setSel(null); }}

@@ -18,7 +18,7 @@ import { SkeletonRows } from "../components/Skeleton";
 // Segments are the one grouping shared with the Timeline — Series › Book ›
 // Season › Volume, nested to any depth. Here each is a collapsible section so a
 // long manuscript folds to its parts, and chapters can be filed into them.
-export function Manuscript({ worldId, focusChapterId, go, onLeaf }: { worldId: string; focusChapterId?: string; go: (n: Nav) => void; onLeaf?: (l: LeafCrumb | null) => void }) {
+export function Manuscript({ worldId, focusChapterId, openImport, go, onLeaf }: { worldId: string; focusChapterId?: string; openImport?: boolean; go: (n: Nav) => void; onLeaf?: (l: LeafCrumb | null) => void }) {
   const [chapters, setChapters] = useState<Chapter[] | null>(null);
   const [segments, setSegments] = useState<Segment[]>([]);
   const [kinds, setKinds] = useState<SegmentKind[]>([]);
@@ -32,7 +32,7 @@ export function Manuscript({ worldId, focusChapterId, go, onLeaf }: { worldId: s
   const [overIndex, setOverIndex] = useState<number | null>(null);
   const [renameId, setRenameId] = useState<string | null>(null);
   const [renameDraft, setRenameDraft] = useState("");
-  const [importing, setImporting] = useState(false);
+  const [importing, setImporting] = useState(!!openImport);
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const [selected, setSelected] = useState<Set<string>>(new Set());
 
@@ -296,13 +296,14 @@ export function Manuscript({ worldId, focusChapterId, go, onLeaf }: { worldId: s
         <h2 className="scope-title">Manuscript</h2>
         <span className="spacer" />
         <button onClick={() => addSegment(null)} title="Add a top-level grouping (series, book, season…)">+ Segment</button>
-        <button onClick={() => setImporting(true)}>Import .docx</button>
+        <button onClick={() => setImporting(true)} title="Bring a manuscript from Google Docs or Word — upload a .docx or paste">Import / paste</button>
         {!adding && <button onClick={() => { setAdding(true); setNewTitle(""); }}>+ New chapter</button>}
       </div>
 
       {importing && (
         <ImportDocx worldId={worldId} mode="chapters"
           startOrder={(chapters ?? []).reduce((m, c) => Math.max(m, c.manuscript_order), 0) + 1}
+          existingTitles={entities.map((e) => e.title)}
           onClose={() => setImporting(false)} onDone={() => reload()} />
       )}
 

@@ -34,7 +34,7 @@ export function App() {
 }
 
 type Scope = "overview" | "library" | "manuscript" | "timeline" | "relationships" | "notes" | "settings";
-export interface Nav { scope: Scope; entityId?: string; chapterId?: string }
+export interface Nav { scope: Scope; entityId?: string; chapterId?: string; openImport?: boolean }
 
 // The rail is split write-first: the everyday writing tools up top, the
 // analysis tools (timeline, relationships) under a divider — so a newcomer
@@ -342,7 +342,7 @@ function Workspace({ session }: { session: Session }) {
               ) : nav.scope === "library" ? (
                 <Library key={worldId + (nav.entityId ?? "")} worldId={worldId} focusEntityId={nav.entityId} onLeaf={setLeaf} />
               ) : nav.scope === "manuscript" ? (
-                <Manuscript key={worldId + (nav.chapterId ?? "")} worldId={worldId} focusChapterId={nav.chapterId} go={go} onLeaf={setLeaf} />
+                <Manuscript key={worldId + (nav.chapterId ?? "")} worldId={worldId} focusChapterId={nav.chapterId} openImport={nav.openImport} go={go} onLeaf={setLeaf} />
               ) : nav.scope === "timeline" ? (
                 <WorldTimeline key={worldId} worldId={worldId} go={go} />
               ) : nav.scope === "notes" ? (

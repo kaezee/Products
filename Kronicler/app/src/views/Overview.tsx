@@ -146,6 +146,17 @@ export function Overview({ worldId, go }: { worldId: string; go: (n: Nav) => voi
       <h2 className="scope-title">Overview</h2>
       <p className="scope-sub">{shape}</p>
 
+      {stats.total === 0 && (
+        <button className="migrate-cta" onClick={() => go({ scope: "manuscript", openImport: true })}>
+          <span className="migrate-icon"><Icon name="manuscript" size={18} /></span>
+          <span style={{ minWidth: 0 }}>
+            <span className="migrate-title">Already writing in Google Docs or Word?</span>
+            <span className="migrate-desc">Bring your manuscript over — upload a .docx or paste it in. We’ll split it into chapters and surface the cast we spot in the prose.</span>
+          </span>
+          <Icon name="arrow" size={16} style={{ color: "var(--faint)", flex: "0 0 auto" }} />
+        </button>
+      )}
+
       {showChecklist && (
         <div className="checklist">
           <div className="checklist-head">

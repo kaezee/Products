@@ -8,8 +8,9 @@ import { TypeStyleEditor } from "./TypeStyleEditor";
 import { Icon } from "../components/icons";
 import { confirmDialog } from "../components/confirm";
 import { SkeletonRows } from "../components/Skeleton";
+import type { LeafCrumb } from "../App";
 
-export function Library({ worldId, focusEntityId }: { worldId: string; focusEntityId?: string }) {
+export function Library({ worldId, focusEntityId, onLeaf }: { worldId: string; focusEntityId?: string; onLeaf?: (l: LeafCrumb | null) => void }) {
   const [entities, setEntities] = useState<Entity[] | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [activeType, setActiveType] = useState<string | null>(null);
@@ -39,6 +40,14 @@ export function Library({ worldId, focusEntityId }: { worldId: string; focusEnti
     } catch (x) { setErr(String(x)); }
   }
   useEffect(() => { void reload(); /* eslint-disable-next-line */ }, [worldId]);
+
+  // Report the open entity up to the breadcrumb (and clear it on unmount).
+  useEffect(() => {
+    const oe = openId && entities ? entities.find((e) => e.id === openId) : null;
+    onLeaf?.(oe ? { label: oe.title, onClear: () => { setOpenId(null); setOpenNew(false); void reload(); } } : null);
+    // eslint-disable-next-line
+  }, [openId, entities]);
+  useEffect(() => () => onLeaf?.(null), []); // eslint-disable-line
 
   const types = useMemo(() => {
     if (!entities) return [];

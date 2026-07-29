@@ -18,6 +18,7 @@ import { PanelToggleIcon } from "./components/SidePanel";
 import { Icon, ICON_SIZE, type IconName } from "./components/icons";
 import { ConfirmHost } from "./components/confirm";
 import { Spinner } from "./components/Skeleton";
+import { Breadcrumb, type Crumb } from "./components/Breadcrumb";
 
 const THEME_CYCLE: Theme[] = ["paper", "grey", "dark", "system"];
 const THEME_ICON: Record<Theme, IconName> = { paper: "theme-paper", grey: "theme-grey", dark: "theme-dark", system: "theme-system" };
@@ -44,10 +45,26 @@ const RAIL: [Scope, string, IconName][] = [
   ["notes", "Notes", "notes"],
 ];
 
+// Label + icon per scope, for the breadcrumb trail (settings isn't in the rail).
+const SCOPE_META: Record<Scope, { label: string; icon: IconName }> = {
+  overview: { label: "Overview", icon: "overview" },
+  library: { label: "Library", icon: "library" },
+  manuscript: { label: "Manuscript", icon: "manuscript" },
+  timeline: { label: "Timeline", icon: "timeline" },
+  relationships: { label: "Relationships", icon: "relationships" },
+  notes: { label: "Notes", icon: "notes" },
+  settings: { label: "Settings", icon: "settings" },
+};
+
+// A leaf a view opens inside itself (a chapter, an entity) — reported up so the
+// trail can show it and route back. onClear closes the leaf within the view.
+export interface LeafCrumb { label: string; onClear: () => void }
+
 function Workspace({ session }: { session: Session }) {
   const [worlds, setWorlds] = useState<World[] | null>(null);
   const [worldId, setWorldId] = useState<string | null>(null);
   const [nav, setNav] = useState<Nav>({ scope: "overview" });
+  const [leaf, setLeaf] = useState<LeafCrumb | null>(null); // chapter/entity open inside a view
   const [query, setQuery] = useState("");
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -136,11 +153,24 @@ function Workspace({ session }: { session: Session }) {
     } catch (x) { setErr(String(x)); }
   }
 
-  function go(n: Nav) { setQuery(""); setNav(n); }
+  function go(n: Nav) { setQuery(""); setLeaf(null); setNav(n); }
 
   if (!worlds) return <div className="center"><Spinner size={26} /><span className="muted">Loading your worlds…</span></div>;
 
   const searching = query.trim().length >= 2;
+
+  // Breadcrumb trail: Overview › Section › Leaf. Empty on the bare dashboard.
+  const crumbs: Crumb[] = [];
+  if (searching) {
+    crumbs.push({ label: "Overview", icon: "overview", onClick: () => go({ scope: "overview" }) });
+    crumbs.push({ label: `“${query.trim()}”`, icon: "search" });
+  } else if (nav.scope !== "overview") {
+    const m = SCOPE_META[nav.scope];
+    crumbs.push({ label: "Overview", icon: "overview", onClick: () => go({ scope: "overview" }) });
+    // The section crumb closes an open leaf when there is one; otherwise it's the current page.
+    crumbs.push({ label: m.label, icon: m.icon, onClick: leaf ? leaf.onClear : undefined });
+    if (leaf) crumbs.push({ label: leaf.label });
+  }
 
   return (
     <div className="page">
@@ -229,6 +259,7 @@ function Workspace({ session }: { session: Session }) {
             {/* main */}
             <div className="main">
               {err && <p className="err">{err}</p>}
+              {worldId && <Breadcrumb items={crumbs} />}
               {!worldId ? (
                 <div className="card"><div className="row"><span className="muted">
                   No worlds yet — hit the K chip up top to create one. It seeds your starter vocabulary automatically.
@@ -238,9 +269,9 @@ function Workspace({ session }: { session: Session }) {
               ) : nav.scope === "overview" ? (
                 <Overview worldId={worldId} go={go} />
               ) : nav.scope === "library" ? (
-                <Library key={worldId + (nav.entityId ?? "")} worldId={worldId} focusEntityId={nav.entityId} />
+                <Library key={worldId + (nav.entityId ?? "")} worldId={worldId} focusEntityId={nav.entityId} onLeaf={setLeaf} />
               ) : nav.scope === "manuscript" ? (
-                <Manuscript key={worldId + (nav.chapterId ?? "")} worldId={worldId} focusChapterId={nav.chapterId} go={go} />
+                <Manuscript key={worldId + (nav.chapterId ?? "")} worldId={worldId} focusChapterId={nav.chapterId} go={go} onLeaf={setLeaf} />
               ) : nav.scope === "timeline" ? (
                 <WorldTimeline key={worldId} worldId={worldId} go={go} />
               ) : nav.scope === "notes" ? (

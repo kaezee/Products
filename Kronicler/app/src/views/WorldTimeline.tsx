@@ -207,9 +207,12 @@ export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) =
       return { lo: lo - pad, hi: hi + pad, knownLo: lo, knownHi: hi };
     }
     const knownLo = yearToDay(known.start), knownHi = yearToDay(known.end) + dpy - 1;
-    // A fixed ±500-year buffer around known time (unioned with content so nothing
-    // is ever stranded). Known time is the focus; the buffer is breathing room.
-    const pad = 500 * dpy;
+    // Buffer around known time = breathing room, scaled to the story's own length
+    // so it never dwarfs a short timeline. A 50-year world gets ±50 years; a
+    // millennium-spanning one caps at ±500. Unioned with content so nothing is
+    // ever stranded.
+    const knownSpanYears = Math.max(1, known.end - known.start);
+    const pad = Math.min(500, Math.max(50, knownSpanYears)) * dpy;
     const lo = (content ? Math.min(knownLo, content.lo) : knownLo) - pad;
     const hi = (content ? Math.max(knownHi, content.hi) : knownHi) + pad;
     return { lo, hi, knownLo, knownHi };
@@ -592,9 +595,19 @@ export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) =
           onDragOver={onBoardDragOver} onDrop={onBoardDrop} onDragLeave={() => setDropHint(null)}>
           {chapters.length === 0 && (
             <div className="wt2-empty">
-              <div className="wt2-empty-title">Your timeline is empty</div>
-              <div className="wt2-empty-sub">Timelines are built from dated chapters. Write a chapter, give it an in-world date, and it lands here on the line.</div>
-              <button className="primary" onClick={() => go({ scope: "manuscript" })}>Open the Manuscript</button>
+              <div className="wt2-empty-card">
+                <span className="wt2-empty-icon"><Icon name="timeline" size={26} /></span>
+                <div className="wt2-empty-title">Your story hasn’t reached the timeline yet</div>
+                <div className="wt2-empty-sub">The timeline draws itself from your chapters. Write one, give it an in-world date, and it drops onto the line here — no manual plotting.</div>
+                <div className="wt2-empty-steps">
+                  <span><b>1</b> Write a chapter</span>
+                  <span className="wt2-empty-arrow"><Icon name="arrow" size={13} /></span>
+                  <span><b>2</b> Give it a date</span>
+                  <span className="wt2-empty-arrow"><Icon name="arrow" size={13} /></span>
+                  <span><b>3</b> It lands here</span>
+                </div>
+                <button className="primary" onClick={() => go({ scope: "manuscript" })}>Open the Manuscript</button>
+              </div>
             </div>
           )}
           {/* Known time is the bright focus; the buffer is dim. Editing lives in
@@ -636,7 +649,7 @@ export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) =
             )}
 
             {segments.length === 0 && markers.length === 0 && (
-              <div className="wt2-empty">Add a segment (a series, book, or season), then date chapters or bulk-add them from the sidebar. Dated chapters appear here; the ruler is bounded by your world's known time.</div>
+              <div className="wt2-empty-hint">Add a segment (a series, book, or season), then date chapters or bulk-add them from the sidebar. Dated chapters appear here; the ruler is bounded by your world's known time.</div>
             )}
 
             {rows.list.map(({ seg, depth, y }) => {

@@ -326,6 +326,12 @@ button.danger:hover:not(:disabled) { filter: brightness(0.93); background: var(-
 .rich .ment { border-radius: 3px; padding: 0 1px; background: var(--k-ment-tint, var(--k-action-subtle)); }
 
 /* Notes board (canvas-lite) */
+/* Relationships graph fills the pane like the Notes board (no fixed viewBox
+   letterbox): the view is a flex column, the graph card takes the slack. */
+.rel-view { height: 100%; display: flex; flex-direction: column; min-height: 0; }
+.rel-stage { flex: 1; min-height: 0; display: flex; }
+.graph-card { flex: 1; min-height: 320px; position: relative; overflow: hidden; }
+
 /* Notes fills the pane instead of a fixed 68vh (which left dead space below). */
 .notes-view { height: 100%; display: flex; flex-direction: column; min-height: 0; }
 .notes-board { position: relative; flex: 1; min-height: 320px; overflow: hidden; border: 1px solid var(--line); border-radius: 12px; background: var(--k-bg-surface) repeating-linear-gradient(0deg, transparent, transparent 23px, color-mix(in srgb, var(--k-text-primary) 4%, transparent) 24px), repeating-linear-gradient(90deg, transparent, transparent 23px, color-mix(in srgb, var(--k-text-primary) 4%, transparent) 24px); cursor: grab; }

@@ -78,11 +78,19 @@ export async function softDeleteNote(id: string): Promise<void> {
 export async function getMyWorlds(): Promise<World[]> {
   const { data, error } = await supabase
     .from("worlds")
-    .select("id, owner_id, name, calendar, known_start_year, known_end_year")
+    .select("id, owner_id, name, calendar, known_start_year, known_end_year, is_sample")
     .is("deleted_at", null)
     .order("created_at", { ascending: true });
   if (error) throw error;
   return data ?? [];
+}
+
+// Build the seeded example world (Sherlock Holmes) for the current user and
+// return its id. Server-side (migration 0023) — one round-trip, fully populated.
+export async function seedSampleWorld(): Promise<string> {
+  const { data, error } = await supabase.rpc("seed_sample_world");
+  if (error) throw error;
+  return data as string;
 }
 
 // Soft-delete a whole world. RLS ensures only the owner can. Everything under

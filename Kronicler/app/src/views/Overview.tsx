@@ -25,6 +25,7 @@ export function Overview({ worldId, go }: { worldId: string; go: (n: Nav) => voi
   const [chapters, setChapters] = useState<Chapter[]>([]);
   const [err, setErr] = useState<string | null>(null);
   const [allOrphans, setAllOrphans] = useState(false);
+  const [checklistOff, setChecklistOff] = useState(() => localStorage.getItem(`k.checklist.${worldId}`) === "1");
 
   const ORPHAN_CAP = 8;
 
@@ -128,10 +129,44 @@ export function Overview({ worldId, go }: { worldId: string; go: (n: Nav) => voi
     { key: "dated", icon: "timeline", label: "Dated", value: `${fmt(stats.dated)}/${fmt(stats.total)}`, sub: "on the timeline", nav: { scope: "timeline" } },
   ];
 
+  // Getting-started checklist — the dashboard's "taking shape" state. Each step
+  // checks off from real data; the card retires itself once all four are done.
+  const steps: { done: boolean; label: string; desc: string; nav: Nav }[] = [
+    { done: stats.entities > 0, label: "Add your cast", desc: "A character, a place, a faction — anyone in your world.", nav: { scope: "library" } },
+    { done: stats.total > 0, label: "Write a chapter", desc: "Even just a title is enough to begin.", nav: { scope: "manuscript" } },
+    { done: stats.relCount > 0, label: "Mark a moment", desc: "In a chapter, select a line and record what happens between two characters.", nav: { scope: "manuscript" } },
+    { done: stats.dated > 0, label: "Place it in time", desc: "Give a chapter a date and it lands on your timeline.", nav: { scope: "timeline" } },
+  ];
+  const doneCount = steps.filter((s) => s.done).length;
+  const showChecklist = !checklistOff && doneCount < steps.length;
+  function dismissChecklist() { localStorage.setItem(`k.checklist.${worldId}`, "1"); setChecklistOff(true); }
+
   return (
     <div className="fi">
       <h2 className="scope-title">Overview</h2>
       <p className="scope-sub">{shape}</p>
+
+      {showChecklist && (
+        <div className="checklist">
+          <div className="checklist-head">
+            <span className="checklist-title">Getting started</span>
+            <span className="checklist-count">{doneCount} of {steps.length}</span>
+            <span className="spacer" style={{ flex: 1 }} />
+            <span className="checklist-dismiss" title="Dismiss" onClick={dismissChecklist}><Icon name="close" size={14} /></span>
+          </div>
+          {steps.map((s, i) => (
+            <div className={"checklist-step" + (s.done ? " done" : "")} key={i} onClick={() => !s.done && go(s.nav)}>
+              <span className="checklist-mark">{s.done ? <Icon name="done" size={16} /> : <span className="checklist-circle" />}</span>
+              <span style={{ minWidth: 0 }}>
+                <span className="checklist-label">{s.label}</span>
+                <span className="checklist-desc">{s.desc}</span>
+              </span>
+              {!s.done && <span className="spacer" style={{ flex: 1 }} />}
+              {!s.done && <Icon name="arrow" size={14} style={{ color: "var(--faint)", flex: "0 0 auto" }} />}
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* World at a glance */}
       <div className="dash-stats">

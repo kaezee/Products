@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { supabase } from "./lib/supabase";
-import { getMyWorlds, createWorld, softDeleteWorld, renameWorld } from "./lib/api";
+import { getMyWorlds, createWorld, softDeleteWorld, renameWorld, seedSampleWorld } from "./lib/api";
 import type { World } from "./lib/types";
 import { AuthGate } from "./auth/AuthGate";
 import { Library } from "./views/Library";
@@ -73,6 +73,7 @@ function Workspace({ session }: { session: Session }) {
   const [railCollapsed, setRailCollapsed] = useState(() => localStorage.getItem("k.rail") === "1");
   const [theme, setThemeState] = useState<Theme>(getStoredTheme());
   const [appearanceOpen, setAppearanceOpen] = useState(false);
+  const [seeding, setSeeding] = useState(false);
   const appearanceRef = useRef<HTMLDivElement>(null);
 
   function toggleRail() {
@@ -83,8 +84,26 @@ function Workspace({ session }: { session: Session }) {
   useEffect(() => {
     let alive = true;
     getMyWorlds()
-      .then((w) => {
+      .then(async (w) => {
         if (!alive) return;
+        // First-ever visit with nothing here → seed the example world so the
+        // first thing a new writer sees is a full, explorable world.
+        if (w.length === 0 && !localStorage.getItem("k.onboarded")) {
+          setSeeding(true);
+          try {
+            const id = await seedSampleWorld();
+            localStorage.setItem("k.onboarded", "1");
+            const w2 = await getMyWorlds();
+            if (!alive) return;
+            setWorlds(w2);
+            setWorldId(w2.find((x) => x.id === id)?.id ?? w2[0]?.id ?? null);
+          } catch {
+            if (alive) { setWorlds(w); setWorldId(null); } // seeding failed → empty state
+          } finally {
+            if (alive) setSeeding(false);
+          }
+          return;
+        }
         setWorlds(w);
         setWorldId((cur) => cur ?? w[0]?.id ?? null);
       })
@@ -121,9 +140,23 @@ function Workspace({ session }: { session: Session }) {
     if (!name) return;
     try {
       const w = await createWorld(name);
+      localStorage.setItem("k.onboarded", "1");
       setWorlds((prev) => [...(prev ?? []), w]);
       setWorldId(w.id);
     } catch (x) { setErr(String(x)); }
+  }
+
+  // Re-add the seeded example world on demand (world switcher / empty state).
+  async function loadExample() {
+    setSeeding(true);
+    try {
+      const id = await seedSampleWorld();
+      localStorage.setItem("k.onboarded", "1");
+      const w = await getMyWorlds();
+      setWorlds(w);
+      setWorldId(id);
+      go({ scope: "overview" });
+    } catch (x) { setErr(String(x)); } finally { setSeeding(false); }
   }
 
   function startRename() {
@@ -155,7 +188,12 @@ function Workspace({ session }: { session: Session }) {
 
   function go(n: Nav) { setQuery(""); setLeaf(null); setNav(n); }
 
-  if (!worlds) return <div className="center"><Spinner size={26} /><span className="muted">Loading your worlds…</span></div>;
+  if (!worlds) return (
+    <div className="center">
+      <Spinner size={26} />
+      <span className="muted">{seeding ? "Building your example world — Sherlock Holmes, fully populated…" : "Loading your worlds…"}</span>
+    </div>
+  );
 
   const searching = query.trim().length >= 2;
 
@@ -189,7 +227,7 @@ function Workspace({ session }: { session: Session }) {
               ) : worlds.length > 0 ? (
                 <select value={worldId ?? ""} onChange={(e) => setWorldId(e.target.value)}
                   style={{ border: "none", background: "transparent", fontWeight: 600, padding: 0, cursor: "pointer" }}>
-                  {worlds.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
+                  {worlds.map((w) => <option key={w.id} value={w.id}>{w.name}{w.is_sample ? "  · Example" : ""}</option>)}
                 </select>
               ) : <span style={{ fontWeight: 600 }}>Kronicler</span>}
               {worldId && !renamingWorld && (
@@ -199,6 +237,10 @@ function Workspace({ session }: { session: Session }) {
               {!renamingWorld && (
                 <span title="New world" onClick={makeWorld}
                   style={{ cursor: "pointer", color: "var(--muted)", display: "inline-flex", padding: "0 2px" }}><Icon name="plus" size={ICON_SIZE.md} /></span>
+              )}
+              {!renamingWorld && !worlds.some((w) => w.is_sample) && (
+                <span title="Load the example world (Sherlock Holmes)" onClick={() => !seeding && loadExample()}
+                  style={{ cursor: "pointer", color: "var(--muted)", display: "inline-flex", padding: "0 2px", opacity: seeding ? 0.5 : 1 }}><Icon name="book" size={ICON_SIZE.md} /></span>
               )}
             </div>
             <div className="searchwrap">
@@ -261,9 +303,19 @@ function Workspace({ session }: { session: Session }) {
               {err && <p className="err">{err}</p>}
               {worldId && <Breadcrumb items={crumbs} />}
               {!worldId ? (
-                <div className="card"><div className="row"><span className="muted">
-                  No worlds yet — hit the K chip up top to create one. It seeds your starter vocabulary automatically.
-                </span></div></div>
+                <div className="empty-hero">
+                  <h2 className="scope-title" style={{ marginBottom: 6 }}>Start your first world</h2>
+                  <p className="scope-sub" style={{ maxWidth: 460 }}>
+                    A world holds your cast, your chapters, your timeline, and the web of who-knows-what.
+                    Begin from scratch, or explore a finished example first.
+                  </p>
+                  <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 4 }}>
+                    <button className="primary" onClick={makeWorld}>Create a world</button>
+                    <button onClick={loadExample} disabled={seeding} style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                      {seeding ? <Spinner size={13} /> : <Icon name="book" size={14} />} Explore the example (Sherlock Holmes)
+                    </button>
+                  </div>
+                </div>
               ) : searching ? (
                 <SearchResults key={worldId} worldId={worldId} query={query} go={go} />
               ) : nav.scope === "overview" ? (

@@ -590,6 +590,13 @@ export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) =
       <div className="wt2-wrap">
         <div ref={boardRef} className="wt2-board" onMouseDown={onDown} onMouseMove={onMove} onMouseUp={onUp} onMouseLeave={onUp}
           onDragOver={onBoardDragOver} onDrop={onBoardDrop} onDragLeave={() => setDropHint(null)}>
+          {chapters.length === 0 && (
+            <div className="wt2-empty">
+              <div className="wt2-empty-title">Your timeline is empty</div>
+              <div className="wt2-empty-sub">Timelines are built from dated chapters. Write a chapter, give it an in-world date, and it lands here on the line.</div>
+              <button className="primary" onClick={() => go({ scope: "manuscript" })}>Open the Manuscript</button>
+            </div>
+          )}
           {/* Known time is the bright focus; the buffer is dim. Editing lives in
               the panel's World clock section, not on the canvas. */}
           {!ms && <>

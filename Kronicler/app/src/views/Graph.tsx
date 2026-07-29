@@ -66,11 +66,13 @@ export function Graph({ entities, latest, ego, setEgo, go }: {
     if (pts.length === 0) return { k: 1, tx: W / 2, ty: H / 2 };
     const xs = pts.map((p) => p.x), ys = pts.map((p) => p.y);
     const x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
-    // Generous padding + a modest zoom cap so the graph opens zoomed OUT — the
-    // whole web in view — rather than filling the frame with two nodes.
-    const pad = 0.85;
+    // Fit the whole web to fill the frame (a little breathing room via pad).
+    // The cap only stops a 1–2 node graph from ballooning; for anything bigger
+    // the fit-to-frame wins, so the graph uses its space instead of sitting as
+    // a small blob with empty margins.
+    const pad = 0.5;
     const spanX = (x1 - x0) + pad * 2 || 1, spanY = (y1 - y0) + pad * 2 || 1;
-    const k = Math.min(W / spanX, H / spanY, 92);
+    const k = Math.min(W / spanX, H / spanY, 160);
     return { k, tx: W / 2 - k * (x0 + x1) / 2, ty: H / 2 - k * (y0 + y1) / 2 };
   }, [pos, nodes]);
 

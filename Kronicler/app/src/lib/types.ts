@@ -12,6 +12,7 @@ export interface World {
   calendar?: import("./worldTime").Calendar;
   known_start_year?: number;
   known_end_year?: number;
+  deleted_at?: string | null; // set only on trash reads
 }
 
 export interface Entity {
@@ -22,6 +23,7 @@ export interface Entity {
   aliases: string[];
   body: string;
   tags: string[];
+  deleted_at?: string | null; // set only on trash reads
 }
 
 export interface RelationshipType {
@@ -71,6 +73,7 @@ export interface Chapter {
   day_num_start: number | null;
   day_num_end: number | null;
   anachronic: boolean;
+  deleted_at?: string | null; // set only on trash reads
 }
 
 // A world's entity type registry entry (design doc 2). Owns a curated swatch,

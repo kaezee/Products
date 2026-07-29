@@ -8,6 +8,7 @@ import type { Nav } from "../App";
 import { VALENCE_COLOR } from "../lib/valence";
 import { Icon, type IconName } from "../components/icons";
 import { confirmDialog } from "../components/confirm";
+import { Skeleton } from "../components/Skeleton";
 
 const DORMANT_GAP = 5;
 
@@ -105,7 +106,7 @@ export function Overview({ worldId, go }: { worldId: string; go: (n: Nav) => voi
   }
 
   if (err) return <p className="err">{err}</p>;
-  if (!stream) return <p className="muted">Loading…</p>;
+  if (!stream) return <OverviewSkeleton />;
 
   const who = (s: StreamRow) => s.participants.map((p) => p.title).join(" · ");
   const attentionCount = duplicates.length + contradictions.length + orphaned.length + dormant.length + orphans.length + ironies.length;
@@ -254,6 +255,49 @@ export function Overview({ worldId, go }: { worldId: string; go: (n: Nav) => voi
             )}
           </div>
         </div>
+      </div>
+    </div>
+  );
+}
+
+// Mirrors the real dashboard's shape so nothing jumps when data lands.
+function OverviewSkeleton() {
+  return (
+    <div className="fi">
+      <Skeleton w={150} h={26} r={7} style={{ marginBottom: 8 }} />
+      <Skeleton w={320} h={13} style={{ marginBottom: 18 }} />
+      <div className="dash-stats">
+        {Array.from({ length: 6 }).map((_, i) => (
+          <div key={i} className="stat" style={{ cursor: "default" }}>
+            <Skeleton w={70} h={11} />
+            <Skeleton w={54} h={24} r={7} style={{ margin: "2px 0" }} />
+            <Skeleton w={84} h={11} />
+          </div>
+        ))}
+      </div>
+      <div className="dash-continue" style={{ background: "var(--surface)", borderColor: "var(--line)" }}>
+        <Skeleton w={40} h={40} r={11} style={{ flex: "0 0 auto" }} />
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 6 }}>
+          <Skeleton w={120} h={11} />
+          <Skeleton w={220} h={18} r={7} />
+          <Skeleton w={140} h={12} />
+        </div>
+        <Skeleton w={120} h={34} r={8} style={{ flex: "0 0 auto" }} />
+      </div>
+      <div className="dash-cols">
+        {Array.from({ length: 2 }).map((_, c) => (
+          <div key={c}>
+            <Skeleton w={130} h={11} style={{ margin: "0 0 8px" }} />
+            <div className="card">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <div className="row" key={i} style={{ borderBottom: i === 3 ? "none" : undefined }}>
+                  <Skeleton w={9} h={9} r={9} style={{ flex: "0 0 auto" }} />
+                  <Skeleton w={`${50 + ((i * 11) % 30)}%`} h={13} />
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   );

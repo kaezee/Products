@@ -7,6 +7,7 @@ import { ImportDocx } from "./ImportDocx";
 import { TypeStyleEditor } from "./TypeStyleEditor";
 import { Icon } from "../components/icons";
 import { confirmDialog } from "../components/confirm";
+import { SkeletonRows } from "../components/Skeleton";
 
 export function Library({ worldId, focusEntityId }: { worldId: string; focusEntityId?: string }) {
   const [entities, setEntities] = useState<Entity[] | null>(null);
@@ -95,7 +96,7 @@ export function Library({ worldId, focusEntityId }: { worldId: string; focusEnti
   }
 
   if (err) return <p className="err">{err}</p>;
-  if (!entities) return <p className="muted">Loading entities…</p>;
+  if (!entities) return <SkeletonRows rows={6} />;
 
   const openEntity = openId ? entities.find((e) => e.id === openId) : null;
   if (openEntity) {

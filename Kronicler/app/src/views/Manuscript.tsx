@@ -13,6 +13,7 @@ import type { Nav } from "../App";
 import { Icon } from "../components/icons";
 import { SwatchPicker } from "../components/SwatchPicker";
 import { confirmDialog } from "../components/confirm";
+import { SkeletonRows } from "../components/Skeleton";
 
 // Segments are the one grouping shared with the Timeline — Series › Book ›
 // Season › Volume, nested to any depth. Here each is a collapsible section so a
@@ -161,7 +162,7 @@ export function Manuscript({ worldId, focusChapterId, go }: { worldId: string; f
   const gi = useMemo(() => new Map((chapters ?? []).map((c, i) => [c.id, i])), [chapters]);
 
   if (err) return <p className="err">{err}</p>;
-  if (!chapters) return <p className="muted">Loading manuscript…</p>;
+  if (!chapters) return <SkeletonRows rows={6} />;
 
   const open = openId ? chapters.find((c) => c.id === openId) : null;
   if (open) {

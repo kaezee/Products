@@ -49,6 +49,27 @@ function SignIn() {
     }
   }
 
+  // No-signup guest access: an anonymous session that lands straight in the
+  // seeded example world. Clearing the onboarding flag guarantees the example
+  // is (re)seeded so a guest never sees an empty app.
+  async function guest() {
+    setErr(null);
+    setBusy(true);
+    try {
+      try { localStorage.removeItem("k.onboarded"); } catch { /* private mode */ }
+      const { error } = await supabase.auth.signInAnonymously();
+      if (error) {
+        setErr(/anonymous|disabled|not enabled/i.test(error.message)
+          ? "Guest access isn't switched on for this project yet."
+          : error.message);
+      }
+    } catch (x) {
+      setErr(x instanceof Error ? x.message : String(x));
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
     <div className="center">
       <h1 style={{ fontFamily: "var(--serif)", fontWeight: 500, margin: 0 }}>Kronicler</h1>
@@ -62,6 +83,13 @@ function SignIn() {
         </button>
         <span className="muted" style={{ cursor: "pointer" }} onClick={() => { setMode(mode === "in" ? "up" : "in"); setErr(null); }}>
           {mode === "in" ? "No account? Create one" : "Have an account? Sign in"}
+        </span>
+        <div className="auth-or"><span>or</span></div>
+        <button type="button" onClick={guest} disabled={busy}>
+          {busy ? "…" : "Explore as a guest"}
+        </button>
+        <span className="faint" style={{ fontSize: 11, textAlign: "center" }}>
+          Jump straight into an example world — no email needed.
         </span>
       </form>
     </div>

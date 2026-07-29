@@ -235,7 +235,7 @@ export function EntityPage({ entity, onBack, onChanged, startEditing }: {
   return (
     <div className="fi">
       <div className="row" style={{ borderBottom: "none", padding: 0, marginBottom: 8 }}>
-        <span className="tab" onClick={onBack} style={{ paddingLeft: 0, display: "inline-flex", alignItems: "center", gap: 4 }}><Icon name="chevron-left" size={15} /> Library</span>
+        <span className="tab" onClick={onBack} style={{ paddingLeft: 0, display: "inline-flex", alignItems: "center", gap: 4 }}><Icon name="chevron-left" size={15} /> Codex</span>
         <span className="spacer" />
         {!editing ? (
           <>
@@ -483,7 +483,7 @@ function AddConnection({ worldId, selfId, selfTitle, others, types, onAdded, onC
               ))}
               {canMint && (
                 <div className="ta-row" style={{ flexDirection: "column", alignItems: "flex-start", gap: 6 }}>
-                  <span className="muted">mint "{tq.trim()}" as a new type — pick a family:</span>
+                  <span className="muted">mint "{tq.trim()}" as a new type — pick a tone:</span>
                   <span style={{ display: "flex", gap: 6 }}>
                     {VALENCES.map((v) => (
                       <span key={v} title={v} onClick={() => setValence(v)}

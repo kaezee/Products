@@ -157,7 +157,7 @@ export function Library({ worldId, focusEntityId, onLeaf }: { worldId: string; f
   return (
     <div className="fi">
       <div className="row" style={{ borderBottom: "none", padding: 0, marginBottom: 12 }}>
-        <h2 className="scope-title">Library</h2>
+        <h2 className="scope-title">Codex</h2>
         <span className="spacer" />
         <button onClick={() => setImporting(true)}>Import .docx</button>
         {addMode !== "full" && <button onClick={openFull}>+ New</button>}
@@ -195,7 +195,7 @@ export function Library({ worldId, focusEntityId, onLeaf }: { worldId: string; f
         <>
           {/* search + sort */}
           <div className="row" style={{ borderBottom: "none", padding: 0, marginBottom: 10, gap: 8 }}>
-            <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search this library — name, alias, description…" style={{ flex: 1, maxWidth: 380 }} />
+            <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search the codex — name, alias, description…" style={{ flex: 1, maxWidth: 380 }} />
             {query && <span className="tab" onClick={() => setQuery("")}>clear</span>}
             {!query && (
               <>

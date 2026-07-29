@@ -235,7 +235,7 @@ export function EntityPage({ entity, onBack, onChanged, startEditing }: {
   return (
     <div className="fi">
       <div className="row" style={{ borderBottom: "none", padding: 0, marginBottom: 8 }}>
-        <span className="tab" onClick={onBack} style={{ paddingLeft: 0, display: "inline-flex", alignItems: "center", gap: 4 }}><Icon name="chevron-left" size={15} /> Codex</span>
+        <span className="tab" onClick={onBack} style={{ paddingLeft: 0, display: "inline-flex", alignItems: "center", gap: 4 }}><Icon name="chevron-left" size={15} /> Collection</span>
         <span className="spacer" />
         {!editing ? (
           <>
@@ -358,7 +358,7 @@ export function EntityPage({ entity, onBack, onChanged, startEditing }: {
                       <div key={h.state_id} style={{ marginBottom: 6, fontSize: 12.5 }}>
                         <span style={{ color: VALENCE_COLOR[h.valence], fontWeight: 600 }}>{h.type_label}</span>
                         <span className="muted" title="Not tied to a specific chapter"> · {h.manuscript_order != null ? `ch. ${h.manuscript_order}` : "no chapter"}</span>
-                        {concealed > 0 && <span style={{ color: "var(--hostile)", fontSize: 11 }}> · concealed ×{concealed}</span>}
+                        {concealed > 0 && <span style={{ color: "var(--hostile)", fontSize: 11 }}> · secret ×{concealed}</span>}
                         {h.note && <span className="note"> — {h.note}</span>}
                       </div>
                     );

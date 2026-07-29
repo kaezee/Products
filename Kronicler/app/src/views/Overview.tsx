@@ -132,8 +132,8 @@ export function Overview({ worldId, go }: { worldId: string; go: (n: Nav) => voi
   // Getting-started checklist — the dashboard's "taking shape" state. Each step
   // checks off from real data; the card retires itself once all four are done.
   const steps: { done: boolean; label: string; desc: string; nav: Nav }[] = [
-    { done: stats.entities > 0, label: "Add your cast", desc: "A character, a place, a faction — anyone in your world.", nav: { scope: "library" } },
-    { done: stats.total > 0, label: "Write a chapter", desc: "Even just a title is enough to begin.", nav: { scope: "manuscript" } },
+    { done: stats.total > 0, label: "Write your first chapter", desc: "Just start typing — even a title is enough to begin.", nav: { scope: "manuscript" } },
+    { done: stats.entities > 0, label: "Add someone or somewhere", desc: "A character, a place, a faction — anyone in your story.", nav: { scope: "library" } },
     { done: stats.relCount > 0, label: "Mark a moment", desc: "In a chapter, select a line and record what happens between two characters.", nav: { scope: "manuscript" } },
     { done: stats.dated > 0, label: "Place it in time", desc: "Give a chapter a date and it lands on your timeline.", nav: { scope: "timeline" } },
   ];

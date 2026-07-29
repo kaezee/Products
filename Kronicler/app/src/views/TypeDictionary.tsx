@@ -48,7 +48,7 @@ export function TypeDictionary({ worldId }: { worldId: string }) {
             <span style={{ color: VALENCE_COLOR[v], fontWeight: 600 }}>{VALENCE_LABEL[v]}</span>
           </span>
         ))}
-        <span className="faint" style={{ fontSize: 11 }}>the valence spectrum — colour carries meaning everywhere</span>
+        <span className="faint" style={{ fontSize: 11 }}>the tone spectrum — colour carries meaning everywhere</span>
       </div>
 
       <div className="card" style={{ maxWidth: 680 }}>
@@ -71,8 +71,8 @@ export function TypeDictionary({ worldId }: { worldId: string }) {
                 ))}
               </span>
               <span className={"chip click" + (t.is_ambient ? " on" : "")} onClick={() => patch(t.id, { is_ambient: !t.is_ambient })}
-                title="Ambient types (kinship, geography) don't count as dormant threads">
-                {t.is_ambient ? "ambient" : "· ambient"}
+                title="Ongoing types (kinship, geography) are always-on background ties — they don't count as quiet threads">
+                {t.is_ambient ? "ongoing" : "· ongoing"}
               </span>
               <span className="spacer" />
               <span className="muted">{uses ? `${uses} state${uses > 1 ? "s" : ""}` : "unused"}</span>
@@ -86,8 +86,8 @@ export function TypeDictionary({ worldId }: { worldId: string }) {
         })}
       </div>
       <p className="muted" style={{ marginTop: 10, maxWidth: 640 }}>
-        Rename inline. Click a dot to move a type along the valence spectrum — stream, threads, and graph recolour instantly.
-        Ambient types (kinship, geography) are excluded from dormant-thread detection. New types are minted where you write.
+        Rename inline. Click a dot to move a type along the tone spectrum — history, threads, and graph recolour instantly.
+        Ongoing types (kinship, geography) are excluded from quiet-thread detection. New types are minted where you write.
       </p>
     </div>
   );

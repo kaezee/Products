@@ -61,7 +61,7 @@ export function NoteToState({ worldId, note, entities, types, chapters, onClose,
     <div className="overlay" onClick={onClose}>
       <div className="composer" onClick={(e) => e.stopPropagation()} style={{ width: 480 }}>
         <div className="row" style={{ borderBottom: "none", padding: 0, marginBottom: 10 }}>
-          <span className="label" style={{ margin: 0 }}>Turn note into a concealed state</span>
+          <span className="label" style={{ margin: 0 }}>Turn this note into a secret</span>
           <span className="spacer" />
           <span style={{ cursor: "pointer", color: "var(--muted)" }} onClick={onClose}><Icon name="close" size={15} /></span>
         </div>
@@ -72,7 +72,7 @@ export function NoteToState({ worldId, note, entities, types, chapters, onClose,
 
         {done ? (
           <div>
-            <p style={{ fontFamily: "var(--serif)", fontSize: 15.5 }}>Recorded as a concealed state. The “As … believes” lens now hides it from whoever you kept in the dark.</p>
+            <p style={{ fontFamily: "var(--serif)", fontSize: 15.5 }}>Recorded as a secret. The “As … believes” lens now hides it from whoever you kept in the dark.</p>
             <button className="primary" onClick={onClose}>Done</button>
           </div>
         ) : (
@@ -128,7 +128,7 @@ export function NoteToState({ worldId, note, entities, types, chapters, onClose,
 
             {err && <p className="err">{err}</p>}
             <div className="row" style={{ borderBottom: "none", padding: 0, gap: 10 }}>
-              <button className="primary" onClick={commit} disabled={busy}>{busy ? "…" : "Create concealed state"}</button>
+              <button className="primary" onClick={commit} disabled={busy}>{busy ? "…" : "Make it a secret"}</button>
               <span className="muted">the note stays; this adds the real, lens-enforced secret</span>
             </div>
           </>

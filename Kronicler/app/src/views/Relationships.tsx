@@ -118,7 +118,7 @@ export function Relationships({ worldId, go }: { worldId: string; go: (n: Nav) =
             {characters.map((e) => <option key={e.id} value={e.id}>As {e.title.split(" ")[0]} believes</option>)}
           </select>
         )}
-        {hasSecrets && viewer !== "all" && <span style={{ fontSize: 11.5, color: "var(--hostile)" }}>their world — concealed truths vanish, their own beliefs stand in</span>}
+        {hasSecrets && viewer !== "all" && <span style={{ fontSize: 11.5, color: "var(--hostile)" }}>their world — secrets they don't know vanish, their own beliefs stand in</span>}
         {ego && <span className="chip on click" onClick={() => setEgo(null)}>isolated · {entities.find((e) => e.id === ego)?.title.split(" ")[0]} <Icon name="close" size={12} /></span>}
       </div>
 
@@ -155,7 +155,7 @@ export function Relationships({ worldId, go }: { worldId: string; go: (n: Nav) =
                     </span>
                   )}
                   <span className="note" style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.note}</span>
-                  {concealed > 0 && <span style={{ color: "var(--hostile)", fontSize: 11 }}>concealed ×{concealed}</span>}
+                  {concealed > 0 && <span style={{ color: "var(--hostile)", fontSize: 11 }}>secret ×{concealed}</span>}
                   <span className="muted" style={{ whiteSpace: "nowrap" }} title="Not tied to a specific chapter — a standing fact, true throughout">{s.manuscript_order != null ? `ch. ${s.manuscript_order}` : "no chapter"}</span>
                   <span className="rowact" title="Remove this relationship"
                     onClick={() => removeRelationship(s.relationship_id, s.type_label)}

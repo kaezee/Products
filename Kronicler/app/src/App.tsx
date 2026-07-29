@@ -300,6 +300,13 @@ function Workspace({ session }: { session: Session }) {
 
             {/* main */}
             <div className="main">
+              {session.user.is_anonymous && (
+                <div className="guest-banner">
+                  <Icon name="book" size={15} />
+                  <span>You're exploring as a <b>guest</b> — this world lives only in this browser.</span>
+                  <button onClick={() => go({ scope: "settings" })}>Add an email to keep it</button>
+                </div>
+              )}
               {err && <p className="err">{err}</p>}
               {worldId && <Breadcrumb items={crumbs} />}
               {!worldId ? (

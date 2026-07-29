@@ -9,6 +9,7 @@ import { parseStoryTime } from "../lib/time";
 import { buildKindSwatches } from "../lib/segmentKinds";
 import { deriveCalendar, DEFAULT_CALENDAR, type DerivedCalendar } from "../lib/worldTime";
 import { SidePanel, Disclosure } from "../components/SidePanel";
+import { EmptyState } from "../components/EmptyState";
 import { Icon } from "../components/icons";
 import { SwatchPicker } from "../components/SwatchPicker";
 import { confirmDialog } from "../components/confirm";
@@ -514,6 +515,21 @@ export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) =
     });
   };
 
+  // Nothing on the timeline yet — no chapters, segments, or notes. Show only the
+  // way in, not the ruler, toolbar, and inspector wrapped around empty space.
+  if (chapters.length === 0 && segments.length === 0 && markers.length === 0) {
+    return (
+      <div className="fi">
+        <h2 className="scope-title" style={{ marginBottom: 12 }}>World Timeline</h2>
+        <EmptyState icon="timeline"
+          title="Your story hasn’t reached the timeline yet"
+          desc="The timeline draws itself from your chapters. Write one, give it an in-world date, and it drops onto the line here — no manual plotting."
+          steps={["Write a chapter", "Give it a date", "It lands here"]}
+          action={{ label: "Open the Manuscript", onClick: () => go({ scope: "manuscript" }) }} />
+      </div>
+    );
+  }
+
   return (
     <div className="fi wt2-fill">
       <div className="row" style={{ borderBottom: "none", padding: 0, marginBottom: 4, gap: 8, flexWrap: "wrap", flexShrink: 0, alignItems: "baseline" }}>
@@ -593,23 +609,6 @@ export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) =
       <div className="wt2-wrap">
         <div ref={boardRef} className="wt2-board" onMouseDown={onDown} onMouseMove={onMove} onMouseUp={onUp} onMouseLeave={onUp}
           onDragOver={onBoardDragOver} onDrop={onBoardDrop} onDragLeave={() => setDropHint(null)}>
-          {chapters.length === 0 && (
-            <div className="wt2-empty">
-              <div className="wt2-empty-card">
-                <span className="wt2-empty-icon"><Icon name="timeline" size={26} /></span>
-                <div className="wt2-empty-title">Your story hasn’t reached the timeline yet</div>
-                <div className="wt2-empty-sub">The timeline draws itself from your chapters. Write one, give it an in-world date, and it drops onto the line here — no manual plotting.</div>
-                <div className="wt2-empty-steps">
-                  <span><b>1</b> Write a chapter</span>
-                  <span className="wt2-empty-arrow"><Icon name="arrow" size={13} /></span>
-                  <span><b>2</b> Give it a date</span>
-                  <span className="wt2-empty-arrow"><Icon name="arrow" size={13} /></span>
-                  <span><b>3</b> It lands here</span>
-                </div>
-                <button className="primary" onClick={() => go({ scope: "manuscript" })}>Open the Manuscript</button>
-              </div>
-            </div>
-          )}
           {/* Known time is the bright focus; the buffer is dim. Editing lives in
               the panel's World clock section, not on the canvas. */}
           {!ms && <>

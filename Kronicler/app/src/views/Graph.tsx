@@ -190,7 +190,7 @@ export function Graph({ entities, latest, ego, setEgo, go }: {
       </svg>
 
       <div style={{ position: "absolute", top: 10, left: 12, fontSize: 10.5, color: "var(--muted)", background: "color-mix(in srgb, var(--surface) 90%, transparent)", padding: "4px 9px", borderRadius: 6, border: "1px solid var(--line)" }}>
-        click to focus · double-click for ego · scroll or +/− to zoom · drag to pan
+        click to focus · double-click to isolate · scroll or +/− to zoom · drag to pan
       </div>
 
       {/* zoom controls */}
@@ -202,7 +202,7 @@ export function Graph({ entities, latest, ego, setEgo, go }: {
 
       {ego && (
         <div style={{ position: "absolute", top: 10, right: 12 }}>
-          <span className="chip on click" onClick={() => setEgo(null)}>ego · {entById.get(ego)?.title.split(" ")[0]} <Icon name="close" size={12} /></span>
+          <span className="chip on click" onClick={() => setEgo(null)}>isolated · {entById.get(ego)?.title.split(" ")[0]} <Icon name="close" size={12} /></span>
         </div>
       )}
 

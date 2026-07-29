@@ -97,7 +97,7 @@ export function Relationships({ worldId, go }: { worldId: string; go: (n: Nav) =
         <h2 className="scope-title" style={{ margin: 0 }}>Relationships</h2>
         <div className="seg">
           <span className={lens === "graph" ? "on" : ""} onClick={() => setLens("graph")}>Graph</span>
-          <span className={lens === "stream" ? "on" : ""} onClick={() => setLens("stream")}>Stream</span>
+          <span className={lens === "stream" ? "on" : ""} onClick={() => setLens("stream")}>History</span>
         </div>
         <span className="faint" style={{ fontSize: 11 }}>filters persist across lenses</span>
         <span className="spacer" />
@@ -119,7 +119,7 @@ export function Relationships({ worldId, go }: { worldId: string; go: (n: Nav) =
           </select>
         )}
         {hasSecrets && viewer !== "all" && <span style={{ fontSize: 11.5, color: "var(--hostile)" }}>their world — concealed truths vanish, their own beliefs stand in</span>}
-        {ego && <span className="chip on click" onClick={() => setEgo(null)}>ego · {entities.find((e) => e.id === ego)?.title.split(" ")[0]} <Icon name="close" size={12} /></span>}
+        {ego && <span className="chip on click" onClick={() => setEgo(null)}>isolated · {entities.find((e) => e.id === ego)?.title.split(" ")[0]} <Icon name="close" size={12} /></span>}
       </div>
 
       {lens === "stream" ? (

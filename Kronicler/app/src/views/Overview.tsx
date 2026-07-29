@@ -273,7 +273,7 @@ export function Overview({ worldId, go }: { worldId: string; go: (n: Nav) => voi
             ))}
             {(allOrphans ? orphans : orphans.slice(0, ORPHAN_CAP)).map((e) => (
               <div className="row click" key={e.id} onClick={() => go({ scope: "library", entityId: e.id })}>
-                <span className="chip warn">orphaned</span>
+                <span className="chip warn">unconnected</span>
                 <span style={{ fontSize: 12.5 }}>{e.title}</span>
                 <span className="spacer" />
                 <span className="muted">no relationships yet</span>

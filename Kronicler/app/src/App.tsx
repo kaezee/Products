@@ -38,7 +38,7 @@ export interface Nav { scope: Scope; entityId?: string; chapterId?: string }
 
 const RAIL: [Scope, string, IconName][] = [
   ["overview", "Overview", "overview"],
-  ["library", "Library", "library"],
+  ["library", "Codex", "library"],
   ["manuscript", "Manuscript", "manuscript"],
   ["timeline", "Timeline", "timeline"],
   ["relationships", "Relationships", "relationships"],
@@ -48,7 +48,7 @@ const RAIL: [Scope, string, IconName][] = [
 // Label + icon per scope, for the breadcrumb trail (settings isn't in the rail).
 const SCOPE_META: Record<Scope, { label: string; icon: IconName }> = {
   overview: { label: "Overview", icon: "overview" },
-  library: { label: "Library", icon: "library" },
+  library: { label: "Codex", icon: "library" },
   manuscript: { label: "Manuscript", icon: "manuscript" },
   timeline: { label: "Timeline", icon: "timeline" },
   relationships: { label: "Relationships", icon: "relationships" },
@@ -292,8 +292,8 @@ function Workspace({ session }: { session: Session }) {
                   <span className="g"><Icon name="settings" size={ICON_SIZE.lg} /></span>{!railCollapsed && "Settings"}
                 </div>
                 <div className="railitem" onClick={() => supabase.auth.signOut()}
-                  title={railCollapsed ? "Log out" : (session.user.email ?? "Log out")}>
-                  <span className="g"><Icon name="logout" size={ICON_SIZE.lg} /></span>{!railCollapsed && "Log out"}
+                  title={railCollapsed ? "Sign out" : (session.user.email ?? "Sign out")}>
+                  <span className="g"><Icon name="logout" size={ICON_SIZE.lg} /></span>{!railCollapsed && "Sign out"}
                 </div>
               </div>
             </div>

@@ -14,6 +14,39 @@ export const CANONICAL_ENTITY_TYPES = [
 // Sentinel used in the type <select> to reveal the free-text custom field.
 export const CUSTOM_TYPE = "__custom__";
 
+// A node's SHAPE on the relationship graph groups entity types by what the thing
+// fundamentally IS — so a person, a place and a faction read as different kinds
+// at a glance, before colour or label. Five shapes is the honest ceiling; a
+// sixth is indistinguishable at node size. Character and Creature share a shape
+// (both are living beings — colour still tells them apart). The word "family" is
+// deliberately internal: in a writer's world "family" is a *relationship* (kin),
+// so it must never surface as a node grouping in the UI. Legends say the labels
+// below, never "family".
+export type NodeFamily = "being" | "place" | "group" | "object" | "moment";
+
+const TYPE_FAMILY: Record<string, NodeFamily> = {
+  character: "being", creature: "being",
+  place: "place",
+  faction: "group",
+  item: "object",
+  event: "moment",
+};
+
+// Custom, writer-minted types have no known family, so they default to "object"
+// (the neutral diamond) rather than masquerading as people or places.
+export function familyOf(typeName: string): NodeFamily {
+  return TYPE_FAMILY[typeName.trim().toLowerCase()] ?? "object";
+}
+
+// The user-facing name for each shape — what the legend prints. Never "family".
+export const FAMILY_LABEL: Record<NodeFamily, string> = {
+  being: "living beings",
+  place: "places",
+  group: "groups",
+  object: "objects",
+  moment: "moments",
+};
+
 // The 12 curated entity swatches — the exact enum the DB constrains to. This is
 // the writer's whole colour vocabulary for types; no raw hex ever escapes it.
 export const ENTITY_SWATCHES = [

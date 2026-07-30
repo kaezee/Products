@@ -1,12 +1,27 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { createElement, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { Entity, StreamRow } from "../lib/types";
 import type { Nav } from "../App";
 import { computeLayout } from "../lib/layout";
-import { VALENCE_COLOR } from "../lib/valence";
+import { VALENCE_COLOR, VALENCE_LABEL, VALENCE_ORDER } from "../lib/valence";
 import { sideLabel } from "../lib/direction";
+import { familyOf, FAMILY_LABEL, type NodeFamily } from "../lib/entityTypes";
+import { shapeGeom } from "../lib/nodeShape";
 import { Icon } from "../components/icons";
 
+// A swatch name ("azure") → the two entity colour tokens. Full strength for
+// stroke, tint for fill; both are theme-aware.
+const swStroke = (sw: string | undefined) => (sw ? `var(--k-entity-${sw})` : "var(--lineStrong)");
+const swFill = (sw: string | undefined) => (sw ? `var(--k-entity-${sw}-tint)` : "var(--wash)");
+
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
+
+// Render a node's shape from its pure geometry, without a per-tag JSX branch.
+function shapeEl(geom: ReturnType<typeof shapeGeom>, extra: Record<string, unknown>) {
+  return createElement(geom.tag, { ...geom.attrs, strokeLinejoin: "round", ...extra });
+}
+
+const FAMILY_ORDER: NodeFamily[] = ["being", "place", "group", "object", "moment"];
+const DIM = 0.28; // focus dim — context recedes but stays legible (was 0.12)
 
 // Node labels: drop a leading honorific/article so a name doesn't read as its
 // title ("Dr John Watson" → "John Watson", "Mrs Hudson" → "Hudson", "The Baker
@@ -23,15 +38,58 @@ function shortLabel(title: string): string {
 
 interface Edge { a: string; b: string; row: StreamRow }
 
+// The on-canvas key: which shapes and tones are actually in play. Both blocks
+// list only what the visible web uses, so a world of only people and places
+// never advertises hexagons or triangles.
+function Legend({ nodes, entById, edges }: { nodes: string[]; entById: Map<string, Entity>; edges: Edge[] }) {
+  const families = useMemo(() => {
+    const present = new Set<NodeFamily>();
+    nodes.forEach((id) => { const e = entById.get(id); if (e) present.add(familyOf(e.type)); });
+    return FAMILY_ORDER.filter((f) => present.has(f));
+  }, [nodes, entById]);
+  const tones = useMemo(() => {
+    const present = new Set(edges.map((e) => e.row.valence));
+    return VALENCE_ORDER.filter((v) => present.has(v));
+  }, [edges]);
+  if (families.length === 0 && tones.length === 0) return null;
+  return (
+    <div className="g-legend">
+      {families.length > 0 && (
+        <div className="g-legend-block">
+          {families.map((f) => (
+            <span key={f} className="g-legend-row" title={FAMILY_LABEL[f]}>
+              <svg width={15} height={15} viewBox="0 0 15 15">
+                {shapeEl(shapeGeom(f, 7.5, 7.5, 5), { fill: "var(--wash)", stroke: "var(--sub)", strokeWidth: 1.3 })}
+              </svg>
+              {FAMILY_LABEL[f]}
+            </span>
+          ))}
+        </div>
+      )}
+      {tones.length > 0 && (
+        <div className="g-legend-block">
+          {tones.map((v) => (
+            <span key={v} className="g-legend-row">
+              <span className="g-legend-dot" style={{ background: VALENCE_COLOR[v] }} />
+              {VALENCE_LABEL[v]}
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // The relational canvas (§9.3). Click a node to focus it and its neighbours
 // (Obsidian-style — the rest dims). Double-click for ego view. Zoom with the
 // buttons or the wheel; drag the background to pan.
-export function Graph({ entities, latest, ego, setEgo, go }: {
+export function Graph({ entities, latest, ego, setEgo, go, typeSwatch }: {
   entities: Entity[];
   latest: StreamRow[];
   ego: string | null;
   setEgo: (id: string | null) => void;
   go: (n: Nav) => void;
+  typeSwatch: Map<string, string>; // entity type name (lowercased) → swatch
 }) {
   const entById = useMemo(() => new Map(entities.map((e) => [e.id, e])), [entities]);
   const [sel, setSel] = useState<string | null>(null);
@@ -77,21 +135,26 @@ export function Graph({ entities, latest, ego, setEgo, go }: {
 
   const pos = useMemo(() => computeLayout(nodes, edges.map((e) => [e.a, e.b] as [string, string])), [nodes, edges]);
 
+  // Fit the visible web to fill the pane, with pixel insets that keep nodes
+  // (and their labels) clear of the on-canvas chrome — legend top-right, hint
+  // top-left, zoom controls / detail card bottom. The old code capped at k=240
+  // absolutely, so the fit almost never won and the graph sat as a small blob
+  // in a fifth of its canvas. Now the fill wins; the cap only stops a 1–2 node
+  // graph from flying apart. Recomputes on every box/nodes change, so it refits
+  // on resize and on the right panel collapsing (both change W/H).
   const cam = useMemo(() => {
     const pts = nodes.map((id) => pos.get(id)!).filter(Boolean);
-    if (pts.length === 0) return { k: 1, tx: W / 2, ty: H / 2 };
+    if (pts.length === 0) return { k: 1, tx: W / 2, ty: H / 2, insetTop: 0 };
     const xs = pts.map((p) => p.x), ys = pts.map((p) => p.y);
     const x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
-    // Fit the whole web to fill the frame (a little breathing room via pad).
-    // The cap only stops a 1–2 node graph from ballooning; for anything bigger
-    // the fit-to-frame wins, so the graph uses its space instead of sitting as
-    // a small blob with empty margins.
-    const pad = 0.5;
+    const insetX = 76, insetTop = 60, insetBottom = 60;
+    const availW = Math.max(80, W - insetX * 2);
+    const availH = Math.max(80, H - insetTop - insetBottom);
+    const pad = 0.22; // world-unit breathing room so edge shapes aren't clipped
     const spanX = (x1 - x0) + pad * 2 || 1, spanY = (y1 - y0) + pad * 2 || 1;
-    // Fill the smaller dimension of the actual canvas; the cap only stops a
-    // 1–2 node graph from spreading absurdly far apart.
-    const k = Math.min(W / spanX, H / spanY, 240);
-    return { k, tx: W / 2 - k * (x0 + x1) / 2, ty: H / 2 - k * (y0 + y1) / 2 };
+    const k = Math.min(availW / spanX, availH / spanY, 300); // cap: no ballooning
+    const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
+    return { k, tx: insetX + availW / 2 - k * cx, ty: insetTop + availH / 2 - k * cy, insetTop };
   }, [pos, nodes, W, H]);
 
   const degree = useMemo(() => {
@@ -161,8 +224,30 @@ export function Graph({ entities, latest, ego, setEgo, go }: {
                 <line key={i} x1={p.x} y1={p.y} x2={q.x} y2={q.y}
                   stroke={VALENCE_COLOR[e.row.valence]}
                   strokeWidth={(e.row.valence === "hostile" ? 2.2 : 1.5) / cam.k}
-                  opacity={(e.row.is_ambient ? 0.4 : 0.8) * (lit ? 1 : 0.12)}
+                  opacity={(e.row.is_ambient ? 0.4 : 0.8) * (lit ? 1 : DIM)}
                   strokeDasharray={concealed ? `${4 / cam.k} ${4 / cam.k}` : undefined} />
+              );
+            })}
+            {/* Edge type labels at the midpoint, once we're zoomed in enough and
+                the edge is long enough on screen to carry a word. This is the
+                content that used to be invisible until you clicked — "kills",
+                "mentor of", "deduces the truth about" now readable in place. */}
+            {zoom >= 0.8 && edges.map((e, i) => {
+              const p = pos.get(e.a), q = pos.get(e.b);
+              if (!p || !q) return null;
+              const lit = !focusSet || e.a === sel || e.b === sel;
+              if (!lit) return null;
+              const screenLen = Math.hypot(q.x - p.x, q.y - p.y) * cam.k * zoom;
+              if (screenLen < 46) return null;
+              const mx = (p.x + q.x) / 2, my = (p.y + q.y) / 2;
+              return (
+                <text key={"el" + i} x={mx} y={my} fontSize={9.5 / (cam.k * zoom)} textAnchor="middle"
+                  dominantBaseline="central" fontFamily="var(--sans)" fontWeight={550}
+                  fill={VALENCE_COLOR[e.row.valence]} stroke="var(--k-bg-surface)"
+                  strokeWidth={3 / (cam.k * zoom)} paintOrder="stroke"
+                  style={{ pointerEvents: "none" }}>
+                  {e.row.type_label}
+                </text>
               );
             })}
             {nodes.map((id) => {
@@ -172,14 +257,23 @@ export function Graph({ entities, latest, ego, setEgo, go }: {
               const r = (8 + Math.min(deg * 2.2, 12)) / cam.k;
               const isSel = sel === id;
               const lit = !focusSet || focusSet.has(id);
+              const fam = familyOf(ent?.type ?? "");
+              const sw = ent ? typeSwatch.get(ent.type.toLowerCase()) : undefined;
+              const geom = shapeGeom(fam, p.x, p.y, r);
               return (
-                <g key={id} style={{ cursor: "pointer", opacity: lit ? 1 : 0.12, transition: "opacity .25s" }}
+                <g key={id} style={{ cursor: "pointer", opacity: lit ? 1 : DIM, transition: "opacity .25s" }}
                   onMouseDown={(ev) => ev.stopPropagation()}
                   onClick={(ev) => { ev.stopPropagation(); setSel(id); }}
                   onDoubleClick={(ev) => { ev.stopPropagation(); setEgo(ego === id ? null : id); setSel(null); }}>
-                  <circle cx={p.x} cy={p.y} r={r} fill={isSel ? "var(--bondBg)" : "var(--wash)"}
-                    stroke={isSel ? "var(--bond)" : "var(--lineStrong)"} strokeWidth={(isSel ? 2.5 : 1.4) / cam.k} />
-                  <text x={p.x} y={p.y + r + 13 / cam.k} fontSize={11 / cam.k} textAnchor="middle"
+                  {/* selection ring — an outer copy of the same shape, so the
+                      node keeps its type colour instead of turning blue */}
+                  {isSel && shapeEl(shapeGeom(fam, p.x, p.y, r + 4 / cam.k), {
+                    key: "ring", fill: "none", stroke: "var(--bond)", strokeWidth: 2.4 / cam.k,
+                  })}
+                  {shapeEl(geom, {
+                    fill: swFill(sw), stroke: swStroke(sw), strokeWidth: (isSel ? 2 : 1.4) / cam.k,
+                  })}
+                  <text x={p.x} y={p.y + r * 1.5 + 12 / cam.k} fontSize={11 / cam.k} textAnchor="middle"
                     fill={isSel ? "var(--bond)" : "var(--sub)"} fontWeight={isSel || deg >= 3 ? 600 : 450} fontFamily="var(--sans)">
                     {ent ? shortLabel(ent.title) : ""}
                   </text>
@@ -188,6 +282,12 @@ export function Graph({ entities, latest, ego, setEgo, go }: {
             })}
         </g>
       </svg>
+
+      {/* Legend — the key to shapes (what a node IS) and tones (how a link
+          feels). Only families and tones actually present are shown, so it
+          never lists shapes the world doesn't use. */}
+      <Legend nodes={nodes} entById={entById} edges={edges} />
+
 
       <div style={{ position: "absolute", top: 10, left: 12, fontSize: 10.5, color: "var(--muted)", background: "color-mix(in srgb, var(--surface) 90%, transparent)", padding: "4px 9px", borderRadius: 6, border: "1px solid var(--line)" }}>
         click to focus · double-click to isolate · scroll or +/− to zoom · drag to pan
@@ -201,8 +301,8 @@ export function Graph({ entities, latest, ego, setEgo, go }: {
       </div>
 
       {ego && (
-        <div style={{ position: "absolute", top: 10, right: 12 }}>
-          <span className="chip on click" onClick={() => setEgo(null)}>isolated · {entById.get(ego)?.title.split(" ")[0]} <Icon name="close" size={12} /></span>
+        <div style={{ position: "absolute", top: 42, left: 12 }}>
+          <span className="chip on click" onClick={() => setEgo(null)}>only {entById.get(ego)?.title.split(" ")[0]} <Icon name="close" size={12} /></span>
         </div>
       )}
 

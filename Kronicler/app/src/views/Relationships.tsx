@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
-import { getStream, getEntities, getRelationshipTypes, softDeleteRelationship } from "../lib/api";
-import type { StreamRow, Entity, RelationshipType } from "../lib/types";
+import { getStream, getEntities, getRelationshipTypes, getEntityTypes, softDeleteRelationship } from "../lib/api";
+import type { StreamRow, Entity, RelationshipType, EntityType } from "../lib/types";
+import { buildTypeSwatches } from "../lib/entityTypes";
 import type { Nav } from "../App";
 import { VALENCE_COLOR } from "../lib/valence";
 import { streamPhrase } from "../lib/direction";
@@ -18,6 +19,7 @@ export function Relationships({ worldId, go }: { worldId: string; go: (n: Nav) =
   const [rows, setRows] = useState<StreamRow[] | null>(null);
   const [entities, setEntities] = useState<Entity[]>([]);
   const [types, setTypes] = useState<RelationshipType[]>([]);
+  const [entityTypes, setEntityTypes] = useState<EntityType[]>([]);
   const [err, setErr] = useState<string | null>(null);
 
   const [lens, setLens] = useState<"stream" | "graph">("graph");
@@ -29,8 +31,8 @@ export function Relationships({ worldId, go }: { worldId: string; go: (n: Nav) =
 
   useEffect(() => {
     let alive = true;
-    Promise.all([getStream(worldId), getEntities(worldId), getRelationshipTypes(worldId)])
-      .then(([s, e, t]) => { if (!alive) return; setRows(s); setEntities(e); setTypes(t); })
+    Promise.all([getStream(worldId), getEntities(worldId), getRelationshipTypes(worldId), getEntityTypes(worldId)])
+      .then(([s, e, t, et]) => { if (!alive) return; setRows(s); setEntities(e); setTypes(t); setEntityTypes(et); })
       .catch((x) => alive && setErr(String(x)));
     return () => { alive = false; };
   }, [worldId]);
@@ -45,6 +47,12 @@ export function Relationships({ worldId, go }: { worldId: string; go: (n: Nav) =
   const maxCh = useMemo(() => (rows ?? []).reduce((m, r) => Math.max(m, r.manuscript_order ?? 0), 0), [rows]);
   const asOfVal = asOf ?? maxCh;
   const characters = useMemo(() => entities.filter((e) => e.type === "Character"), [entities]);
+  // entity type name (lowercased) → curated swatch, so a graph node paints from
+  // the writer's own registry (custom types included), never a hardcoded canon.
+  const typeSwatch = useMemo(
+    () => buildTypeSwatches(entityTypes.map((t) => ({ name: t.name, swatch: t.swatch })), entities.map((e) => e.type)),
+    [entityTypes, entities],
+  );
   const nameOf = (id: string) => entities.find((e) => e.id === id)?.title.split(" ")[0] ?? "someone";
   // Knowledge lens is progressive: it only appears once the world holds a secret
   // (a concealed truth) OR a belief (a character thinking something false).
@@ -183,7 +191,7 @@ export function Relationships({ worldId, go }: { worldId: string; go: (n: Nav) =
         )
       ) : (
         <div className="rel-stage">
-          <Graph entities={entities} latest={latest} ego={ego} setEgo={setEgo} go={go} />
+          <Graph entities={entities} latest={latest} ego={ego} setEgo={setEgo} go={go} typeSwatch={typeSwatch} />
         </div>
       )}
 

@@ -211,14 +211,20 @@ textarea { font-family: var(--serif); }
 .checklist-step.done .checklist-desc { display: none; }
 
 /* Docs/Word migration front-door — shown on an empty world's Overview. */
-.migrate-cta { display: flex; align-items: center; gap: 12px; width: 100%; text-align: left;
+.migrate-cta { display: flex; align-items: center; gap: 15px; width: 100%; text-align: left;
   background: var(--bondBg); border: 1px solid var(--bondLine); border-radius: 14px;
-  padding: 13px 15px; margin-bottom: 18px; cursor: pointer; transition: border-color .15s, background .15s; }
+  padding: 17px 19px; margin-bottom: 18px; cursor: pointer; transition: border-color .15s, background .15s; }
 .migrate-cta:hover { border-color: var(--bond); background: var(--surface); }
-.migrate-icon { display: inline-flex; flex: 0 0 auto; width: 34px; height: 34px; border-radius: 9px;
+.migrate-cta:hover .migrate-action { background: var(--bondHover, var(--bond)); filter: brightness(0.94); }
+.migrate-icon { display: inline-flex; flex: 0 0 auto; width: 36px; height: 36px; border-radius: 9px;
   align-items: center; justify-content: center; background: var(--surface); border: 1px solid var(--bondLine); color: var(--bond); }
+.migrate-copy { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 5px; }
 .migrate-title { display: block; font-weight: 600; font-size: 13.5px; color: var(--ink); }
-.migrate-desc { display: block; font-size: 12px; color: var(--muted); margin-top: 1px; }
+.migrate-desc { display: block; font-size: 12px; color: var(--muted); line-height: 1.45; }
+.migrate-action { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 5px;
+  background: var(--bond); color: #fff; font-weight: 600; font-size: 12.5px;
+  padding: 8px 14px; border-radius: 9px; transition: filter .15s, background .15s; }
+.migrate-action svg { stroke-width: 2.4; }
 
 /* Breadcrumb trail — Overview › Section › Leaf. */
 .crumbs { display: flex; align-items: center; flex-wrap: wrap; gap: 2px; margin: 0 0 14px; font-size: 12px; line-height: 1; }

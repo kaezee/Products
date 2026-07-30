@@ -436,7 +436,9 @@ button.danger:hover:not(:disabled) { filter: brightness(0.93); background: var(-
 
 .relrow { display: flex; gap: 14px; align-items: flex-start; padding: 11px 13px; border-bottom: 1px solid var(--line); }
 .relrow:last-child { border-bottom: none; }
-.relrow.compact { padding: 9px 2px; }
+.relrow.compact { padding: 10px 2px; flex-direction: column; align-items: stretch; gap: 7px; }
+.relrow.compact .relrow-time { width: auto; align-items: flex-start; }
+.relrow.compact .relrow-cap { text-align: left; }
 .relrow-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
 .relrow-head { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; font-family: var(--serif); font-size: 14px; color: var(--ink); }
 .relrow-name { display: inline-flex; align-items: center; gap: 5px; cursor: pointer; border-radius: 4px; }
@@ -460,28 +462,32 @@ button.danger:hover:not(:disabled) { filter: brightness(0.93); background: var(-
 .relrow-remove:hover { color: var(--hostile); background: var(--wash); }
 .relrow-remove:focus-visible { opacity: 1; outline: 2px solid var(--bond); outline-offset: 1px; }
 
-/* Entity modal — an entity's own page over the web (replaces the node popover) */
-.entmodal { width: 380px; max-width: calc(100vw - 32px); max-height: 82vh; display: flex; flex-direction: column;
-  background: var(--k-bg-raised, var(--surface)); border: 1px solid var(--lineStrong); border-radius: 14px;
-  box-shadow: var(--k-shadow-pop, var(--pop)); overflow: hidden; }
-.entmodal-head { display: flex; align-items: center; gap: 8px; padding: 14px 16px 8px; }
-.entmodal-name { font-size: 17px; }
-.entmodal-type { font-size: 10px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: var(--muted);
+/* Entity page — an entity's own view over the web, docked as a right-side
+   panel beside the graph (not an overlay). Sits to the left of the controls
+   panel: canvas | entity | controls. */
+.entpanel { flex: 0 0 340px; min-width: 0; align-self: stretch; display: flex; flex-direction: column; max-height: 100%;
+  background: var(--k-bg-raised, var(--surface)); border: 1px solid var(--lineStrong); border-radius: 12px;
+  box-shadow: var(--k-shadow-md); overflow: hidden; animation: entpanel-in .18s ease; }
+@keyframes entpanel-in { from { opacity: 0; transform: translateX(10px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .entpanel { animation: none; } }
+.entpanel-head { display: flex; align-items: center; gap: 8px; padding: 13px 14px 8px; }
+.entpanel-name { font-size: 16.5px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.entpanel-type { flex: 0 0 auto; font-size: 10px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: var(--muted);
   border: 1px solid var(--line); border-radius: 5px; padding: 2px 6px; }
-.entmodal-x { cursor: pointer; color: var(--muted); display: inline-flex; border-radius: 5px; padding: 2px; }
-.entmodal-x:hover { background: var(--wash); color: var(--ink); }
-.entmodal-x:focus-visible { outline: 2px solid var(--bond); outline-offset: 1px; }
-.entmodal-meta { padding: 0 16px 10px; font-size: 11.5px; color: var(--muted); border-bottom: 1px solid var(--line); }
-.entmodal-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 6px 14px 10px; }
-.entmodal-group { padding: 8px 0 2px; }
-.entmodal-group-head { display: flex; align-items: baseline; gap: 8px; padding: 0 2px 2px; }
-.entmodal-group-head h4 { margin: 0; font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
-.entmodal-group-count { font-family: var(--k-font-mono); font-size: 11px; color: var(--sub); }
-.entmodal-rows { display: flex; flex-direction: column; }
-.entmodal-empty { text-align: center; padding: 22px 16px; display: flex; flex-direction: column; align-items: center; gap: 12px; }
-.entmodal-empty p { margin: 0; font-size: 13px; color: var(--muted); line-height: 1.5; max-width: 34ch; }
-.entmodal-foot { display: flex; align-items: center; gap: 8px; padding: 10px 14px; border-top: 1px solid var(--line); }
-.entmodal-foot button { display: inline-flex; align-items: center; gap: 5px; }
+.entpanel-x { flex: 0 0 auto; cursor: pointer; color: var(--muted); display: inline-flex; border-radius: 5px; padding: 2px; }
+.entpanel-x:hover { background: var(--wash); color: var(--ink); }
+.entpanel-x:focus-visible { outline: 2px solid var(--bond); outline-offset: 1px; }
+.entpanel-meta { padding: 0 14px 10px; font-size: 11.5px; color: var(--muted); border-bottom: 1px solid var(--line); }
+.entpanel-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 4px 12px 8px; }
+.entpanel-group { padding: 8px 0 2px; }
+.entpanel-group-head { display: flex; align-items: baseline; gap: 8px; padding: 0 2px 2px; }
+.entpanel-group-head h4 { margin: 0; font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.entpanel-group-count { font-family: var(--k-font-mono); font-size: 11px; color: var(--sub); }
+.entpanel-rows { display: flex; flex-direction: column; }
+.entpanel-empty { text-align: center; padding: 22px 16px; display: flex; flex-direction: column; align-items: center; gap: 12px; }
+.entpanel-empty p { margin: 0; font-size: 13px; color: var(--muted); line-height: 1.5; max-width: 34ch; }
+.entpanel-foot { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-top: 1px solid var(--line); }
+.entpanel-foot button { display: inline-flex; align-items: center; gap: 5px; }
 
 /* Notes fills the pane instead of a fixed 68vh (which left dead space below). */
 .notes-view { height: 100%; display: flex; flex-direction: column; min-height: 0; }

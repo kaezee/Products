@@ -9,7 +9,7 @@ import { buildArcs, type RelArc } from "../lib/relArc";
 import { Graph } from "./Graph";
 import { TypeDictionary } from "./TypeDictionary";
 import { RelRow } from "../components/RelRow";
-import { EntityModal } from "../components/EntityModal";
+import { EntityPanel } from "../components/EntityPanel";
 import { Icon } from "../components/icons";
 import { SidePanel, Disclosure } from "../components/SidePanel";
 import { confirmDialog } from "../components/confirm";
@@ -318,6 +318,16 @@ export function Relationships({ worldId, go }: { worldId: string; go: (n: Nav) =
           )}
         </div>
 
+        {modalEntity && entById.get(modalEntity) && (
+          <EntityPanel entity={entById.get(modalEntity)!} arcs={modalArcs} entById={entById} typeSwatch={typeSwatch}
+            maxCh={maxCh} asOf={asOfVal}
+            onClose={() => setModalEntity(null)}
+            onOpenEntity={(id) => setModalEntity(id)}
+            onOpenPage={() => go({ scope: "library", entityId: modalEntity })}
+            onShowWorld={() => { setCentre(null); setModalEntity(null); }}
+            onMarkMoment={() => go({ scope: "manuscript" })} />
+        )}
+
         <SidePanel open={panelOpen} onToggle={togglePanel}>
           {/* Centre on */}
           <Disclosure label="Centre on" count={centreName ?? undefined} defaultOpen>
@@ -406,16 +416,6 @@ export function Relationships({ worldId, go }: { worldId: string; go: (n: Nav) =
           <span style={{ fontWeight: 650, color: "var(--ink)", whiteSpace: "nowrap", fontFamily: "var(--k-font-mono)" }}>chapter {asOfVal}</span>
           <span className="faint" style={{ whiteSpace: "nowrap" }}>{asOfVal >= maxCh ? "everything so far" : `${maxCh - asOfVal} ${maxCh - asOfVal === 1 ? "chapter" : "chapters"} still ahead`}</span>
         </div>
-      )}
-
-      {modalEntity && entById.get(modalEntity) && (
-        <EntityModal entity={entById.get(modalEntity)!} arcs={modalArcs} entById={entById} typeSwatch={typeSwatch}
-          maxCh={maxCh} asOf={asOfVal}
-          onClose={() => setModalEntity(null)}
-          onOpenEntity={(id) => setModalEntity(id)}
-          onOpenPage={() => go({ scope: "library", entityId: modalEntity })}
-          onShowWorld={() => { setCentre(null); setModalEntity(null); }}
-          onMarkMoment={() => go({ scope: "manuscript" })} />
       )}
 
       {typesOpen && (

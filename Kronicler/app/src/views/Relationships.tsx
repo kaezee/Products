@@ -1,13 +1,14 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { getStream, getEntities, getRelationshipTypes, getEntityTypes, softDeleteRelationship } from "../lib/api";
-import type { StreamRow, Entity, RelationshipType, EntityType } from "../lib/types";
+import type { StreamRow, Entity, RelationshipType, EntityType, Valence } from "../lib/types";
 import type { Nav } from "../App";
-import { VALENCE_COLOR } from "../lib/valence";
-import { streamPhrase } from "../lib/direction";
-import { visibleUnderLens, latestTruthByRel, latestByRel, isBelief, believersOf, ironyLabel } from "../lib/knowledge";
+import { VALENCE_COLOR, VALENCE_LABEL } from "../lib/valence";
+import { visibleUnderLens, latestTruthByRel, latestByRel, isBelief } from "../lib/knowledge";
 import { buildTypeSwatches } from "../lib/entityTypes";
+import { buildArcs, type RelArc } from "../lib/relArc";
 import { Graph } from "./Graph";
 import { TypeDictionary } from "./TypeDictionary";
+import { RelRow } from "../components/RelRow";
 import { Icon } from "../components/icons";
 import { SidePanel, Disclosure } from "../components/SidePanel";
 import { confirmDialog } from "../components/confirm";
@@ -38,6 +39,43 @@ function bfsReach(latest: StreamRow[], centre: string, depth: number): Set<strin
   return seen;
 }
 
+// Tone grouping order for the List: Hostile → Duty → Neutral → Allied.
+const TONE_GROUP: Valence[] = ["hostile", "obligation", "neutral", "bond"];
+type OrderBy = "latest" | "most" | "tone" | "kind";
+const ORDERS: { v: OrderBy; label: string }[] = [
+  { v: "latest", label: "latest change" }, { v: "most", label: "most changes" },
+  { v: "tone", label: "tone" }, { v: "kind", label: "kind" },
+];
+
+// A labelled section of relationship rows, with a count in the header.
+function RelGroup({ title, count, subtitle, children }: { title: string; count: number; subtitle?: string; children: ReactNode }) {
+  return (
+    <section className="rel-group">
+      <div className="rel-group-head">
+        <h3 className="rel-group-title">{title}</h3>
+        <span className="rel-group-count">{count}</span>
+        {subtitle && <span className="rel-group-sub">— {subtitle}</span>}
+      </div>
+      <div className="card rel-list-card">{children}</div>
+    </section>
+  );
+}
+const arcCmp = (orderBy: OrderBy) => (a: RelArc, b: RelArc) =>
+  orderBy === "most" ? (b.changes - a.changes || b.lastChangeOrder - a.lastChangeOrder) : (b.lastChangeOrder - a.lastChangeOrder);
+
+// Group arcs for the tone / kind order-bys; returns ordered [header, rows].
+function groupArcs(list: RelArc[], orderBy: OrderBy): [string, RelArc[]][] {
+  const cmp = arcCmp(orderBy);
+  if (orderBy === "tone") {
+    return TONE_GROUP.map((v) => [VALENCE_LABEL[v], list.filter((a) => a.current!.valence === v).sort(cmp)] as [string, RelArc[]])
+      .filter(([, rows]) => rows.length);
+  }
+  // kind
+  const byKind = new Map<string, RelArc[]>();
+  for (const a of list) (byKind.get(a.current!.typeLabel) ?? byKind.set(a.current!.typeLabel, []).get(a.current!.typeLabel)!).push(a);
+  return [...byKind.entries()].sort((a, b) => a[0].localeCompare(b[0])).map(([k, rows]) => [k, rows.sort(cmp)]);
+}
+
 // Relationships (§9). One control set in the right panel drives the lens; the
 // engine (stream view, knowledge/direction libs) is unchanged — this is the
 // presentation layer over it.
@@ -59,6 +97,7 @@ export function Relationships({ worldId, go }: { worldId: string; go: (n: Nav) =
   const [prevKinds, setPrevKinds] = useState<Set<string>>(new Set()); // for name-click isolate
   const [viewer, setViewer] = useState("all");                  // "point of view": all | entity id
   const [asOf, setAsOf] = useState<number | null>(null);        // chapter position
+  const [orderBy, setOrderBy] = useState<"latest" | "most" | "tone" | "kind">("latest");
 
   useEffect(() => {
     let alive = true;
@@ -81,7 +120,6 @@ export function Relationships({ worldId, go }: { worldId: string; go: (n: Nav) =
 
   const maxCh = useMemo(() => (rows ?? []).reduce((m, r) => Math.max(m, r.manuscript_order ?? 0), 0), [rows]);
   const asOfVal = asOf ?? maxCh;
-  const nameOf = (id: string) => entities.find((e) => e.id === id)?.title.split(" ")[0] ?? "someone";
   const typeSwatch = useMemo(
     () => buildTypeSwatches(entityTypes.map((t) => ({ name: t.name, swatch: t.swatch })), entities.map((e) => e.type)),
     [entityTypes, entities],
@@ -124,15 +162,17 @@ export function Relationships({ worldId, go }: { worldId: string; go: (n: Nav) =
     [edgesNoCentre, centre, effDepth],
   );
 
-  // the visible web (graph) and stream (list)
+  // the visible web (graph)
   const inReach = (r: StreamRow) => !reach || r.participants.every((p) => reach.has(p.entity_id));
   const visLatest = useMemo(() => edgesNoCentre.filter(inReach), [edgesNoCentre, reach]);
-  const truthByRel = useMemo(() => latestTruthByRel(kindsApplied(byAsOf)), [byAsOf, kinds]);
-  const listRows = useMemo(
-    () => visibleUnderLens(kindsApplied(byAsOf), viewer)
-      .filter(inReach)
-      .sort((a, b) => (a.manuscript_order ?? 1e9) - (b.manuscript_order ?? 1e9)),
-    [byAsOf, kinds, viewer, reach],
+
+  // one arc per relationship (List lens), scoped to the visible web and to
+  // relationships that actually exist by the current chapter.
+  const entById = useMemo(() => new Map(entities.map((e) => [e.id, e])), [entities]);
+  const arcs = useMemo(() => buildArcs(rows ?? [], viewer, asOfVal, kinds), [rows, viewer, asOfVal, kinds]);
+  const visArcs = useMemo(
+    () => arcs.filter((a) => a.current != null && (!reach || a.participants.every((p) => reach.has(p.entity_id)))),
+    [arcs, reach],
   );
 
   // ── counts (cross-filtered: each reflects the OTHER controls, not its own) ──
@@ -199,6 +239,11 @@ export function Relationships({ worldId, go }: { worldId: string; go: (n: Nav) =
   const depthSteps: { v: 1 | 2 | 3; label: string }[] = [
     { v: 1, label: "direct" }, { v: 2, label: "2 steps" }, { v: 3, label: "3 steps" },
   ];
+  const relRowEl = (a: RelArc, anchor?: string) => (
+    <RelRow key={a.relationshipId} arc={a} entById={entById} typeSwatch={typeSwatch}
+      maxCh={maxCh} asOf={asOfVal} anchor={anchor} onOpenEntity={(id) => go({ scope: "library", entityId: id })}
+      onRemove={() => removeRelationship(a.relationshipId, a.current?.typeLabel ?? "this")} />
+  );
 
   return (
     <div className="fi rel-shell">
@@ -220,44 +265,42 @@ export function Relationships({ worldId, go }: { worldId: string; go: (n: Nav) =
                 setEgo={(id) => { if (id) { setCentre(id); setDepth(1); } }} go={go} typeSwatch={typeSwatch} />
             </div>
           ) : (
-            listRows.length === 0 ? (
+            visArcs.length === 0 ? (
               <div className="card"><div className="row"><span className="muted">Nothing matches these controls at this point in the story.</span></div></div>
             ) : (
-              <div className="card">
-                {listRows.map((s) => {
-                  const concealed = s.known_by?.concealed_from?.length ?? 0;
-                  const belief = isBelief(s);
-                  const believers = believersOf(s).map(nameOf).join(", ");
-                  const irony = belief ? ironyLabel(s, truthByRel) : null;
-                  const ph = streamPhrase(s);
-                  const verb = { color: VALENCE_COLOR[s.valence], fontWeight: 650, fontSize: 12.5 } as const;
+              <div className="rel-list">
+                <div className="rel-list-bar">
+                  <span className="faint">Order by</span>
+                  <div className="seg" style={{ fontSize: 11 }}>
+                    {ORDERS.map((o) => <span key={o.v} className={orderBy === o.v ? "on" : ""} onClick={() => setOrderBy(o.v)}>{o.label}</span>)}
+                  </div>
+                </div>
+                {centre ? (() => {
+                  const own = visArcs.filter((a) => a.participants.some((p) => p.entity_id === centre)).sort(arcCmp(orderBy));
+                  const elsewhere = visArcs.filter((a) => !a.participants.some((p) => p.entity_id === centre)).sort(arcCmp(orderBy));
                   return (
-                    <div className="row" key={s.state_id} style={belief ? { borderLeft: "2px solid var(--obligation)" } : undefined}>
-                      <span className="dot" style={{ background: VALENCE_COLOR[s.valence], opacity: belief ? 0.55 : 1 }} />
-                      {ph.subject ? (
-                        <span className="title-serif">{ph.subject} <span style={verb}>{ph.verb}</span> {ph.object}</span>
-                      ) : (
-                        <>
-                          <span className="title-serif">{ph.names}</span>
-                          {ph.trailingVerb && <span style={verb}>{ph.trailingVerb}</span>}
-                        </>
+                    <>
+                      <RelGroup title={`${centreName}’s own connections`} count={own.length}>
+                        {own.map((a) => relRowEl(a, centre))}
+                      </RelGroup>
+                      {elsewhere.length > 0 && (
+                        <RelGroup title={`Elsewhere within ${effDepth === 1 ? "reach" : `${effDepth} steps`}`} count={elsewhere.length} subtitle="context around them, not their own">
+                          <div style={{ opacity: 0.72 }}>{elsewhere.map((a) => relRowEl(a))}</div>
+                        </RelGroup>
                       )}
-                      {belief && (
-                        <span style={{ fontSize: 11, color: "var(--obligation)", whiteSpace: "nowrap" }}
-                          title="A belief held by these characters — may differ from the truth">
-                          🧠 {believers} believe{believersOf(s).length === 1 ? "s" : ""}
-                          {irony && <span style={{ color: "var(--hostile)" }}> — actually {irony}</span>}
-                        </span>
-                      )}
-                      <span className="note" style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.note}</span>
-                      {concealed > 0 && <span style={{ color: "var(--hostile)", fontSize: 11 }}>hidden from {concealed}</span>}
-                      <span className="muted" style={{ whiteSpace: "nowrap" }} title="Not tied to a specific chapter — a standing fact, true throughout">{s.manuscript_order != null ? `ch. ${s.manuscript_order}` : "no chapter"}</span>
-                      <span className="rowact" title="Remove this relationship"
-                        onClick={() => removeRelationship(s.relationship_id, s.type_label)}
-                        style={{ cursor: "pointer", color: "var(--faint)", padding: "0 2px", display: "inline-flex" }}><Icon name="close" size={13} /></span>
-                    </div>
+                    </>
                   );
-                })}
+                })() : (orderBy === "tone" || orderBy === "kind") ? (
+                  groupArcs(visArcs, orderBy).map(([header, rowsG]) => (
+                    <RelGroup key={header} title={header} count={rowsG.length}>
+                      {rowsG.map((a) => relRowEl(a))}
+                    </RelGroup>
+                  ))
+                ) : (
+                  <div className="card rel-list-card">
+                    {[...visArcs].sort(arcCmp(orderBy)).map((a) => relRowEl(a))}
+                  </div>
+                )}
               </div>
             )
           )}

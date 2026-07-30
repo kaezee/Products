@@ -4,7 +4,6 @@ import { computeLayout } from "../lib/layout";
 import { VALENCE_COLOR, VALENCE_LABEL, VALENCE_ORDER } from "../lib/valence";
 import { familyOf, FAMILY_LABEL, type NodeFamily } from "../lib/entityTypes";
 import { shapeGeom } from "../lib/nodeShape";
-import { Icon } from "../components/icons";
 
 // A swatch name ("azure") → the two entity colour tokens. Full strength for
 // stroke, tint for fill; both are theme-aware.
@@ -88,16 +87,18 @@ function Legend({ nodes, entById, edges, typeSwatch }: {
 // The relational canvas (§9.3). Click a node to focus it and its neighbours
 // (Obsidian-style — the rest dims). Double-click for ego view. Zoom with the
 // buttons or the wheel; drag the background to pan.
-export function Graph({ entities, latest, ego, setEgo, onOpenEntity, typeSwatch }: {
+export function Graph({ entities, latest, selected, onOpenEntity, onBackground, onIsolate, typeSwatch }: {
   entities: Entity[];
   latest: StreamRow[];
-  ego: string | null;
-  setEgo: (id: string | null) => void;
-  onOpenEntity: (id: string) => void; // click a node → open its page/modal
-  typeSwatch: Map<string, string>; // entity type name (lowercased) → swatch
+  selected: string | null;             // the parent-owned selection (drives focus)
+  onOpenEntity: (id: string) => void;  // click a node → open its page in the panel
+  onBackground: () => void;            // click empty canvas → clear the selection
+  onIsolate: (id: string) => void;     // double-click → centre the web here
+  typeSwatch: Map<string, string>;     // entity type name (lowercased) → swatch
 }) {
   const entById = useMemo(() => new Map(entities.map((e) => [e.id, e])), [entities]);
-  const [sel, setSel] = useState<string | null>(null);
+  const sel = selected;
+  const [hov, setHov] = useState<string | null>(null);
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const svgRef = useRef<SVGSVGElement>(null);
@@ -131,12 +132,10 @@ export function Graph({ entities, latest, ego, setEgo, onOpenEntity, typeSwatch 
   }, [latest]);
 
   const { nodes, edges } = useMemo(() => {
-    const e = ego ? allEdges.filter((x) => x.a === ego || x.b === ego) : allEdges;
     const set = new Set<string>();
-    e.forEach((x) => { set.add(x.a); set.add(x.b); });
-    if (ego) set.add(ego);
-    return { nodes: [...set], edges: e };
-  }, [allEdges, ego]);
+    allEdges.forEach((x) => { set.add(x.a); set.add(x.b); });
+    return { nodes: [...set], edges: allEdges };
+  }, [allEdges]);
 
   const pos = useMemo(() => computeLayout(nodes, edges.map((e) => [e.a, e.b] as [string, string])), [nodes, edges]);
 
@@ -176,9 +175,6 @@ export function Graph({ entities, latest, ego, setEgo, onOpenEntity, typeSwatch 
     return s;
   }, [sel, edges]);
 
-  // reset the manual camera when the ego lens changes (it re-frames on its own)
-  useEffect(() => { setZoom(1); setPan({ x: 0, y: 0 }); }, [ego]);
-
   // wheel zoom (non-passive so we can prevent the page scrolling)
   useEffect(() => {
     const el = svgRef.current;
@@ -211,7 +207,7 @@ export function Graph({ entities, latest, ego, setEgo, onOpenEntity, typeSwatch 
         style={{ display: "block", width: "100%", height: "100%", background: "var(--k-bg-surface)", cursor: drag.current ? "grabbing" : "grab", touchAction: "none" }}
         onMouseDown={(e) => { drag.current = { x: e.clientX, y: e.clientY, moved: false }; }}
         onMouseMove={onMove}
-        onMouseUp={() => { const moved = drag.current?.moved; drag.current = null; if (!moved) setSel(null); }}
+        onMouseUp={() => { const moved = drag.current?.moved; drag.current = null; if (!moved) onBackground(); }}
         onMouseLeave={() => { drag.current = null; }}>
         {/* One transform, via the SVG attribute (not a CSS transform on a <g>,
             which Safari/Firefox position differently): pan/zoom composed with the
@@ -230,17 +226,15 @@ export function Graph({ entities, latest, ego, setEgo, onOpenEntity, typeSwatch 
                   strokeDasharray={concealed ? `${4 / cam.k} ${4 / cam.k}` : undefined} />
               );
             })}
-            {/* Edge type labels at the midpoint, once we're zoomed in enough and
-                the edge is long enough on screen to carry a word. This is the
-                content that used to be invisible until you clicked — "kills",
-                "mentor of", "deduces the truth about" now readable in place. */}
-            {zoom >= 0.8 && edges.map((e, i) => {
+            {/* Edge type labels only for the edges touching the selected or
+                hovered node (RELATIONSHIPSBUILD.md §6) — labelling every edge at
+                once produces overlapping text; the labels you want are the ones
+                for the thing you're looking at. */}
+            {(sel || hov) && edges.map((e, i) => {
+              const active = e.a === sel || e.b === sel || e.a === hov || e.b === hov;
+              if (!active) return null;
               const p = pos.get(e.a), q = pos.get(e.b);
               if (!p || !q) return null;
-              const lit = !focusSet || e.a === sel || e.b === sel;
-              if (!lit) return null;
-              const screenLen = Math.hypot(q.x - p.x, q.y - p.y) * cam.k * zoom;
-              if (screenLen < 46) return null;
               const mx = (p.x + q.x) / 2, my = (p.y + q.y) / 2;
               return (
                 <text key={"el" + i} x={mx} y={my} fontSize={9.5 / (cam.k * zoom)} textAnchor="middle"
@@ -265,8 +259,9 @@ export function Graph({ entities, latest, ego, setEgo, onOpenEntity, typeSwatch 
               return (
                 <g key={id} style={{ cursor: "pointer", opacity: lit ? 1 : DIM, transition: "opacity .25s" }}
                   onMouseDown={(ev) => ev.stopPropagation()}
-                  onClick={(ev) => { ev.stopPropagation(); setSel(id); onOpenEntity(id); }}
-                  onDoubleClick={(ev) => { ev.stopPropagation(); setEgo(ego === id ? null : id); setSel(null); }}>
+                  onMouseEnter={() => setHov(id)} onMouseLeave={() => setHov((h) => (h === id ? null : h))}
+                  onClick={(ev) => { ev.stopPropagation(); onOpenEntity(id); }}
+                  onDoubleClick={(ev) => { ev.stopPropagation(); onIsolate(id); }}>
                   {/* selection ring — an outer copy of the same shape, so the
                       node keeps its type colour instead of turning blue */}
                   {isSel && shapeEl(shapeGeom(fam, p.x, p.y, r + 4 / cam.k), {
@@ -291,22 +286,12 @@ export function Graph({ entities, latest, ego, setEgo, onOpenEntity, typeSwatch 
       <Legend nodes={nodes} entById={entById} edges={edges} typeSwatch={typeSwatch} />
 
 
-      <div style={{ position: "absolute", top: 10, left: 12, fontSize: 10.5, color: "var(--muted)", background: "color-mix(in srgb, var(--surface) 90%, transparent)", padding: "4px 9px", borderRadius: 6, border: "1px solid var(--line)" }}>
-        click to focus · double-click to isolate · scroll or +/− to zoom · drag to pan
-      </div>
-
       {/* zoom controls */}
       <div style={{ position: "absolute", bottom: 14, left: 12, display: "flex", flexDirection: "column", gap: 4 }}>
         <button style={{ padding: "4px 9px", fontSize: 14, lineHeight: 1 }} title="Zoom in" onClick={() => setZoom((z) => clamp(z * 1.25, 0.4, 6))}>+</button>
         <button style={{ padding: "4px 9px", fontSize: 14, lineHeight: 1 }} title="Zoom out" onClick={() => setZoom((z) => clamp(z / 1.25, 0.4, 6))}>−</button>
         <button style={{ padding: "4px 9px", fontSize: 11, lineHeight: 1 }} title="Reset view" onClick={() => { setZoom(1); setPan({ x: 0, y: 0 }); }}>⟳</button>
       </div>
-
-      {ego && (
-        <div style={{ position: "absolute", top: 42, left: 12 }}>
-          <span className="chip on click" onClick={() => setEgo(null)}>only {entById.get(ego)?.title.split(" ")[0]} <Icon name="close" size={12} /></span>
-        </div>
-      )}
 
     </div>
   );

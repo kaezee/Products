@@ -1,8 +1,7 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { getStream, getEntities, getRelationshipTypes, getEntityTypes, softDeleteRelationship } from "../lib/api";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { getStream, getEntities, getRelationshipTypes, getEntityTypes } from "../lib/api";
 import type { StreamRow, Entity, RelationshipType, EntityType, Valence } from "../lib/types";
 import type { Nav } from "../App";
-import { VALENCE_COLOR, VALENCE_LABEL } from "../lib/valence";
 import { visibleUnderLens, latestTruthByRel, latestByRel, isBelief } from "../lib/knowledge";
 import { buildTypeSwatches } from "../lib/entityTypes";
 import { buildArcs, type RelArc } from "../lib/relArc";
@@ -10,24 +9,21 @@ import { Graph } from "./Graph";
 import { TypeDictionary } from "./TypeDictionary";
 import { RelRow } from "../components/RelRow";
 import { EntityPanel } from "../components/EntityPanel";
+import { RelChipBar, type OrderBy } from "../components/RelChipBar";
 import { Icon } from "../components/icons";
-import { SidePanel, Disclosure } from "../components/SidePanel";
-import { confirmDialog } from "../components/confirm";
 import { SkeletonRows } from "../components/Skeleton";
 import { EmptyState } from "../components/EmptyState";
 
-// Undirected adjacency between entities, from one-state-per-relationship edges.
+// entity adjacency + BFS reach, for "how far out"
 function adjacency(latest: StreamRow[]): Map<string, Set<string>> {
   const m = new Map<string, Set<string>>();
   const link = (a: string, b: string) => { (m.get(a) ?? m.set(a, new Set()).get(a)!).add(b); };
   for (const r of latest) {
     const ids = r.participants.map((p) => p.entity_id);
-    for (let i = 0; i < ids.length; i++)
-      for (let j = i + 1; j < ids.length; j++) { link(ids[i], ids[j]); link(ids[j], ids[i]); }
+    for (let i = 0; i < ids.length; i++) for (let j = i + 1; j < ids.length; j++) { link(ids[i], ids[j]); link(ids[j], ids[i]); }
   }
   return m;
 }
-// The set of entities within `depth` steps of a centre (centre included).
 function bfsReach(latest: StreamRow[], centre: string, depth: number): Set<string> {
   const adj = adjacency(latest);
   const seen = new Set<string>([centre]);
@@ -40,46 +36,12 @@ function bfsReach(latest: StreamRow[], centre: string, depth: number): Set<strin
   return seen;
 }
 
-// Tone grouping order for the List: Hostile → Duty → Neutral → Allied.
 const TONE_GROUP: Valence[] = ["hostile", "obligation", "neutral", "bond"];
-type OrderBy = "latest" | "most" | "tone" | "kind";
-const ORDERS: { v: OrderBy; label: string }[] = [
-  { v: "latest", label: "latest change" }, { v: "most", label: "most changes" },
-  { v: "tone", label: "tone" }, { v: "kind", label: "kind" },
-];
 
-// A labelled section of relationship rows, with a count in the header.
-function RelGroup({ title, count, subtitle, children }: { title: string; count: number; subtitle?: string; children: ReactNode }) {
-  return (
-    <section className="rel-group">
-      <div className="rel-group-head">
-        <h3 className="rel-group-title">{title}</h3>
-        <span className="rel-group-count">{count}</span>
-        {subtitle && <span className="rel-group-sub">— {subtitle}</span>}
-      </div>
-      <div className="card rel-list-card">{children}</div>
-    </section>
-  );
-}
-const arcCmp = (orderBy: OrderBy) => (a: RelArc, b: RelArc) =>
-  orderBy === "most" ? (b.changes - a.changes || b.lastChangeOrder - a.lastChangeOrder) : (b.lastChangeOrder - a.lastChangeOrder);
-
-// Group arcs for the tone / kind order-bys; returns ordered [header, rows].
-function groupArcs(list: RelArc[], orderBy: OrderBy): [string, RelArc[]][] {
-  const cmp = arcCmp(orderBy);
-  if (orderBy === "tone") {
-    return TONE_GROUP.map((v) => [VALENCE_LABEL[v], list.filter((a) => a.current!.valence === v).sort(cmp)] as [string, RelArc[]])
-      .filter(([, rows]) => rows.length);
-  }
-  // kind
-  const byKind = new Map<string, RelArc[]>();
-  for (const a of list) (byKind.get(a.current!.typeLabel) ?? byKind.set(a.current!.typeLabel, []).get(a.current!.typeLabel)!).push(a);
-  return [...byKind.entries()].sort((a, b) => a[0].localeCompare(b[0])).map(([k, rows]) => [k, rows.sort(cmp)]);
-}
-
-// Relationships (§9). One control set in the right panel drives the lens; the
-// engine (stream view, knowledge/direction libs) is unchanged — this is the
-// presentation layer over it.
+// Relationships (§9 + RELATIONSHIPSBUILD.md). The control set lives in a chip
+// bar over the canvas, not a right panel; the right side is reserved for the
+// selection panel. The engine (stream view, knowledge/direction libs) is
+// unchanged — this is the presentation layer over it.
 export function Relationships({ worldId, go }: { worldId: string; go: (n: Nav) => void }) {
   const [rows, setRows] = useState<StreamRow[] | null>(null);
   const [entities, setEntities] = useState<Entity[]>([]);
@@ -89,17 +51,17 @@ export function Relationships({ worldId, go }: { worldId: string; go: (n: Nav) =
 
   const [lens, setLens] = useState<"graph" | "list">("graph");
   const [typesOpen, setTypesOpen] = useState(false);
-  const [panelOpen, setPanelOpen] = useState(() => localStorage.getItem("k.relpanel") !== "0");
+  const [selId, setSelId] = useState<string | null>(null);       // the selected entity (panel)
 
-  // the control set
-  const [centre, setCentre] = useState<string | null>(null);   // "centre on" (was ego)
-  const [depth, setDepth] = useState<1 | 2 | 3>(2);             // "how far out"
-  const [kinds, setKinds] = useState<Set<string>>(new Set());   // type ids; empty = all
-  const [prevKinds, setPrevKinds] = useState<Set<string>>(new Set()); // for name-click isolate
-  const [viewer, setViewer] = useState("all");                  // "point of view": all | entity id
-  const [asOf, setAsOf] = useState<number | null>(null);        // chapter position
-  const [orderBy, setOrderBy] = useState<"latest" | "most" | "tone" | "kind">("latest");
-  const [modalEntity, setModalEntity] = useState<string | null>(null); // entity page/modal
+  const [centre, setCentre] = useState<string | null>(null);
+  const [depth, setDepth] = useState<1 | 2 | 3>(2);
+  const [tones, setTones] = useState<Set<Valence>>(new Set());
+  const [kinds, setKinds] = useState<Set<string>>(new Set());
+  const [viewer, setViewer] = useState("all");                   // point of view: "all" | entity id
+  const [order, setOrder] = useState<OrderBy>("recent");
+  const [recentPov, setRecentPov] = useState<string[]>([]);
+  const [asOf, setAsOf] = useState<number | null>(null);
+  const [scrubView, setScrubView] = useState<number | null>(null); // instant label during drag
 
   useEffect(() => {
     let alive = true;
@@ -116,129 +78,89 @@ export function Relationships({ worldId, go }: { worldId: string; go: (n: Nav) =
     return () => window.removeEventListener("keydown", h);
   }, [typesOpen]);
 
-  function togglePanel() {
-    setPanelOpen((v) => { localStorage.setItem("k.relpanel", v ? "0" : "1"); return !v; });
-  }
-
   const maxCh = useMemo(() => (rows ?? []).reduce((m, r) => Math.max(m, r.manuscript_order ?? 0), 0), [rows]);
   const asOfVal = asOf ?? maxCh;
+  const entById = useMemo(() => new Map(entities.map((e) => [e.id, e])), [entities]);
   const typeSwatch = useMemo(
     () => buildTypeSwatches(entityTypes.map((t) => ({ name: t.name, swatch: t.swatch })), entities.map((e) => e.type)),
     [entityTypes, entities],
   );
-  // Point of view only appears once the world holds a secret or a belief.
   const hasSecrets = useMemo(
-    () => (rows ?? []).some((r) => (r.known_by?.concealed_from?.length ?? 0) > 0 || isBelief(r)),
-    [rows],
-  );
-
-  // ── derivation ────────────────────────────────────────────────────────────
-  // Everything is a pure function of the control set over the event log.
-  const byAsOf = useMemo(
-    () => (rows ?? []).filter((r) => r.manuscript_order == null || r.manuscript_order <= asOfVal),
+    () => (rows ?? []).some((r) => (r.manuscript_order == null || r.manuscript_order <= asOfVal) && ((r.known_by?.concealed_from?.length ?? 0) > 0 || isBelief(r))),
     [rows, asOfVal],
   );
-  const kindsApplied = (sub: StreamRow[]) => (kinds.size ? sub.filter((r) => kinds.has(r.type_id)) : sub);
-  // one current state per relationship under a point of view
+
+  // ── derivation ──────────────────────────────────────────────────────────
+  const byAsOf = useMemo(() => (rows ?? []).filter((r) => r.manuscript_order == null || r.manuscript_order <= asOfVal), [rows, asOfVal]);
+  const filterKT = (sub: StreamRow[]) => sub.filter((r) => (!kinds.size || kinds.has(r.type_id)) && (!tones.size || tones.has(r.valence)));
   const latestPerRel = (sub: StreamRow[], pov: string): StreamRow[] =>
     pov === "all" ? [...latestTruthByRel(sub).values()] : latestByRel(visibleUnderLens(sub, pov));
 
-  // edge set with kinds + pov applied but NOT the centre — the basis for the
-  // centre list, the depth reach, and (once centred) the visible web.
-  const edgesNoCentre = useMemo(() => latestPerRel(kindsApplied(byAsOf), viewer), [byAsOf, kinds, viewer]);
-
-  // effective depth: never deeper than the web actually reaches from the centre
+  const edgesNoCentre = useMemo(() => latestPerRel(filterKT(byAsOf), viewer), [byAsOf, kinds, tones, viewer]);
   const reachAt = useMemo(() => {
-    const f: number[] = [1]; // reachAt(0) = just the centre
+    const f: number[] = [1];
     if (centre) for (let d = 1; d <= 3; d++) f[d] = bfsReach(edgesNoCentre, centre, d).size;
     return f;
   }, [edgesNoCentre, centre]);
-  const liveMax = useMemo(() => {
-    let m = 1;
-    for (let d = 2; d <= 3; d++) if (reachAt[d] > reachAt[d - 1]) m = d;
-    return m;
-  }, [reachAt]);
-  const effDepth = Math.min(depth, liveMax);
-  const reach = useMemo(
-    () => (centre ? bfsReach(edgesNoCentre, centre, effDepth) : null),
-    [edgesNoCentre, centre, effDepth],
-  );
-
-  // the visible web (graph)
-  const inReach = (r: StreamRow) => !reach || r.participants.every((p) => reach.has(p.entity_id));
+  const liveMax = useMemo(() => { let m = 1; for (let d = 2; d <= 3; d++) if (reachAt[d] > reachAt[d - 1]) m = d; return m; }, [reachAt]);
+  const effDepth = Math.min(depth, liveMax) as 1 | 2 | 3;
+  const reach = useMemo(() => (centre ? bfsReach(edgesNoCentre, centre, effDepth) : null), [edgesNoCentre, centre, effDepth]);
+  const inReach = (r: { participants: { entity_id: string }[] }) => !reach || r.participants.every((p) => reach.has(p.entity_id));
   const visLatest = useMemo(() => edgesNoCentre.filter(inReach), [edgesNoCentre, reach]);
 
-  // one arc per relationship (List lens), scoped to the visible web and to
-  // relationships that actually exist by the current chapter.
-  const entById = useMemo(() => new Map(entities.map((e) => [e.id, e])), [entities]);
+  // arcs for the List (kinds via buildArcs, then tone + reach)
   const arcs = useMemo(() => buildArcs(rows ?? [], viewer, asOfVal, kinds), [rows, viewer, asOfVal, kinds]);
   const visArcs = useMemo(
-    () => arcs.filter((a) => a.current != null && (!reach || a.participants.every((p) => reach.has(p.entity_id)))),
-    [arcs, reach],
+    () => arcs.filter((a) => a.current != null && (!tones.size || tones.has(a.current.valence)) && inReach(a)),
+    [arcs, tones, reach],
   );
-  // the entity page shows ALL of an entity's connections (ignoring the kind
-  // toggles and the centre), as they stand at the current chapter.
+  // selection panel shows ALL of an entity's connections (ignoring the chips)
   const allArcs = useMemo(() => buildArcs(rows ?? [], viewer, asOfVal, new Set<string>()), [rows, viewer, asOfVal]);
-  const modalArcs = useMemo(
-    () => (modalEntity ? allArcs.filter((a) => a.current != null && a.participants.some((p) => p.entity_id === modalEntity)) : []),
-    [allArcs, modalEntity],
+  const selArcs = useMemo(() => (selId ? allArcs.filter((a) => a.current != null && a.participants.some((p) => p.entity_id === selId)) : []), [allArcs, selId]);
+
+  // ── chip data (counts on the truth set, ignoring the chips' own filters) ──
+  const baseRels = useMemo(() => [...latestTruthByRel(byAsOf).values()], [byAsOf]);
+  const kindSeen = useMemo(() => { const m = new Map<string, number>(); for (const r of baseRels) m.set(r.type_id, (m.get(r.type_id) ?? 0) + 1); return m; }, [baseRels]);
+  const toneCount = useMemo(() => { const m = new Map<Valence, number>(); for (const r of baseRels) m.set(r.valence, (m.get(r.valence) ?? 0) + 1); return m; }, [baseRels]);
+  const deg = useMemo(() => { const m = new Map<string, number>(); for (const e of edgesNoCentre) for (const p of e.participants) m.set(p.entity_id, (m.get(p.entity_id) ?? 0) + 1); return m; }, [edgesNoCentre]);
+  const povPeople = useMemo(
+    () => entities.filter((e) => e.type === "Character").map((e) => ({ id: e.id, name: e.title.split(" ")[0], deg: deg.get(e.id) ?? 0 })),
+    [entities, deg],
   );
-  // centring on someone is the same gesture as opening their page (§3.1)
-  const centreOn = (id: string | null) => { setCentre(id); if (id) setModalEntity(id); };
+  const kindDict = useMemo(() => types.map((t) => ({ id: t.id, label: t.label, valence: t.valence })), [types]);
+  const centreName = centre ? entById.get(centre)?.title.split(" ")[0] ?? null : null;
 
-  // ── counts (cross-filtered: each reflects the OTHER controls, not its own) ──
-  const connCount = (id: string) => edgesNoCentre.filter((r) => r.participants.some((p) => p.entity_id === id)).length;
-  // kinds count: the pov+as-of world (ignoring the kind toggles), within reach
-  const kindCount = useMemo(() => {
-    const base = latestPerRel(byAsOf, viewer).filter(inReach);
-    const m = new Map<string, number>();
-    for (const r of base) m.set(r.type_id, (m.get(r.type_id) ?? 0) + 1);
-    return m;
-  }, [byAsOf, viewer, reach]);
-  // characters that appear in any relationship (for the point-of-view list)
-  const povPeople = useMemo(() => {
-    const ids = new Set<string>();
-    for (const r of latestPerRel(byAsOf, "all")) for (const p of r.participants) ids.add(p.entity_id);
-    return entities.filter((e) => e.type === "Character" && ids.has(e.id));
-  }, [byAsOf, entities]);
+  // centring on someone = selecting them (§3.1 — same gesture)
+  const centreOn = (id: string) => { setCentre(id); setDepth(1); setSelId(id); };
 
-  // entities grouped by type for the centre list
-  const centreGroups = useMemo(() => {
-    const g = new Map<string, Entity[]>();
-    for (const e of entities) (g.get(e.type) ?? g.set(e.type, []).get(e.type)!).push(e);
-    for (const list of g.values()) list.sort((a, b) => b0(connCount, b) - b0(connCount, a) || a.title.localeCompare(b.title));
-    return [...g.entries()];
-  }, [entities, edgesNoCentre]);
-
-  async function removeRelationship(relId: string, label: string) {
-    if (!(await confirmDialog({ title: "Remove relationship", message: `Remove the "${label}" relationship and its whole history? It's soft-deleted — recoverable, nothing is truly lost.`, confirmLabel: "Remove", tone: "danger" }))) return;
-    try {
-      await softDeleteRelationship(relId);
-      setRows((prev) => (prev ?? []).filter((r) => r.relationship_id !== relId));
-    } catch (x) { setErr(String(x)); }
+  // rAF-throttled scrub (§8.2): label updates now, the heavy redraw once a frame
+  const raf = useRef<number | null>(null);
+  const target = useRef(asOfVal);
+  function onScrub(v: number) {
+    target.current = v; setScrubView(v);
+    if (raf.current) return;
+    raf.current = requestAnimationFrame(() => { raf.current = null; setAsOf(target.current); setScrubView(null); });
   }
+  const shownCh = scrubView ?? asOfVal;
 
-  // click a kind's NAME (not its box) to isolate it; click again to restore
-  function isolateKind(id: string) {
-    setKinds((cur) => {
-      if (cur.size === 1 && cur.has(id)) return new Set(prevKinds); // restore
-      setPrevKinds(cur);
-      return new Set([id]);
-    });
-  }
-  function toggleKind(id: string) {
-    setKinds((cur) => { const n = new Set(cur); n.has(id) ? n.delete(id) : n.add(id); return n; });
-  }
+  const chipData = {
+    variant: lens, hasSecrets,
+    centre, centreName, depth, reachAt, effDepth,
+    onClearCentre: () => setCentre(null), setDepth,
+    tones, toneCount, setTones,
+    kinds, kindDict, kindSeen, total: baseRels.length, setKinds,
+    pov: viewer, povPeople, recentPov,
+    setPov: (id: string) => { setViewer(id); if (id !== "all") setRecentPov((r) => [id, ...r.filter((x) => x !== id)].slice(0, 3)); },
+    order, setOrder,
+  };
 
   if (err) return <p className="err">{err}</p>;
   if (!rows) return <SkeletonRows rows={6} />;
-
   if (rows.length === 0) {
     return (
       <div className="fi">
         <h2 className="scope-title" style={{ marginBottom: 12 }}>Relationships</h2>
-        <EmptyState icon="relationships"
-          title="No relationships yet"
+        <EmptyState icon="relationships" title="No relationships yet"
           desc="Relationships grow out of your prose. Open a chapter, select a line where two characters connect, and record what passes between them — it appears here as a living web you can filter and rewind."
           steps={["Add your cast", "Mark a moment in a chapter", "See the web"]}
           action={{ label: "Open the Manuscript", onClick: () => go({ scope: "manuscript" }) }} />
@@ -246,14 +168,16 @@ export function Relationships({ worldId, go }: { worldId: string; go: (n: Nav) =
     );
   }
 
-  const centreName = centre ? entities.find((e) => e.id === centre)?.title.split(" ")[0] : null;
-  const depthSteps: { v: 1 | 2 | 3; label: string }[] = [
-    { v: 1, label: "direct" }, { v: 2, label: "2 steps" }, { v: 3, label: "3 steps" },
-  ];
-  const relRowEl = (a: RelArc, anchor?: string) => (
-    <RelRow key={a.relationshipId} arc={a} entById={entById} typeSwatch={typeSwatch}
-      maxCh={maxCh} asOf={asOfVal} anchor={anchor} onOpenEntity={(id) => setModalEntity(id)}
-      onRemove={() => removeRelationship(a.relationshipId, a.current?.typeLabel ?? "this")} />
+  // group + sort the List arcs
+  const cmp = (a: RelArc, b: RelArc) => order === "changed" ? (b.changes - a.changes || b.lastChangeOrder - a.lastChangeOrder) : (b.lastChangeOrder - a.lastChangeOrder);
+  const listGroups: [string, RelArc[]][] = (() => {
+    if (order === "tone") return TONE_GROUP.map((v) => [VALENCE_LABEL_LOCAL[v], visArcs.filter((a) => a.current!.valence === v).sort(cmp)] as [string, RelArc[]]).filter(([, l]) => l.length);
+    if (order === "kind") { const m = new Map<string, RelArc[]>(); for (const a of visArcs) (m.get(a.current!.typeLabel) ?? m.set(a.current!.typeLabel, []).get(a.current!.typeLabel)!).push(a); return [...m.entries()].sort((x, y) => x[0].localeCompare(y[0])).map(([k, l]) => [k, l.sort(cmp)] as [string, RelArc[]]); }
+    return [[order === "changed" ? "Changed most often" : "Changed most recently", [...visArcs].sort(cmp)]];
+  })();
+
+  const relRowEl = (a: RelArc) => (
+    <RelRow key={a.relationshipId} arc={a} entById={entById} typeSwatch={typeSwatch} maxCh={maxCh} asOf={asOfVal} onOpenEntity={setSelId} />
   );
 
   return (
@@ -268,49 +192,42 @@ export function Relationships({ worldId, go }: { worldId: string; go: (n: Nav) =
         <button onClick={() => setTypesOpen(true)}>Manage kinds</button>
       </div>
 
+      {lens === "list" && <RelChipBar {...chipData} />}
+
       <div className="rel-main">
         <div className="rel-centre">
           {lens === "graph" ? (
             <div className="rel-stage">
-              <Graph entities={entities} latest={visLatest} ego={null}
-                setEgo={(id) => { if (id) { setCentre(id); setDepth(1); } }}
-                onOpenEntity={(id) => setModalEntity(id)} typeSwatch={typeSwatch} />
+              <div className="graph-wrap">
+                <Graph entities={entities} latest={visLatest} selected={selId}
+                  onOpenEntity={setSelId} onBackground={() => setSelId(null)}
+                  onIsolate={centreOn} typeSwatch={typeSwatch} />
+                <RelChipBar {...chipData} />
+                {maxCh > 0 && (
+                  <div className="rel-scrub">
+                    <span className="rel-scrub-lab">World at</span>
+                    <input type="range" min={1} max={maxCh} value={shownCh} onChange={(e) => onScrub(+e.target.value)} />
+                    <span className="rel-scrub-ch">chapter {shownCh}{shownCh >= maxCh ? "" : ` · ${maxCh - shownCh} ahead`}</span>
+                  </div>
+                )}
+              </div>
             </div>
           ) : (
             visArcs.length === 0 ? (
               <div className="card"><div className="row"><span className="muted">Nothing matches these controls at this point in the story.</span></div></div>
             ) : (
               <div className="rel-list">
-                <div className="rel-list-bar">
-                  <span className="faint">Order by</span>
-                  <div className="seg" style={{ fontSize: 11 }}>
-                    {ORDERS.map((o) => <span key={o.v} className={orderBy === o.v ? "on" : ""} onClick={() => setOrderBy(o.v)}>{o.label}</span>)}
-                  </div>
-                </div>
-                {centre ? (() => {
-                  const own = visArcs.filter((a) => a.participants.some((p) => p.entity_id === centre)).sort(arcCmp(orderBy));
-                  const elsewhere = visArcs.filter((a) => !a.participants.some((p) => p.entity_id === centre)).sort(arcCmp(orderBy));
-                  return (
-                    <>
-                      <RelGroup title={`${centreName}’s own connections`} count={own.length}>
-                        {own.map((a) => relRowEl(a, centre))}
-                      </RelGroup>
-                      {elsewhere.length > 0 && (
-                        <RelGroup title={`Elsewhere within ${effDepth === 1 ? "reach" : `${effDepth} steps`}`} count={elsewhere.length} subtitle="context around them, not their own">
-                          <div style={{ opacity: 0.72 }}>{elsewhere.map((a) => relRowEl(a))}</div>
-                        </RelGroup>
-                      )}
-                    </>
-                  );
-                })() : (orderBy === "tone" || orderBy === "kind") ? (
-                  groupArcs(visArcs, orderBy).map(([header, rowsG]) => (
-                    <RelGroup key={header} title={header} count={rowsG.length}>
-                      {rowsG.map((a) => relRowEl(a))}
-                    </RelGroup>
-                  ))
-                ) : (
-                  <div className="card rel-list-card">
-                    {[...visArcs].sort(arcCmp(orderBy)).map((a) => relRowEl(a))}
+                {listGroups.map(([header, list]) => (
+                  <section key={header} className="rel-group">
+                    <div className="rel-group-head"><h3 className="rel-group-title">{header}</h3><span className="rel-group-count">{list.length}</span></div>
+                    <div className="card rel-list-card">{list.map(relRowEl)}</div>
+                  </section>
+                ))}
+                {maxCh > 0 && (
+                  <div className="rel-scrub static">
+                    <span className="rel-scrub-lab">World at</span>
+                    <input type="range" min={1} max={maxCh} value={shownCh} onChange={(e) => onScrub(+e.target.value)} />
+                    <span className="rel-scrub-ch">chapter {shownCh}{shownCh >= maxCh ? "" : ` · ${maxCh - shownCh} ahead`}</span>
                   </div>
                 )}
               </div>
@@ -318,105 +235,16 @@ export function Relationships({ worldId, go }: { worldId: string; go: (n: Nav) =
           )}
         </div>
 
-        {modalEntity && entById.get(modalEntity) && (
-          <EntityPanel entity={entById.get(modalEntity)!} arcs={modalArcs} entById={entById} typeSwatch={typeSwatch}
+        {selId && entById.get(selId) && (
+          <EntityPanel entity={entById.get(selId)!} arcs={selArcs} entById={entById} typeSwatch={typeSwatch}
             maxCh={maxCh} asOf={asOfVal}
-            onClose={() => setModalEntity(null)}
-            onOpenEntity={(id) => setModalEntity(id)}
-            onOpenPage={() => go({ scope: "library", entityId: modalEntity })}
-            onShowWorld={() => { setCentre(null); setModalEntity(null); }}
+            onClose={() => setSelId(null)}
+            onOpenEntity={setSelId}
+            onOpenPage={() => go({ scope: "library", entityId: selId! })}
+            onCentreHere={() => centreOn(selId!)}
             onMarkMoment={() => go({ scope: "manuscript" })} />
         )}
-
-        <SidePanel open={panelOpen} onToggle={togglePanel}>
-          {/* Centre on */}
-          <Disclosure label="Centre on" count={centreName ?? undefined} defaultOpen>
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              <select className="sel" value={centre ?? ""} onChange={(e) => centreOn(e.target.value || null)}>
-                <option value="">— the whole world —</option>
-                {centreGroups.map(([type, list]) => (
-                  <optgroup key={type} label={type}>
-                    {list.map((e) => {
-                      const c = connCount(e.id);
-                      return <option key={e.id} value={e.id} disabled={c === 0}>{e.title.split(" ")[0]} — {c} {c === 1 ? "connection" : "connections"}</option>;
-                    })}
-                  </optgroup>
-                ))}
-              </select>
-              {centre && <button onClick={() => setCentre(null)}>Show the whole world</button>}
-              <span className="rel-help">what the web draws itself around</span>
-            </div>
-          </Disclosure>
-
-          {/* How far out */}
-          <Disclosure label="How far out" count={centre ? `${reachAt[effDepth] - 1}` : undefined} defaultOpen>
-            {!centre ? (
-              <span className="rel-help">centre on something first</span>
-            ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                <div className="seg rel-seg">
-                  {depthSteps.map((d) => {
-                    const dead = d.v > 1 && reachAt[d.v] === reachAt[d.v - 1];
-                    return (
-                      <span key={d.v} className={(effDepth === d.v ? "on " : "") + (dead ? "off" : "")}
-                        title={dead ? "reaches no one new" : undefined}
-                        onClick={() => !dead && setDepth(d.v)}>{d.label}</span>
-                    );
-                  })}
-                </div>
-                <span className="rel-help">{reachAt[effDepth] - 1} within {effDepth === 1 ? "reach" : `${effDepth} steps`} of {centreName}</span>
-              </div>
-            )}
-          </Disclosure>
-
-          {/* Kinds of connection */}
-          <Disclosure label="Kinds" count={kinds.size ? kinds.size : undefined} defaultOpen>
-            <div className="rel-kinds">
-              <label className="rel-kind">
-                <input type="checkbox" checked={kinds.size === 0} onChange={() => setKinds(new Set())} />
-                <span className="rel-kind-name">every kind</span>
-              </label>
-              {types.map((t) => {
-                const c = kindCount.get(t.id) ?? 0;
-                const on = kinds.has(t.id);
-                return (
-                  <label key={t.id} className={"rel-kind" + (c === 0 ? " off" : "")}>
-                    <input type="checkbox" checked={on} disabled={c === 0} onChange={() => toggleKind(t.id)} />
-                    <span className="dot" style={{ background: VALENCE_COLOR[t.valence] }} />
-                    <span className="rel-kind-name" title="Show only this kind"
-                      onClick={(ev) => { ev.preventDefault(); if (c > 0) isolateKind(t.id); }}>{t.label}</span>
-                    <span className="disc-count">{c}</span>
-                  </label>
-                );
-              })}
-            </div>
-          </Disclosure>
-
-          {/* Point of view */}
-          {hasSecrets && (
-            <Disclosure label="Point of view" count={viewer !== "all" ? "1" : undefined} defaultOpen>
-              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                <select className="sel" value={viewer} onChange={(e) => setViewer(e.target.value)}>
-                  <option value="all">you — you know everything</option>
-                  {povPeople.map((e) => <option key={e.id} value={e.id}>as {e.title.split(" ")[0]} believes</option>)}
-                </select>
-                {viewer !== "all" && <span className="rel-help" style={{ color: "var(--hostile)" }}>their world — secrets they don’t know vanish, their own beliefs stand in</span>}
-                <span className="rel-help">whose knowledge shapes what you see</span>
-              </div>
-            </Disclosure>
-          )}
-        </SidePanel>
       </div>
-
-      {/* chapter position — spans centre + panel, drives both lenses and counts */}
-      {maxCh > 0 && (
-        <div className="rel-footer">
-          <span style={{ fontWeight: 600, whiteSpace: "nowrap" }}>Showing the world at</span>
-          <input type="range" min={1} max={maxCh} value={asOfVal} onChange={(e) => setAsOf(+e.target.value)} style={{ flex: 1, accentColor: "var(--bond)" }} />
-          <span style={{ fontWeight: 650, color: "var(--ink)", whiteSpace: "nowrap", fontFamily: "var(--k-font-mono)" }}>chapter {asOfVal}</span>
-          <span className="faint" style={{ whiteSpace: "nowrap" }}>{asOfVal >= maxCh ? "everything so far" : `${maxCh - asOfVal} ${maxCh - asOfVal === 1 ? "chapter" : "chapters"} still ahead`}</span>
-        </div>
-      )}
 
       {typesOpen && (
         <div className="overlay" onClick={() => setTypesOpen(false)}>
@@ -425,8 +253,7 @@ export function Relationships({ worldId, go }: { worldId: string; go: (n: Nav) =
               <h3 style={{ fontFamily: "var(--serif)", fontWeight: 500, margin: 0, fontSize: 19 }}>Manage kinds</h3>
               <span className="muted" style={{ marginLeft: 10 }}>the relationship dictionary for this world</span>
               <span className="spacer" />
-              <span onClick={() => setTypesOpen(false)} title="Close (Esc)"
-                style={{ cursor: "pointer", color: "var(--muted)", display: "inline-flex" }}><Icon name="close" size={16} /></span>
+              <span onClick={() => setTypesOpen(false)} title="Close (Esc)" style={{ cursor: "pointer", color: "var(--muted)", display: "inline-flex" }}><Icon name="close" size={16} /></span>
             </div>
             <TypeDictionary worldId={worldId} />
           </div>
@@ -436,5 +263,5 @@ export function Relationships({ worldId, go }: { worldId: string; go: (n: Nav) =
   );
 }
 
-// tiny helper: connection count via a passed fn, for sort comparators
-function b0(fn: (id: string) => number, e: Entity): number { return fn(e.id); }
+// tone group labels (kept local so this file owns its List headers)
+const VALENCE_LABEL_LOCAL: Record<Valence, string> = { bond: "Allied", obligation: "Duty", neutral: "Neutral", hostile: "Hostile" };

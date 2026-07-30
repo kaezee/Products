@@ -400,6 +400,30 @@ button.danger:hover:not(:disabled) { filter: brightness(0.93); background: var(-
 .rel-stage { flex: 1; min-height: 0; display: flex; }
 .graph-card { flex: 1; min-height: 320px; position: relative; overflow: hidden; }
 
+/* Two-rail shell: header, a centre + right-panel row, and a footer that spans
+   both. Mirrors the manuscript editor. */
+.rel-shell { height: 100%; display: flex; flex-direction: column; min-height: 0; }
+.rel-main { flex: 1 1 auto; min-height: 0; display: flex; gap: 16px; }
+.rel-centre { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }
+.rel-centre > .rel-stage { flex: 1; }
+.rel-centre > .card { overflow-y: auto; }
+.rel-footer { flex: 0 0 auto; display: flex; align-items: center; gap: 12px; margin-top: 12px;
+  padding-top: 12px; border-top: 1px solid var(--line); font-size: 12px; color: var(--sub); }
+.rel-help { font-size: 11px; color: var(--muted); line-height: 1.4; }
+
+/* Right-panel controls */
+.rel-seg { width: 100%; }
+.rel-seg span { flex: 1; text-align: center; }
+.rel-seg span.off { opacity: .4; cursor: not-allowed; }
+.rel-kinds { display: flex; flex-direction: column; gap: 2px; }
+.rel-kind { display: flex; align-items: center; gap: 7px; padding: 4px 2px; font-size: 12.5px; cursor: pointer; border-radius: 5px; }
+.rel-kind:hover { background: var(--wash); }
+.rel-kind.off { opacity: .5; }
+.rel-kind input { margin: 0; flex: 0 0 auto; accent-color: var(--bond); }
+.rel-kind .dot { flex: 0 0 auto; }
+.rel-kind-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rel-kind:not(.off) .rel-kind-name:hover { text-decoration: underline; }
+
 /* Notes fills the pane instead of a fixed 68vh (which left dead space below). */
 .notes-view { height: 100%; display: flex; flex-direction: column; min-height: 0; }
 .notes-board { position: relative; flex: 1; min-height: 320px; overflow: hidden; border: 1px solid var(--line); border-radius: 12px; background: var(--k-bg-surface) repeating-linear-gradient(0deg, transparent, transparent 23px, color-mix(in srgb, var(--k-text-primary) 4%, transparent) 24px), repeating-linear-gradient(90deg, transparent, transparent 23px, color-mix(in srgb, var(--k-text-primary) 4%, transparent) 24px); cursor: grab; }

@@ -1,9 +1,7 @@
 import { createElement, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { Entity, StreamRow } from "../lib/types";
-import type { Nav } from "../App";
 import { computeLayout } from "../lib/layout";
 import { VALENCE_COLOR, VALENCE_LABEL, VALENCE_ORDER } from "../lib/valence";
-import { sideLabel } from "../lib/direction";
 import { familyOf, FAMILY_LABEL, type NodeFamily } from "../lib/entityTypes";
 import { shapeGeom } from "../lib/nodeShape";
 import { Icon } from "../components/icons";
@@ -90,12 +88,12 @@ function Legend({ nodes, entById, edges, typeSwatch }: {
 // The relational canvas (§9.3). Click a node to focus it and its neighbours
 // (Obsidian-style — the rest dims). Double-click for ego view. Zoom with the
 // buttons or the wheel; drag the background to pan.
-export function Graph({ entities, latest, ego, setEgo, go, typeSwatch }: {
+export function Graph({ entities, latest, ego, setEgo, onOpenEntity, typeSwatch }: {
   entities: Entity[];
   latest: StreamRow[];
   ego: string | null;
   setEgo: (id: string | null) => void;
-  go: (n: Nav) => void;
+  onOpenEntity: (id: string) => void; // click a node → open its page/modal
   typeSwatch: Map<string, string>; // entity type name (lowercased) → swatch
 }) {
   const entById = useMemo(() => new Map(entities.map((e) => [e.id, e])), [entities]);
@@ -203,9 +201,6 @@ export function Graph({ entities, latest, ego, setEgo, go, typeSwatch }: {
     setPan((p) => ({ x: p.x + dx, y: p.y + dy }));
   }
 
-  const selEntity = sel ? entById.get(sel) : null;
-  const selStates = sel ? latest.filter((r) => r.participants.some((p) => p.entity_id === sel)) : [];
-
   if (latest.length === 0) {
     return <div className="card"><div className="row"><span className="muted">No relationships match these lenses at this point in the story.</span></div></div>;
   }
@@ -270,7 +265,7 @@ export function Graph({ entities, latest, ego, setEgo, go, typeSwatch }: {
               return (
                 <g key={id} style={{ cursor: "pointer", opacity: lit ? 1 : DIM, transition: "opacity .25s" }}
                   onMouseDown={(ev) => ev.stopPropagation()}
-                  onClick={(ev) => { ev.stopPropagation(); setSel(id); }}
+                  onClick={(ev) => { ev.stopPropagation(); setSel(id); onOpenEntity(id); }}
                   onDoubleClick={(ev) => { ev.stopPropagation(); setEgo(ego === id ? null : id); setSel(null); }}>
                   {/* selection ring — an outer copy of the same shape, so the
                       node keeps its type colour instead of turning blue */}
@@ -313,32 +308,6 @@ export function Graph({ entities, latest, ego, setEgo, go, typeSwatch }: {
         </div>
       )}
 
-      {selEntity && (
-        <div className="pop" style={{ position: "absolute", bottom: 14, right: 14, width: 240, background: "var(--surface)", border: "1px solid var(--lineStrong)", borderRadius: 13, padding: "13px 15px", boxShadow: "var(--pop)" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 9 }}>
-            <span className="title-serif" style={{ fontSize: 15.5, flex: 1 }}>{selEntity.title}</span>
-            <span onClick={() => setSel(null)} style={{ color: "var(--muted)", cursor: "pointer", display: "inline-flex" }}><Icon name="close" size={15} /></span>
-          </div>
-          <div style={{ fontSize: 12, color: "var(--sub)", display: "flex", flexDirection: "column", gap: 5, marginBottom: 11 }}>
-            {selStates.slice(0, 4).map((s) => {
-              const others = s.participants.filter((p) => p.entity_id !== sel).map((p) => p.title.split(" ")[0]).join(" · ");
-              const side = sel ? sideLabel(s, sel) : { label: s.type_label, incoming: false };
-              return (
-                <div key={s.state_id}>
-                  {side.incoming ? (
-                    <>{others} <span className="faint" style={{ fontStyle: "italic" }}>{side.label} ↩</span></>
-                  ) : (
-                    <><span style={{ color: VALENCE_COLOR[s.valence], fontWeight: 650 }}>{side.label}</span>{" · "}{others}</>
-                  )}
-                  {" "}<span className="faint">ch. {s.manuscript_order ?? "—"}</span>
-                </div>
-              );
-            })}
-            {selStates.length === 0 && <div style={{ color: "var(--obligation)" }}>no relationships at this point</div>}
-          </div>
-          <button onClick={() => go({ scope: "library", entityId: selEntity.id })} style={{ width: "100%", fontSize: 12 }}>Open page</button>
-        </div>
-      )}
     </div>
   );
 }

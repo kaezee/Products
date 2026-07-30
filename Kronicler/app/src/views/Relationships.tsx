@@ -9,6 +9,7 @@ import { buildArcs, type RelArc } from "../lib/relArc";
 import { Graph } from "./Graph";
 import { TypeDictionary } from "./TypeDictionary";
 import { RelRow } from "../components/RelRow";
+import { EntityModal } from "../components/EntityModal";
 import { Icon } from "../components/icons";
 import { SidePanel, Disclosure } from "../components/SidePanel";
 import { confirmDialog } from "../components/confirm";
@@ -98,6 +99,7 @@ export function Relationships({ worldId, go }: { worldId: string; go: (n: Nav) =
   const [viewer, setViewer] = useState("all");                  // "point of view": all | entity id
   const [asOf, setAsOf] = useState<number | null>(null);        // chapter position
   const [orderBy, setOrderBy] = useState<"latest" | "most" | "tone" | "kind">("latest");
+  const [modalEntity, setModalEntity] = useState<string | null>(null); // entity page/modal
 
   useEffect(() => {
     let alive = true;
@@ -174,6 +176,15 @@ export function Relationships({ worldId, go }: { worldId: string; go: (n: Nav) =
     () => arcs.filter((a) => a.current != null && (!reach || a.participants.every((p) => reach.has(p.entity_id)))),
     [arcs, reach],
   );
+  // the entity page shows ALL of an entity's connections (ignoring the kind
+  // toggles and the centre), as they stand at the current chapter.
+  const allArcs = useMemo(() => buildArcs(rows ?? [], viewer, asOfVal, new Set<string>()), [rows, viewer, asOfVal]);
+  const modalArcs = useMemo(
+    () => (modalEntity ? allArcs.filter((a) => a.current != null && a.participants.some((p) => p.entity_id === modalEntity)) : []),
+    [allArcs, modalEntity],
+  );
+  // centring on someone is the same gesture as opening their page (§3.1)
+  const centreOn = (id: string | null) => { setCentre(id); if (id) setModalEntity(id); };
 
   // ── counts (cross-filtered: each reflects the OTHER controls, not its own) ──
   const connCount = (id: string) => edgesNoCentre.filter((r) => r.participants.some((p) => p.entity_id === id)).length;
@@ -241,7 +252,7 @@ export function Relationships({ worldId, go }: { worldId: string; go: (n: Nav) =
   ];
   const relRowEl = (a: RelArc, anchor?: string) => (
     <RelRow key={a.relationshipId} arc={a} entById={entById} typeSwatch={typeSwatch}
-      maxCh={maxCh} asOf={asOfVal} anchor={anchor} onOpenEntity={(id) => go({ scope: "library", entityId: id })}
+      maxCh={maxCh} asOf={asOfVal} anchor={anchor} onOpenEntity={(id) => setModalEntity(id)}
       onRemove={() => removeRelationship(a.relationshipId, a.current?.typeLabel ?? "this")} />
   );
 
@@ -262,7 +273,8 @@ export function Relationships({ worldId, go }: { worldId: string; go: (n: Nav) =
           {lens === "graph" ? (
             <div className="rel-stage">
               <Graph entities={entities} latest={visLatest} ego={null}
-                setEgo={(id) => { if (id) { setCentre(id); setDepth(1); } }} go={go} typeSwatch={typeSwatch} />
+                setEgo={(id) => { if (id) { setCentre(id); setDepth(1); } }}
+                onOpenEntity={(id) => setModalEntity(id)} typeSwatch={typeSwatch} />
             </div>
           ) : (
             visArcs.length === 0 ? (
@@ -310,7 +322,7 @@ export function Relationships({ worldId, go }: { worldId: string; go: (n: Nav) =
           {/* Centre on */}
           <Disclosure label="Centre on" count={centreName ?? undefined} defaultOpen>
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              <select className="sel" value={centre ?? ""} onChange={(e) => { setCentre(e.target.value || null); }}>
+              <select className="sel" value={centre ?? ""} onChange={(e) => centreOn(e.target.value || null)}>
                 <option value="">— the whole world —</option>
                 {centreGroups.map(([type, list]) => (
                   <optgroup key={type} label={type}>
@@ -394,6 +406,16 @@ export function Relationships({ worldId, go }: { worldId: string; go: (n: Nav) =
           <span style={{ fontWeight: 650, color: "var(--ink)", whiteSpace: "nowrap", fontFamily: "var(--k-font-mono)" }}>chapter {asOfVal}</span>
           <span className="faint" style={{ whiteSpace: "nowrap" }}>{asOfVal >= maxCh ? "everything so far" : `${maxCh - asOfVal} ${maxCh - asOfVal === 1 ? "chapter" : "chapters"} still ahead`}</span>
         </div>
+      )}
+
+      {modalEntity && entById.get(modalEntity) && (
+        <EntityModal entity={entById.get(modalEntity)!} arcs={modalArcs} entById={entById} typeSwatch={typeSwatch}
+          maxCh={maxCh} asOf={asOfVal}
+          onClose={() => setModalEntity(null)}
+          onOpenEntity={(id) => setModalEntity(id)}
+          onOpenPage={() => go({ scope: "library", entityId: modalEntity })}
+          onShowWorld={() => { setCentre(null); setModalEntity(null); }}
+          onMarkMoment={() => go({ scope: "manuscript" })} />
       )}
 
       {typesOpen && (

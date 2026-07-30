@@ -38,30 +38,37 @@ function shortLabel(title: string): string {
 
 interface Edge { a: string; b: string; row: StreamRow }
 
-// The on-canvas key: which shapes and tones are actually in play. Both blocks
-// list only what the visible web uses, so a world of only people and places
-// never advertises hexagons or triangles.
-function Legend({ nodes, entById, edges }: { nodes: string[]; entById: Map<string, Entity>; edges: Edge[] }) {
-  const families = useMemo(() => {
-    const present = new Set<NodeFamily>();
-    nodes.forEach((id) => { const e = entById.get(id); if (e) present.add(familyOf(e.type)); });
-    return FAMILY_ORDER.filter((f) => present.has(f));
-  }, [nodes, entById]);
+// The on-canvas key. The shape block keys by the writer's OWN type names — the
+// Collection section names, each in its own colour and shape — not an abstract
+// family word: shape only groups (Character and Creature both read as a circle),
+// but the label you read is your vocabulary. The tone block keys the valences.
+// Both list only what the visible web actually uses.
+function Legend({ nodes, entById, edges, typeSwatch }: {
+  nodes: string[]; entById: Map<string, Entity>; edges: Edge[]; typeSwatch: Map<string, string>;
+}) {
+  const kinds = useMemo(() => {
+    const m = new Map<string, { name: string; fam: NodeFamily; sw: string | undefined }>();
+    nodes.forEach((id) => {
+      const e = entById.get(id);
+      if (e && !m.has(e.type)) m.set(e.type, { name: e.type, fam: familyOf(e.type), sw: typeSwatch.get(e.type.toLowerCase()) });
+    });
+    return [...m.values()].sort((a, b) => FAMILY_ORDER.indexOf(a.fam) - FAMILY_ORDER.indexOf(b.fam) || a.name.localeCompare(b.name));
+  }, [nodes, entById, typeSwatch]);
   const tones = useMemo(() => {
     const present = new Set(edges.map((e) => e.row.valence));
     return VALENCE_ORDER.filter((v) => present.has(v));
   }, [edges]);
-  if (families.length === 0 && tones.length === 0) return null;
+  if (kinds.length === 0 && tones.length === 0) return null;
   return (
     <div className="g-legend">
-      {families.length > 0 && (
+      {kinds.length > 0 && (
         <div className="g-legend-block">
-          {families.map((f) => (
-            <span key={f} className="g-legend-row" title={FAMILY_LABEL[f]}>
+          {kinds.map((k) => (
+            <span key={k.name} className="g-legend-row" title={`${k.name} — ${FAMILY_LABEL[k.fam]}`}>
               <svg width={15} height={15} viewBox="0 0 15 15">
-                {shapeEl(shapeGeom(f, 7.5, 7.5, 5), { fill: "var(--wash)", stroke: "var(--sub)", strokeWidth: 1.3 })}
+                {shapeEl(shapeGeom(k.fam, 7.5, 7.5, 5), { fill: swFill(k.sw), stroke: swStroke(k.sw), strokeWidth: 1.4 })}
               </svg>
-              {FAMILY_LABEL[f]}
+              {k.name}
             </span>
           ))}
         </div>
@@ -286,7 +293,7 @@ export function Graph({ entities, latest, ego, setEgo, go, typeSwatch }: {
       {/* Legend — the key to shapes (what a node IS) and tones (how a link
           feels). Only families and tones actually present are shown, so it
           never lists shapes the world doesn't use. */}
-      <Legend nodes={nodes} entById={entById} edges={edges} />
+      <Legend nodes={nodes} entById={entById} edges={edges} typeSwatch={typeSwatch} />
 
 
       <div style={{ position: "absolute", top: 10, left: 12, fontSize: 10.5, color: "var(--muted)", background: "color-mix(in srgb, var(--surface) 90%, transparent)", padding: "4px 9px", borderRadius: 6, border: "1px solid var(--line)" }}>

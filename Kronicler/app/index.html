@@ -10,6 +10,7 @@
       (function () {
         try {
           var t = localStorage.getItem('k.theme') || 'paper';
+          if (t === 'grey') { t = 'white'; localStorage.setItem('k.theme', t); } // migrated: grey → white
           if (t === 'system') {
             t = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'paper';
           }

@@ -20,9 +20,9 @@ import { ConfirmHost, confirmDialog } from "./components/confirm";
 import { Spinner } from "./components/Skeleton";
 import { Breadcrumb, type Crumb } from "./components/Breadcrumb";
 
-const THEME_CYCLE: Theme[] = ["paper", "grey", "dark", "system"];
-const THEME_ICON: Record<Theme, IconName> = { paper: "theme-paper", grey: "theme-grey", dark: "theme-dark", system: "theme-system" };
-const THEME_LABEL: Record<Theme, string> = { paper: "Paper", grey: "Grey", dark: "Dark", system: "System" };
+const THEME_CYCLE: Theme[] = ["paper", "white", "dark", "system"];
+const THEME_ICON: Record<Theme, IconName> = { paper: "theme-paper", white: "theme-white", dark: "theme-dark", system: "theme-system" };
+const THEME_LABEL: Record<Theme, string> = { paper: "Paper", white: "White", dark: "Dark", system: "System" };
 
 export function App() {
   return (

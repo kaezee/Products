@@ -87,7 +87,7 @@ function Legend({ nodes, entById, edges, typeSwatch }: {
 // The relational canvas (§9.3). Click a node to focus it and its neighbours
 // (Obsidian-style — the rest dims). Double-click for ego view. Zoom with the
 // buttons or the wheel; drag the background to pan.
-export function Graph({ entities, latest, selected, onOpenEntity, onBackground, onIsolate, typeSwatch }: {
+export function Graph({ entities, latest, selected, onOpenEntity, onBackground, onIsolate, typeSwatch, legendOpen }: {
   entities: Entity[];
   latest: StreamRow[];
   selected: string | null;             // the parent-owned selection (drives focus)
@@ -95,6 +95,7 @@ export function Graph({ entities, latest, selected, onOpenEntity, onBackground, 
   onBackground: () => void;            // click empty canvas → clear the selection
   onIsolate: (id: string) => void;     // double-click → centre the web here
   typeSwatch: Map<string, string>;     // entity type name (lowercased) → swatch
+  legendOpen?: boolean;                // legend is toggled from the header
 }) {
   const entById = useMemo(() => new Map(entities.map((e) => [e.id, e])), [entities]);
   const sel = selected;
@@ -283,7 +284,7 @@ export function Graph({ entities, latest, selected, onOpenEntity, onBackground, 
       {/* Legend — the key to shapes (what a node IS) and tones (how a link
           feels). Only families and tones actually present are shown, so it
           never lists shapes the world doesn't use. */}
-      <Legend nodes={nodes} entById={entById} edges={edges} typeSwatch={typeSwatch} />
+      {legendOpen && <Legend nodes={nodes} entById={entById} edges={edges} typeSwatch={typeSwatch} />}
 
 
       {/* zoom controls */}

@@ -61,9 +61,9 @@ const REGISTRY = {
   relationships: Share2,
   notes: NotebookPen,
   settings: Settings,
-  // appearance cycle (paper → grey → dark → system)
+  // appearance cycle (paper → white → dark → system)
   "theme-paper": Sun,
-  "theme-grey": Contrast,
+  "theme-white": Contrast,
   "theme-dark": Moon,
   "theme-system": Monitor,
   account: CircleUser,

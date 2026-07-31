@@ -262,7 +262,7 @@ export function Overview({ worldId, go }: { worldId: string; go: (n: Nav) => voi
             ))}
             {contradictions.map((c) => (
               <div className="row click" key={"c" + c.relId} onClick={() => c.entityId && go({ scope: "library", entityId: c.entityId })}>
-                <span className="chip" style={{ borderColor: "var(--hostile)", background: "var(--hostileBg)", color: "var(--hostile)" }}>reopened</span>
+                <span className="chip" style={{ borderColor: "var(--hostileLine)", background: "transparent", color: "var(--hostile)" }}>reopened</span>
                 <span style={{ fontSize: 12.5 }}>
                   <b>{c.who}</b> — “{c.termLabel}” (ended) in ch. {c.termCh}, but “{c.laterLabel}” in ch. {c.laterCh}
                 </span>
@@ -278,7 +278,7 @@ export function Overview({ worldId, go }: { worldId: string; go: (n: Nav) => voi
             ))}
             {ironies.map((c) => (
               <div className="row click" key={"i" + c.relId} onClick={() => go({ scope: "relationships" })}>
-                <span className="chip" style={{ borderColor: "var(--obligation)", background: "var(--obligationBg)", color: "var(--obligation)", display: "inline-flex", alignItems: "center", gap: 4 }}><Icon name="drama" size={11} /> irony</span>
+                <span className="chip" style={{ borderColor: "var(--obligationLine)", background: "transparent", color: "var(--obligation)", display: "inline-flex", alignItems: "center", gap: 4 }}><Icon name="drama" size={11} /> irony</span>
                 <span style={{ fontSize: 12.5 }}>
                   <b>{c.believers}</b> believe{c.believers.includes(",") ? "" : "s"} it's <span style={{ color: "var(--obligation)", fontWeight: 600 }}>{c.belief}</span> — the reader knows it's <span style={{ color: "var(--hostile)", fontWeight: 600 }}>{c.truth}</span>.
                 </span>

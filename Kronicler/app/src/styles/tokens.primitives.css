@@ -33,18 +33,20 @@
   --k-warm-950: #141310;
 
   /* ── Cool neutrals — Grey theme ────────────────────────── */
+  /* Cool neutral ramp — hue ~210 (the blue axis), for the crisp White theme.
+     Was hue 60 (warm stone); see PATCH-white-theme-and-badges.md §1.1. */
   --k-cool-25:  #FFFFFF;
-  --k-cool-50:  #F8F8F7;
-  --k-cool-100: #F2F2F1;
-  --k-cool-200: #E9E9E7;
-  --k-cool-300: #D2D2D0;
-  --k-cool-400: #A8A8A3;
-  --k-cool-500: #818179;
-  --k-cool-600: #61615C;
-  --k-cool-700: #4A4A45;
-  --k-cool-800: #32322F;
-  --k-cool-900: #20201E;
-  --k-cool-950: #121211;
+  --k-cool-50:  #F8F9FB;
+  --k-cool-100: #F3F5F7;
+  --k-cool-200: #E8EBEE;
+  --k-cool-300: #DCE0E5;
+  --k-cool-400: #C2C8CF;
+  --k-cool-500: #9BA3AC;
+  --k-cool-600: #767D87;
+  --k-cool-700: #5A6069;
+  --k-cool-800: #3B4046;
+  --k-cool-900: #26292E;
+  --k-cool-950: #14171A;
 
   /* ── Dusk neutrals — Dark theme (blue-black, 234°) ─────── */
   --k-dusk-25:  #F4F4F6;

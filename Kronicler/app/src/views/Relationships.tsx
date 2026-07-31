@@ -51,6 +51,7 @@ export function Relationships({ worldId, go }: { worldId: string; go: (n: Nav) =
 
   const [lens, setLens] = useState<"graph" | "list">("graph");
   const [typesOpen, setTypesOpen] = useState(false);
+  const [legendOpen, setLegendOpen] = useState(false);
   const [selId, setSelId] = useState<string | null>(null);       // the selected entity (panel)
 
   const [centre, setCentre] = useState<string | null>(null);
@@ -189,6 +190,10 @@ export function Relationships({ worldId, go }: { worldId: string; go: (n: Nav) =
           <span className={lens === "list" ? "on" : ""} onClick={() => setLens("list")}>List</span>
         </div>
         <span className="spacer" />
+        {lens === "graph" && (
+          <button className={"iconbtn" + (legendOpen ? " on" : "")} title="What the shapes mean"
+            aria-pressed={legendOpen} onClick={() => setLegendOpen((v) => !v)}><Icon name="help" size={15} /></button>
+        )}
         <button onClick={() => setTypesOpen(true)}>Manage kinds</button>
       </div>
 
@@ -201,7 +206,7 @@ export function Relationships({ worldId, go }: { worldId: string; go: (n: Nav) =
               <div className="graph-wrap">
                 <Graph entities={entities} latest={visLatest} selected={selId}
                   onOpenEntity={setSelId} onBackground={() => setSelId(null)}
-                  onIsolate={centreOn} typeSwatch={typeSwatch} />
+                  onIsolate={centreOn} typeSwatch={typeSwatch} legendOpen={legendOpen} />
                 <RelChipBar {...chipData} />
                 {maxCh > 0 && (
                   <div className="rel-scrub">

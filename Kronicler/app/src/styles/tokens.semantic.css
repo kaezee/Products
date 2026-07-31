@@ -67,10 +67,10 @@
   --k-shadow-md:  0 1px 2px rgba(31,29,24,.05), 0 4px 12px rgba(31,29,24,.05);
   --k-shadow-pop: 0 10px 32px rgba(31,29,24,.16), 0 2px 6px rgba(31,29,24,.08);
 
-  --k-valence-allied:      #1F7B4D; --k-valence-allied-tint:     #EAF6F0;
-  --k-valence-obligation:  #8C6519; --k-valence-obligation-tint: #F7F2E8;
-  --k-valence-neutral:     #706C5F; --k-valence-neutral-tint:    #F2F1EE;
-  --k-valence-hostile:     #C13F30; --k-valence-hostile-tint:    #F6EBEA;
+  --k-valence-allied:      #1F7B4D; --k-valence-allied-line:     #B7D5C6;
+  --k-valence-obligation:  #8C6519; --k-valence-obligation-line: #DACEB5;
+  --k-valence-neutral:     #706C5F; --k-valence-neutral-line:    #D1D0CC;
+  --k-valence-hostile:     #C13F30; --k-valence-hostile-line:    #EBC2BD;
 
   --k-entity-azure:   #287398; --k-entity-azure-tint:   #EAF2F5;
   --k-entity-teal:    #1E7875; --k-entity-teal-tint:    #EAF6F5;
@@ -87,32 +87,35 @@
 }
 
 /* ── Grey ──────────────────────────────────────────────────────────────── */
-[data-theme="grey"] {
-  --k-bg-canvas:  var(--k-cool-100);
-  --k-bg-surface: #FFFFFF;
-  --k-bg-sunken:  var(--k-cool-200);
-  --k-bg-raised:  #FFFFFF;
-  --k-bg-hover:   #EFEFED;
-  --k-border:        #E4E4E2;
-  --k-border-strong: #CCCCC9;
-  --k-text-primary:   #1D1D1B;
-  --k-text-secondary: #5C5C57;
-  --k-text-tertiary:  #8E8E88;
+[data-theme="white"] {
+  color-scheme: light;
+  /* Crisp office-white — cool axis (~hue 210), flat: borders and tonal steps
+     lift, not shadows. See PATCH-white-theme-and-badges.md §1. */
+  --k-bg-canvas:      #F3F5F7;
+  --k-bg-surface:     #FFFFFF;
+  --k-bg-sunken:      #E8EBEE;
+  --k-bg-raised:      #FFFFFF;
+  --k-bg-hover:       #EDF0F3;
+  --k-border:         #DCE0E5;
+  --k-border-strong:  #C2C8CF;
+  --k-text-primary:   #1F2225;
+  --k-text-secondary: #5A6069;
+  --k-text-tertiary:  #686E78;
   --k-text-inverse:   #FFFFFF;
   --k-action-default: var(--k-woad-700);
   --k-action-hover:   #1B1F4B;
   --k-action-active:  #14183D;
-  --k-action-subtle:  #EEEFF6;
-  --k-action-ring:    #D6D8EB;
+  --k-action-subtle:  #E9ECF6;
+  --k-action-ring:    #CFD5EA;
   --k-action-on:      #FFFFFF;
-  --k-shadow-sm:  0 1px 2px rgba(20,22,26,.06);
-  --k-shadow-md:  0 1px 2px rgba(20,22,26,.06), 0 4px 12px rgba(20,22,26,.05);
-  --k-shadow-pop: 0 10px 32px rgba(20,22,26,.14), 0 2px 6px rgba(20,22,26,.07);
+  --k-shadow-sm:  none;
+  --k-shadow-md:  0 1px 2px rgba(31,41,55,.05);
+  --k-shadow-pop: 0 8px 24px rgba(31,41,55,.13), 0 1px 3px rgba(31,41,55,.08);
 
-  --k-valence-allied:      #1F7B4D; --k-valence-allied-tint:     #EAF6F0;
-  --k-valence-obligation:  #8C6519; --k-valence-obligation-tint: #F7F2E8;
-  --k-valence-neutral:     #706C5F; --k-valence-neutral-tint:    #F2F1EE;
-  --k-valence-hostile:     #C13F30; --k-valence-hostile-tint:    #F6EBEA;
+  --k-valence-allied:      #1F7B4D; --k-valence-allied-line:     #B7D5C6;
+  --k-valence-obligation:  #8C6519; --k-valence-obligation-line: #DACEB5;
+  --k-valence-neutral:     #706C5F; --k-valence-neutral-line:    #D1D0CC;
+  --k-valence-hostile:     #C13F30; --k-valence-hostile-line:    #EBC2BD;
 
   --k-entity-azure:   #287398; --k-entity-azure-tint:   #EAF2F5;
   --k-entity-teal:    #1E7875; --k-entity-teal-tint:    #EAF6F5;
@@ -151,10 +154,10 @@
   --k-shadow-md:  0 2px 16px rgba(0,0,0,.55);
   --k-shadow-pop: 0 12px 36px rgba(0,0,0,.7);
 
-  --k-valence-allied:      #28B56F; --k-valence-allied-tint:     #1E4833;
-  --k-valence-obligation:  #CE9524; --k-valence-obligation-tint: #4E3C18;
-  --k-valence-neutral:     #A69F8D; --k-valence-neutral-tint:    #3C382A;
-  --k-valence-hostile:     #E2867C; --k-valence-hostile-tint:    #48221E;
+  --k-valence-allied:      #28B56F; --k-valence-allied-line:     #2A6647;
+  --k-valence-obligation:  #CE9524; --k-valence-obligation-line: #6B5320;
+  --k-valence-neutral:     #A69F8D; --k-valence-neutral-line:    #544F42;
+  --k-valence-hostile:     #E2867C; --k-valence-hostile-line:    #71403A;
 
   --k-entity-azure:   #4EA9D6; --k-entity-azure-tint:   #1F3A47;
   --k-entity-teal:    #27B1AC; --k-entity-teal-tint:    #1E4847;
@@ -171,5 +174,5 @@
 }
 
 /* native controls / scrollbars follow the theme */
-:root, [data-theme="paper"], [data-theme="grey"] { color-scheme: light; }
+:root, [data-theme="paper"], [data-theme="white"] { color-scheme: light; }
 [data-theme="dark"] { color-scheme: dark; }

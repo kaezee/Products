@@ -50,7 +50,7 @@ export function RelRow({ arc, entById, typeSwatch, maxCh, asOf, anchor, compact,
           {arc.states.map((s, i) => (
             <span key={s.stateId} className="relrow-arc-step" style={{ opacity: s.future ? 0.42 : 1 }}>
               {i > 0 && <span className="relrow-arrow">→</span>}
-              <span className="relrow-chip" style={{ color: VALENCE_COLOR[s.valence], background: chipBg(s) }}>{s.typeLabel}</span>
+              <span className="relrow-chip" style={{ color: VALENCE_COLOR[s.valence], borderColor: chipLine(s) }}>{s.typeLabel}</span>
               <span className="relrow-ch">{s.order != null ? `ch.${s.order}` : "always"}</span>
             </span>
           ))}
@@ -74,13 +74,14 @@ export function RelRow({ arc, entById, typeSwatch, maxCh, asOf, anchor, compact,
   );
 }
 
-function chipBg(s: ArcState): string {
-  // tone tint behind the chip; a valence token has a matching -tint sibling
+function chipLine(s: ArcState): string {
+  // Fills belong to the theme, colour belongs to the meaning: the chip carries
+  // no fill — just a valence-derived border and valence text (PATCH §2).
   const map: Record<string, string> = {
-    bond: "var(--k-valence-allied-tint)", obligation: "var(--k-valence-obligation-tint)",
-    neutral: "var(--k-valence-neutral-tint)", hostile: "var(--k-valence-hostile-tint)",
+    bond: "var(--k-valence-allied-line)", obligation: "var(--k-valence-obligation-line)",
+    neutral: "var(--k-valence-neutral-line)", hostile: "var(--k-valence-hostile-line)",
   };
-  return map[s.valence] ?? "var(--wash)";
+  return map[s.valence] ?? "var(--line)";
 }
 
 // The 126px strip: tone-coloured segments between changes, a dot at each state,

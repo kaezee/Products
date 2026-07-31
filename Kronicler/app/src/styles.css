@@ -234,6 +234,40 @@ textarea { font-family: var(--serif); }
   padding: 8px 14px; border-radius: 9px; transition: filter .15s, background .15s; }
 .migrate-action svg { stroke-width: 2.4; }
 
+/* Write (§3) — persistent structure tree beside the editor. */
+.write-shell { height: 100%; display: flex; gap: 14px; min-height: 0; }
+.write-tree { flex: 0 0 268px; min-width: 0; display: flex; flex-direction: column;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+.write-tree-head { display: flex; align-items: center; gap: 8px; padding: 12px 12px 8px; }
+.write-tree-actions { display: flex; gap: 8px; padding: 0 12px 8px; border-bottom: 1px solid var(--line); }
+.write-tree-actions button { flex: 1; font-size: 12px; padding: 6px 8px; }
+.write-add { display: flex; gap: 6px; padding: 8px 12px; border-bottom: 1px solid var(--line); }
+.write-add input { flex: 1; min-width: 0; }
+.write-tree-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 6px 6px 12px; }
+.wt-seg { display: flex; align-items: center; gap: 6px; padding: 7px 8px; margin: 2px 0; border-radius: 6px; cursor: default; }
+.wt-seg:hover { background: var(--wash); }
+.wt-chev { display: inline-flex; color: var(--muted); cursor: pointer; }
+.wt-seg-name { font-family: var(--serif); font-size: 13.5px; font-weight: 600; cursor: text; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wt-seg-kind { font-size: 9px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); border: 1px solid var(--line); border-radius: 4px; padding: 1px 5px; }
+.wt-seg-count { font-family: var(--k-font-mono); font-size: 10px; color: var(--muted); }
+.wt-ch { display: flex; align-items: center; gap: 6px; padding: 6px 8px; border-radius: 6px; cursor: pointer; color: var(--sub); font-size: 13px; }
+.wt-ch:hover { background: var(--wash); }
+.wt-ch.on { background: var(--bondBg); color: var(--bond); font-weight: 600; }
+.wt-ch > svg { color: var(--faint); flex: 0 0 auto; }
+.wt-ch-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--serif); }
+.wt-plan { font-size: 9px; color: var(--bond); border: 1px solid var(--bondLine); border-radius: 4px; padding: 0 5px; flex: 0 0 auto; }
+.wt-rename { flex: 1; min-width: 0; font-family: var(--serif); font-size: 13px; padding: 3px 6px; }
+.wt-act { flex: 0 0 auto; display: inline-flex; color: var(--faint); cursor: pointer; opacity: 0; padding: 1px; border-radius: 4px; }
+.wt-seg:hover .wt-act, .wt-ch:hover .wt-act { opacity: 1; }
+.wt-act:hover { color: var(--hostile); background: var(--surface); }
+.wt-empty { font-size: 11.5px; color: var(--muted); padding: 6px 8px; }
+.wt-unfiled { margin-top: 8px; border-top: 1px solid var(--line); padding-top: 4px; }
+.wt-unfiled-lab { font-size: 9px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); font-weight: 700; padding: 4px 10px; }
+.write-main { flex: 1 1 auto; min-width: 0; overflow-y: auto; }
+.write-placeholder { height: 100%; min-height: 320px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; color: var(--muted); }
+.write-placeholder svg { color: var(--faint); }
+.write-placeholder p { font-size: 13.5px; max-width: 32ch; text-align: center; }
+
 /* World (Collection) — entity types as collapsible groups, not tabs (§8). */
 .wgroup { margin-bottom: 10px; }
 .wgroup-head { display: flex; align-items: center; gap: 8px; padding: 8px 6px; cursor: pointer; border-radius: 8px; }

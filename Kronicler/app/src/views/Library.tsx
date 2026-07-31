@@ -19,6 +19,17 @@ export function Library({ worldId, focusEntityId, onLeaf }: { worldId: string; f
 
   const [query, setQuery] = useState("");
   const [sortBy, setSortBy] = useState<"az" | "recent">("az");
+  // Which type groups are collapsed — persisted per world for the session (§8).
+  const [collapsed, setCollapsed] = useState<Set<string>>(() => {
+    try { return new Set(JSON.parse(localStorage.getItem("k.wgroups." + worldId) || "[]")); } catch { return new Set(); }
+  });
+  function toggleGroup(t: string) {
+    setCollapsed((prev) => {
+      const n = new Set(prev); n.has(t) ? n.delete(t) : n.add(t);
+      try { localStorage.setItem("k.wgroups." + worldId, JSON.stringify([...n])); } catch { /* ignore */ }
+      return n;
+    });
+  }
   const [renamingType, setRenamingType] = useState<string | null>(null);
   const [typeDraft, setTypeDraft] = useState("");
   const [renameId, setRenameId] = useState<string | null>(null);
@@ -128,10 +139,10 @@ export function Library({ worldId, focusEntityId, onLeaf }: { worldId: string; f
         .filter((e) => (e.title + " " + e.aliases.join(" ") + " " + e.body).toLowerCase().includes(q))
         .sort((a, b) => a.title.localeCompare(b.title))
     : [];
-  const sectionList = (() => {
-    const l = entities.filter((e) => e.type === currentType);
+  const entitiesOf = (t: string) => {
+    const l = entities.filter((e) => e.type === t);
     return sortBy === "az" ? [...l].sort((a, b) => a.title.localeCompare(b.title)) : l;
-  })();
+  };
 
   const row = (e: Entity, showType: boolean) => (
     <div className="row click" key={e.id} onClick={() => { if (renameId !== e.id) { setOpenNew(false); setOpenId(e.id); } }}>
@@ -157,7 +168,7 @@ export function Library({ worldId, focusEntityId, onLeaf }: { worldId: string; f
   return (
     <div className="fi">
       <div className="row" style={{ borderBottom: "none", padding: 0, marginBottom: 12 }}>
-        <h2 className="scope-title">Collection</h2>
+        <h2 className="scope-title">World</h2>
         <span className="spacer" />
         <button onClick={() => setImporting(true)}>Import .docx</button>
         {addMode !== "full" && <button onClick={openFull}>+ New</button>}
@@ -216,47 +227,52 @@ export function Library({ worldId, focusEntityId, onLeaf }: { worldId: string; f
             </div>
           ) : (
             <>
-              <div className="tabs">
-                {types.map((t) => renamingType === t ? (
-                  <input key={t} autoFocus value={typeDraft} style={{ width: 130, fontSize: 12.5, padding: "4px 8px" }}
-                    onChange={(e) => setTypeDraft(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === "Enter") commitRenameType(); if (e.key === "Escape") setRenamingType(null); }}
-                    onBlur={commitRenameType} />
-                ) : (
-                  <span key={t} className={"tab" + (t === currentType ? " on" : "")}
-                    title="Double-click to rename this section"
-                    onClick={() => { setActiveType(t); setAddMode(null); }}
-                    onDoubleClick={() => { setRenamingType(t); setTypeDraft(t); }}>
-                    {plural(t)} <span className="faint">{entities.filter((e) => e.type === t).length}</span>
-                  </span>
-                ))}
-              </div>
-
-              <TypeStyleEditor
-                worldId={worldId}
-                typeName={currentType}
-                row={entityTypes.find((t) => t.name.toLowerCase() === currentType.toLowerCase()) ?? null}
-                swatch={buildTypeSwatches(entityTypes, entities.map((e) => e.type)).get(currentType.toLowerCase()) ?? "slate"}
-                onChanged={reload}
-              />
-
-              <div className="card">
-                {sectionList.map((e) => row(e, false))}
-                {sectionList.length === 0 && <div className="row"><span className="muted">No {plural(currentType).toLowerCase()} yet.</span></div>}
-              </div>
-
-              {addMode === "quick" ? (
-                <div className="card" style={{ marginTop: 10, padding: 10, display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-                  <input autoFocus value={newName} placeholder={`New ${currentType.toLowerCase()} name`} style={{ width: 240 }}
-                    onChange={(e) => setNewName(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === "Enter") create(); if (e.key === "Escape") setAddMode(null); }} />
-                  <button className="primary" onClick={create}>Add</button>
-                  <button onClick={() => setAddMode(null)}>Done</button>
-                  <span className="muted">Enter to add another {currentType.toLowerCase()} — stays on this shelf</span>
-                </div>
-              ) : (
-                <button style={{ marginTop: 10 }} onClick={() => { setNewName(""); setAddMode("quick"); }}>+ New {currentType}</button>
-              )}
+              {/* All types at once, each a collapsible group (§8) — no tab bar */}
+              {types.map((t) => {
+                const list = entitiesOf(t);
+                const open = !collapsed.has(t);
+                const swatch = buildTypeSwatches(entityTypes, entities.map((e) => e.type)).get(t.toLowerCase()) ?? "slate";
+                return (
+                  <section key={t} className={"wgroup" + (open ? " open" : "")}>
+                    <div className="wgroup-head" onClick={() => toggleGroup(t)}>
+                      <span className="wgroup-chev"><Icon name="chevron" size={14} /></span>
+                      {renamingType === t ? (
+                        <input autoFocus value={typeDraft} onClick={(e) => e.stopPropagation()} style={{ width: 150, fontSize: 13, padding: "3px 8px" }}
+                          onChange={(e) => setTypeDraft(e.target.value)}
+                          onKeyDown={(e) => { e.stopPropagation(); if (e.key === "Enter") commitRenameType(); if (e.key === "Escape") setRenamingType(null); }}
+                          onBlur={commitRenameType} />
+                      ) : (
+                        <h3 className="wgroup-title" title="Double-click to rename this group"
+                          onDoubleClick={(e) => { e.stopPropagation(); setRenamingType(t); setTypeDraft(t); }}>{plural(t)}</h3>
+                      )}
+                      <span className="wgroup-count">{list.length}</span>
+                      <span className="spacer" />
+                      <span className="wgroup-add" onClick={(e) => { e.stopPropagation(); setActiveType(t); setNewName(""); setAddMode("quick"); if (collapsed.has(t)) toggleGroup(t); }}>+ New {t}</span>
+                    </div>
+                    {open && (
+                      <div className="wgroup-body">
+                        <TypeStyleEditor worldId={worldId} typeName={t}
+                          row={entityTypes.find((r) => r.name.toLowerCase() === t.toLowerCase()) ?? null}
+                          swatch={swatch} onChanged={reload} />
+                        <div className="card">
+                          {list.map((e) => row(e, false))}
+                          {list.length === 0 && <div className="row"><span className="muted">No {plural(t).toLowerCase()} yet.</span></div>}
+                        </div>
+                        {addMode === "quick" && currentType === t && (
+                          <div className="card" style={{ marginTop: 8, padding: 10, display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                            <input autoFocus value={newName} placeholder={`New ${t.toLowerCase()} name`} style={{ width: 240 }}
+                              onChange={(e) => setNewName(e.target.value)}
+                              onKeyDown={(e) => { if (e.key === "Enter") create(); if (e.key === "Escape") setAddMode(null); }} />
+                            <button className="primary" onClick={create}>Add</button>
+                            <button onClick={() => setAddMode(null)}>Done</button>
+                            <span className="muted">Enter to add another — stays here</span>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </section>
+                );
+              })}
             </>
           )}
         </>

@@ -39,22 +39,25 @@ export interface Nav { scope: Scope; entityId?: string; chapterId?: string; open
 // The rail is split write-first: the everyday writing tools up top, the
 // analysis tools (timeline, relationships) under a divider — so a newcomer
 // isn't met with a flat wall of seven equal sections.
+// IA restructure §1: destinations rename — Manuscript→Write, Collection→World —
+// and Relationships sits above Timeline. Notes stays in the rail until §5 lands
+// (it becomes an anchored object surfaced in Overview/Write, not a destination).
 const RAIL_CORE: [Scope, string, IconName][] = [
   ["overview", "Overview", "overview"],
-  ["manuscript", "Manuscript", "manuscript"],
-  ["library", "Collection", "library"],
+  ["manuscript", "Write", "manuscript"],
+  ["library", "World", "library"],
   ["notes", "Notes", "notes"],
 ];
 const RAIL_MORE: [Scope, string, IconName][] = [
-  ["timeline", "Timeline", "timeline"],
   ["relationships", "Relationships", "relationships"],
+  ["timeline", "Timeline", "timeline"],
 ];
 
 // Label + icon per scope, for the breadcrumb trail (settings isn't in the rail).
 const SCOPE_META: Record<Scope, { label: string; icon: IconName }> = {
   overview: { label: "Overview", icon: "overview" },
-  library: { label: "Collection", icon: "library" },
-  manuscript: { label: "Manuscript", icon: "manuscript" },
+  library: { label: "World", icon: "library" },
+  manuscript: { label: "Write", icon: "manuscript" },
   timeline: { label: "Timeline", icon: "timeline" },
   relationships: { label: "Relationships", icon: "relationships" },
   notes: { label: "Notes", icon: "notes" },

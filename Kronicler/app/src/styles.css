@@ -465,7 +465,7 @@ button.danger:hover:not(:disabled) { filter: brightness(0.93); background: var(-
 /* Entity page — an entity's own view over the web, docked as a right-side
    panel beside the graph (not an overlay). Sits to the left of the controls
    panel: canvas | entity | controls. */
-.entpanel { flex: 0 0 340px; min-width: 0; align-self: stretch; display: flex; flex-direction: column; max-height: 100%;
+.entpanel { flex: 0 0 300px; min-width: 0; align-self: stretch; display: flex; flex-direction: column; max-height: 100%;
   background: var(--k-bg-raised, var(--surface)); border: 1px solid var(--lineStrong); border-radius: 12px;
   box-shadow: var(--k-shadow-md); overflow: hidden; animation: entpanel-in .18s ease; }
 @keyframes entpanel-in { from { opacity: 0; transform: translateX(10px); } to { opacity: 1; transform: none; } }
@@ -486,8 +486,65 @@ button.danger:hover:not(:disabled) { filter: brightness(0.93); background: var(-
 .entpanel-rows { display: flex; flex-direction: column; }
 .entpanel-empty { text-align: center; padding: 22px 16px; display: flex; flex-direction: column; align-items: center; gap: 12px; }
 .entpanel-empty p { margin: 0; font-size: 13px; color: var(--muted); line-height: 1.5; max-width: 34ch; }
-.entpanel-foot { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-top: 1px solid var(--line); }
-.entpanel-foot button { display: inline-flex; align-items: center; gap: 5px; }
+.entpanel-foot { display: flex; align-items: center; gap: 16px; padding: 11px 14px; border-top: 1px solid var(--line); }
+.entpanel-link { font-size: 12px; font-weight: 600; color: var(--bond); cursor: pointer; display: inline-flex; align-items: center; gap: 5px; }
+.entpanel-link:hover { text-decoration: underline; }
+
+/* ── chip bar (RELATIONSHIPSBUILD.md §3) ─────────────────────────────────── */
+.relbar { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
+.relbar.float { position: absolute; left: 12px; top: 12px; z-index: 20; max-width: calc(100% - 150px); margin: 0; }
+.relchip-wrap { position: relative; }
+.relchip { display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; font-weight: 600; padding: 5px 11px;
+  border-radius: var(--k-radius-full, 999px); border: 1px solid var(--line); background: var(--surface); color: var(--sub);
+  cursor: pointer; box-shadow: var(--k-shadow-sm, var(--k-shadow-md)); white-space: nowrap; }
+.relchip:hover { border-color: var(--lineStrong); }
+.relchip.set { border-color: var(--bond); color: var(--bond); background: var(--bondBg); }
+.relchip svg { display: block; opacity: .6; flex: 0 0 auto; }
+.relchip.set svg { opacity: .85; }
+.relchip-cv { opacity: .5; font-size: 9px; }
+.relchip-x { opacity: .55; display: inline-flex; margin-left: 1px; border-radius: 4px; }
+.relchip-x:hover { opacity: 1; }
+
+.reldrop { position: absolute; left: 0; top: calc(100% + 6px); z-index: 45; min-width: 216px; max-width: 260px;
+  background: var(--surface); border: 1px solid var(--lineStrong); border-radius: 11px; box-shadow: var(--k-shadow-pop, var(--pop)); padding: 9px; }
+.reldrop-list, .reldrop-combo { display: flex; flex-direction: column; }
+.reldrop-h { font-size: 9px; letter-spacing: .09em; text-transform: uppercase; color: var(--muted); font-weight: 700; margin: 0 0 6px; padding: 0 5px; }
+.reldrop-opt { display: flex; align-items: center; gap: 7px; padding: 6px 8px; border-radius: 6px; font-size: 12px; color: var(--sub);
+  cursor: pointer; background: none; border: none; text-align: left; width: 100%; }
+.reldrop-opt:hover { background: var(--wash); }
+.reldrop-opt.on { background: var(--bondBg); color: var(--bond); font-weight: 650; }
+.reldrop-opt.cur { background: var(--wash); box-shadow: inset 2px 0 0 var(--bond); }
+.reldrop-opt.zero { opacity: .36; cursor: default; }
+.reldrop-opt:disabled { opacity: .36; cursor: default; }
+.reldrop-dot { width: 7px; height: 7px; border-radius: 50%; flex: 0 0 auto; }
+.reldrop-n { margin-left: auto; font-family: var(--k-font-mono); font-size: 9.5px; color: var(--muted); }
+.reldrop-cbx { position: relative; margin-bottom: 6px; }
+.reldrop-search { width: 100%; font-family: inherit; font-size: 11.5px; padding: 6px 32px 6px 9px; border: 1px solid var(--line);
+  border-radius: 6px; background: var(--wash); color: var(--ink); }
+.reldrop-search:focus { outline: none; border-color: var(--bond); background: var(--surface); }
+.reldrop-cbxn { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); font-family: var(--k-font-mono); font-size: 9px; color: var(--muted); pointer-events: none; }
+.reldrop-lbl { font-size: 9px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); font-weight: 700; padding: 3px 6px 5px; }
+.reldrop-scroll { max-height: 220px; overflow-y: auto; display: flex; flex-direction: column; }
+.reldrop-more { font-size: 10.5px; letter-spacing: 0; text-transform: none; color: var(--sub); border-top: 1px solid var(--line); margin-top: 6px; padding: 7px 6px 2px; }
+.reldrop-none { font-size: 11px; color: var(--muted); padding: 10px 6px; text-align: center; }
+.reldrop-foot { border-top: 1px solid var(--line); margin-top: 7px; padding: 7px 5px 1px; display: flex; justify-content: space-between; }
+.reldrop-foot a { font-size: 11px; font-weight: 600; color: var(--bond); cursor: pointer; }
+.reldrop-foot a:hover { text-decoration: underline; }
+
+/* graph canvas wrapper holds the floating chip bar + scrub over the graph */
+.graph-wrap { flex: 1; min-height: 0; position: relative; display: flex; }
+.rel-scrub { position: absolute; left: 0; right: 0; bottom: 0; display: flex; align-items: center; gap: 11px; z-index: 15;
+  padding: 22px 16px 12px; background: linear-gradient(transparent, var(--surface) 46%); pointer-events: none; }
+.rel-scrub.static { position: static; background: none; padding: 6px 4px 2px; }
+.rel-scrub > * { pointer-events: auto; }
+.rel-scrub-lab { font-size: 9px; letter-spacing: .09em; text-transform: uppercase; color: var(--muted); font-weight: 700; white-space: nowrap; }
+.rel-scrub input[type=range] { flex: 1; accent-color: var(--bond); max-width: 520px; }
+.rel-scrub-ch { font-family: var(--k-font-mono); font-size: 11px; color: var(--bond); background: var(--bondBg); border-radius: 999px; padding: 3px 10px; white-space: nowrap; }
+
+/* small header icon button */
+.iconbtn { width: 30px; height: 30px; border-radius: 8px; border: 1px solid var(--lineStrong); background: var(--surface);
+  color: var(--sub); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }
+.iconbtn:hover { background: var(--wash); color: var(--ink); }
 
 /* Notes fills the pane instead of a fixed 68vh (which left dead space below). */
 .notes-view { height: 100%; display: flex; flex-direction: column; min-height: 0; }

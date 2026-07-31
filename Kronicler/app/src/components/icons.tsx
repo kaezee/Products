@@ -40,6 +40,12 @@ import {
   Drama,
   PenLine,
   Feather,
+  Crosshair,
+  Waypoints,
+  Link2,
+  Eye,
+  ArrowUpDown,
+  HelpCircle,
   type LucideIcon,
 } from "lucide-react";
 
@@ -90,6 +96,14 @@ const REGISTRY = {
   drama: Drama,
   write: PenLine,
   feather: Feather,
+  // relationship chip bar (RELATIONSHIPSBUILD.md §1)
+  crosshair: Crosshair,   // centre on
+  waypoints: Waypoints,   // how far out
+  tone: Contrast,         // tone
+  link: Link2,            // kinds of connection
+  eye: Eye,               // point of view
+  sort: ArrowUpDown,      // ordered by
+  help: HelpCircle,       // legend
 } satisfies Record<string, LucideIcon>;
 
 export type IconName = keyof typeof REGISTRY;

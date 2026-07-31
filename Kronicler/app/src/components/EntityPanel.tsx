@@ -16,7 +16,7 @@ const GROUP_LABEL: Record<NodeFamily, string> = {
   being: "People", group: "Groups", place: "Places", object: "Things", moment: "Moments",
 };
 
-export function EntityPanel({ entity, arcs, entById, typeSwatch, maxCh, asOf, onClose, onOpenEntity, onOpenPage, onShowWorld, onMarkMoment }: {
+export function EntityPanel({ entity, arcs, entById, typeSwatch, maxCh, asOf, onClose, onOpenEntity, onOpenPage, onCentreHere, onMarkMoment }: {
   entity: Entity;
   arcs: RelArc[];               // this entity's arcs (current standing), unfiltered by the controls
   entById: Map<string, Entity>;
@@ -26,7 +26,7 @@ export function EntityPanel({ entity, arcs, entById, typeSwatch, maxCh, asOf, on
   onClose: () => void;
   onOpenEntity: (id: string) => void;
   onOpenPage: () => void;
-  onShowWorld: () => void;
+  onCentreHere: () => void;
   onMarkMoment: () => void;
 }) {
   useEffect(() => {
@@ -67,9 +67,13 @@ export function EntityPanel({ entity, arcs, entById, typeSwatch, maxCh, asOf, on
         ) : (
           groups.map(([fam, list]) => (
             <section key={fam} className="entpanel-group">
-              <div className="entpanel-group-head">
-                <h4>{GROUP_LABEL[fam]}</h4><span className="entpanel-group-count">{list.length}</span>
-              </div>
+              {/* header only when more than one family is present — a header
+                  above a single group is noise (§5) */}
+              {groups.length > 1 && (
+                <div className="entpanel-group-head">
+                  <h4>{GROUP_LABEL[fam]}</h4><span className="entpanel-group-count">{list.length}</span>
+                </div>
+              )}
               <div className="entpanel-rows">
                 {list.map((a) => (
                   <RelRow key={a.relationshipId} arc={a} entById={entById} typeSwatch={typeSwatch}
@@ -82,9 +86,8 @@ export function EntityPanel({ entity, arcs, entById, typeSwatch, maxCh, asOf, on
       </div>
 
       <div className="entpanel-foot">
-        <button onClick={onOpenPage}>Open page <Icon name="arrow" size={13} /></button>
-        <span className="spacer" />
-        <button onClick={onShowWorld}>Show whole world</button>
+        <a className="entpanel-link" onClick={onOpenPage}>Open page <Icon name="arrow" size={12} /></a>
+        <a className="entpanel-link" onClick={onCentreHere}>Centre the web here</a>
       </div>
     </aside>
   );

@@ -275,7 +275,6 @@ export function Manuscript({ worldId, focusChapterId, openImport, go, onLeaf }: 
             onClose={() => setImporting(false)} onDone={() => reload()} />
         ) : open ? (
           <ChapterEditor key={open.id} worldId={worldId} chapter={open} entities={entities}
-            onBack={() => { setOpenId(null); void reload(); }}
             onOpenEntity={(id) => go({ scope: "library", entityId: id })} />
         ) : (
           <div className="write-placeholder">

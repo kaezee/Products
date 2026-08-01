@@ -26,10 +26,9 @@ export function ChapterEditor(props: {
   worldId: string;
   chapter: Chapter;
   entities: Entity[];
-  onBack: () => void;
   onOpenEntity?: (id: string) => void;
 }) {
-  const { worldId, chapter, entities, onBack, onOpenEntity } = props;
+  const { worldId, chapter, entities, onOpenEntity } = props;
 
   const [body, setBody] = useState(chapter.body);
   const [saveState, setSaveState] = useState<SaveState>("saved");
@@ -208,17 +207,9 @@ export function ChapterEditor(props: {
   }
 
   return (
-    <div>
-      <div className="row" style={{ borderBottom: "none", padding: 0, marginBottom: 10 }}>
-        <span className="tab" onClick={onBack} style={{ paddingLeft: 0, display: "inline-flex", alignItems: "center", gap: 4 }}><Icon name="chevron-left" size={15} /> Manuscript</span>
-        <span className="spacer" />
-        <span className="muted">{saveState === "saved" ? "saved" : saveState === "saving" ? "saving…" : "unsaved changes"}</span>
-      </div>
-
-      <div style={{ display: "flex", alignItems: "baseline", gap: 12, margin: "0 0 12px" }}>
-        <span className="muted" style={{ fontSize: 13, fontVariantNumeric: "tabular-nums" }}>
-          {String(chapter.manuscript_order).padStart(2, "0")}
-        </span>
+    <div className="ed-shell">
+      <div className="ed-head">
+        <span className="ed-num">{String(chapter.manuscript_order).padStart(2, "0")}</span>
         {editingTitle ? (
           <input autoFocus value={title}
             onChange={(e) => setTitle(e.target.value)}
@@ -231,28 +222,38 @@ export function ChapterEditor(props: {
             }}
             style={{ fontFamily: "var(--serif)", fontWeight: 500, fontSize: 22, flex: 1, padding: "2px 8px" }} />
         ) : (
-          <h2 style={{ fontFamily: "var(--serif)", fontWeight: 500, margin: 0, cursor: "text" }}
-            title="Double-click to rename" onDoubleClick={() => setEditingTitle(true)}>{title}</h2>
+          <h2 className="ed-title" title="Double-click to rename" onDoubleClick={() => setEditingTitle(true)}>{title}</h2>
         )}
         <span className="spacer" />
-        <ChapterDate worldId={worldId} chapter={chapter} onChanged={() => {}} />
+        <span className="ed-save muted">{saveState === "saved" ? "saved" : saveState === "saving" ? "saving…" : "unsaved"}</span>
+      </div>
+
+      {/* Top toolbar: always-present writing tools. The Kronicler verbs on the
+          left (they light up on a selection); font + size on the right. */}
+      <div className="ed-toolbar">
+        <button disabled={!selText.trim()} onClick={() => openEntMode("new")}
+          title="Turn the selected word into a new character, place, item…">✦ New entity</button>
+        <button disabled={!selText.trim()} onClick={() => openEntMode("alias")}
+          title="Attach the selected word as another name for an entity you already have">⚯ Alias</button>
+        <button disabled={selText.trim().length < 3} onClick={() => setComposerOpen(true)}
+          title={selText ? "Record what happens between two characters in the selected sentence" : "Select a sentence in the draft first"}>✳ Mark a moment</button>
+        <span className="ed-hint">select a word → entity · a sentence → a moment</span>
+        <span className="spacer" />
+        <select className="sel ed-face" value={readFace} title="Font the chapter is set in"
+          onChange={(e) => changeFace(e.target.value as ReadFace)}>
+          {READ_FACES.map((f) => <option key={f.key} value={f.key}>{f.label}</option>)}
+        </select>
+        <div className="ed-size">
+          <button disabled={readSize <= READ_SIZE_MIN} onClick={() => changeSize(readSize - 1)} title="Smaller">−</button>
+          <span>{readSize}</span>
+          <button disabled={readSize >= READ_SIZE_MAX} onClick={() => changeSize(readSize + 1)} title="Larger">+</button>
+        </div>
       </div>
 
       {err && <p className="err">{err}</p>}
 
-      <div style={{ display: "flex", gap: 16 }}>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div className="row" style={{ borderBottom: "none", padding: 0, marginBottom: 8, gap: 8, flexWrap: "wrap" }}>
-            <button disabled={!selText.trim()} onClick={() => openEntMode("new")}
-              title="Turn the selected word into a new character, place, item…">✦ New entity</button>
-            <button disabled={!selText.trim()} onClick={() => openEntMode("alias")}
-              title="Attach the selected word as another name for an entity you already have">⚯ Alias of…</button>
-            <button disabled={selText.trim().length < 3} onClick={() => setComposerOpen(true)}
-              title={selText ? "Record what happens between two characters in the selected sentence" : "Select a sentence in the draft first"}>
-              ✳ Mark a moment
-            </button>
-            <span className="muted" style={{ fontSize: 11.5 }}>select a word to make it an entity, or a sentence to record what happens between characters</span>
-          </div>
+      <div className="ed-body">
+        <div className="ed-prose">
 
           {entMode === "new" && (
             <div className="card" style={{ padding: 10, marginBottom: 8, display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
@@ -305,20 +306,10 @@ export function ChapterEditor(props: {
         </div>
 
         <SidePanel open={panelOpen} onToggle={togglePanel}>
-          <Disclosure label="Reading" defaultOpen>
-            <div style={{ display: "flex", flexDirection: "column", gap: 9 }}>
-              <select className="sel" value={readFace} title="Font the chapter text is set in"
-                onChange={(e) => changeFace(e.target.value as ReadFace)}>
-                {READ_FACES.map((f) => <option key={f.key} value={f.key}>{f.label}</option>)}
-              </select>
-              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                <span className="muted" style={{ fontSize: 11, flex: 1 }}>Text size</span>
-                <button style={{ padding: "2px 10px", fontSize: 14, lineHeight: 1 }} disabled={readSize <= READ_SIZE_MIN}
-                  onClick={() => changeSize(readSize - 1)} title="Smaller">−</button>
-                <span style={{ minWidth: 40, textAlign: "center", fontSize: 12, fontVariantNumeric: "tabular-nums" }}>{readSize}px</span>
-                <button style={{ padding: "2px 10px", fontSize: 14, lineHeight: 1 }} disabled={readSize >= READ_SIZE_MAX}
-                  onClick={() => changeSize(readSize + 1)} title="Larger">+</button>
-              </div>
+          <Disclosure label="Chapter" defaultOpen>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              <span className="muted" style={{ fontSize: 11 }}>In-world date — sets this chapter's place on the Timeline.</span>
+              <ChapterDate worldId={worldId} chapter={chapter} onChanged={() => {}} />
             </div>
           </Disclosure>
 

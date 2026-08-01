@@ -234,6 +234,22 @@ textarea { font-family: var(--serif); }
   padding: 8px 14px; border-radius: 9px; transition: filter .15s, background .15s; }
 .migrate-action svg { stroke-width: 2.4; }
 
+/* Chapter editor — clean prose column, a thin top toolbar, a right inspector. */
+.ed-shell { height: 100%; display: flex; flex-direction: column; min-height: 0; }
+.ed-head { display: flex; align-items: baseline; gap: 12px; margin-bottom: 6px; }
+.ed-num { font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.ed-title { font-family: var(--serif); font-weight: 500; font-size: 22px; margin: 0; cursor: text; }
+.ed-save { font-size: 12px; }
+.ed-toolbar { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; padding: 4px 0 10px; margin-bottom: 12px; border-bottom: 1px solid var(--line); }
+.ed-hint { font-size: 11px; color: var(--muted); }
+.ed-face { font-size: 12px; padding: 4px 8px; max-width: 132px; }
+.ed-size { display: inline-flex; align-items: center; gap: 2px; border: 1px solid var(--lineStrong); border-radius: 7px; padding: 1px; }
+.ed-size button { border: none; background: none; padding: 2px 9px; font-size: 14px; line-height: 1; cursor: pointer; color: var(--sub); }
+.ed-size button:disabled { opacity: .4; cursor: default; }
+.ed-size span { font-size: 12px; min-width: 20px; text-align: center; font-variant-numeric: tabular-nums; color: var(--sub); }
+.ed-body { flex: 1 1 auto; min-height: 0; display: flex; gap: 16px; }
+.ed-prose { flex: 1 1 auto; min-width: 0; overflow-y: auto; display: flex; flex-direction: column; }
+
 /* Write (§3) — persistent structure tree beside the editor. */
 .write-shell { height: 100%; display: flex; gap: 14px; min-height: 0; }
 .write-tree { flex: 0 0 268px; min-width: 0; display: flex; flex-direction: column;

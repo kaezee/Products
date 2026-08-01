@@ -9,6 +9,32 @@ import { Icon } from "../components/icons";
 
 const escapeHtml = (s: string) => s.replace(/[&<>]/g, (c) => (c === "&" ? "&amp;" : c === "<" ? "&lt;" : "&gt;"));
 
+// Lightweight markdown emphasis over the plain-text value: **bold** and *italic*.
+// We keep the markers in the text (dimmed on screen) so the stored body stays
+// plain, portable, and byte-for-byte the same as what the caret logic counts —
+// the emphasis is decoration only, exactly like a mention. One line at a time
+// (no newline inside a token), bold matched before italic, no overlaps.
+type Emph = { start: number; end: number; innerStart: number; innerEnd: number; tag: "strong" | "em" };
+function scanEmphasis(text: string): Emph[] {
+  const marks: Emph[] = [];
+  const bold = /\*\*(?=\S)([^\n]+?)(?<=\S)\*\*/g;
+  let m: RegExpExecArray | null;
+  while ((m = bold.exec(text))) {
+    marks.push({ start: m.index, end: m.index + m[0].length, innerStart: m.index + 2, innerEnd: m.index + m[0].length - 2, tag: "strong" });
+  }
+  const italic = /(?<!\*)\*(?=\S)([^*\n]+?)(?<=\S)\*(?!\*)/g;
+  while ((m = italic.exec(text))) {
+    const s = m.index, e = s + m[0].length;
+    if (marks.some((b) => s < b.end && e > b.start)) continue; // inside a bold run
+    marks.push({ start: s, end: e, innerStart: s + 1, innerEnd: e - 1, tag: "em" });
+  }
+  marks.sort((a, b) => a.start - b.start);
+  const res: Emph[] = [];
+  let last = -1;
+  for (const k of marks) if (k.start >= last) { res.push(k); last = k.end; }
+  return res;
+}
+
 const SUPPORTS_PO = (() => {
   try {
     const d = document.createElement("div");
@@ -50,13 +76,14 @@ export function RichProse({ value, entities, onChange, onSelectText, onOpenEntit
   // from the world's type registry (built-ins + custom), never a hardcoded hex.
   const swatchRef = useRef<Map<string, string>>(new Map());
 
-  function decorateHtml(text: string): string {
-    const ents = entRef.current;
-    const spans = scanMentions(text, ents);
-    const typeById = new Map(ents.map((e) => [e.id, e.type]));
+  // A run of plain text [from,to) with any mentions fully inside it decorated.
+  // Mentions never straddle emphasis markers (the * chars are word boundaries),
+  // so a mention is always wholly inside or wholly outside an emphasis token.
+  function renderRun(text: string, from: number, to: number, mentions: ReturnType<typeof scanMentions>, typeById: Map<string, string>): string {
     const swatches = swatchRef.current;
-    let out = "", i = 0;
-    for (const s of spans) {
+    let out = "", i = from;
+    for (const s of mentions) {
+      if (s.start < i || s.end > to) continue;
       const t = typeById.get(s.entityId);
       const sw = t ? swatches.get(t.toLowerCase()) : undefined;
       const style = sw
@@ -67,7 +94,26 @@ export function RichProse({ value, entities, onChange, onSelectText, onOpenEntit
       out += `<span class="ment" data-id="${s.entityId}"${typeAttr}${style}>${escapeHtml(text.slice(s.start, s.end))}</span>`;
       i = s.end;
     }
-    out += escapeHtml(text.slice(i));
+    out += escapeHtml(text.slice(i, to));
+    return out;
+  }
+
+  function decorateHtml(text: string): string {
+    const ents = entRef.current;
+    const mentions = scanMentions(text, ents);
+    const typeById = new Map(ents.map((e) => [e.id, e.type]));
+    const emph = scanEmphasis(text);
+    let out = "", i = 0;
+    for (const tok of emph) {
+      out += renderRun(text, i, tok.start, mentions, typeById);
+      out += `<${tok.tag} class="md-em">`;
+      out += `<span class="md-mark">${escapeHtml(text.slice(tok.start, tok.innerStart))}</span>`;
+      out += renderRun(text, tok.innerStart, tok.innerEnd, mentions, typeById);
+      out += `<span class="md-mark">${escapeHtml(text.slice(tok.innerEnd, tok.end))}</span>`;
+      out += `</${tok.tag}>`;
+      i = tok.end;
+    }
+    out += renderRun(text, i, text.length, mentions, typeById);
     return out;
   }
 
@@ -96,6 +142,60 @@ export function RichProse({ value, entities, onChange, onSelectText, onOpenEntit
     const sel = window.getSelection();
     sel?.removeAllRanges();
     sel?.addRange(r);
+  }
+
+  // Plain-text [start,end) of the current selection within el (order-normalized).
+  function selectionOffsets(el: HTMLElement): { start: number; end: number } | null {
+    const s = window.getSelection();
+    if (!s || s.rangeCount === 0 || !el.contains(s.anchorNode)) return null;
+    const r = s.getRangeAt(0);
+    const a = document.createRange(); a.selectNodeContents(el); a.setEnd(r.startContainer, r.startOffset);
+    const b = document.createRange(); b.selectNodeContents(el); b.setEnd(r.endContainer, r.endOffset);
+    let start = a.toString().length, end = b.toString().length;
+    if (start > end) [start, end] = [end, start];
+    return { start, end };
+  }
+  function locate(el: HTMLElement, off: number): { node: Node; off: number } | null {
+    const walk = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+    let n: Node | null, rem = off;
+    while ((n = walk.nextNode())) {
+      const len = (n as Text).length;
+      if (rem <= len) return { node: n, off: rem };
+      rem -= len;
+    }
+    return null;
+  }
+  function setSelectionOffsets(el: HTMLElement, a: number, b: number) {
+    const p1 = locate(el, a), p2 = locate(el, b);
+    if (!p1 || !p2) return;
+    const r = document.createRange();
+    r.setStart(p1.node, p1.off); r.setEnd(p2.node, p2.off);
+    const s = window.getSelection(); s?.removeAllRanges(); s?.addRange(r);
+  }
+
+  // Toggle a markdown marker around the selection. Purely a plain-text edit —
+  // wrap if bare, unwrap if the markers already hug the selection (either just
+  // outside it or just inside), then re-decorate and restore the selection.
+  function applyWrap(marker: string) {
+    const el = edRef.current;
+    if (!el) return;
+    const range = selectionOffsets(el);
+    if (!range || range.start === range.end) return;
+    const { start: a, end: b } = range;
+    const text = el.textContent ?? "";
+    const inner = text.slice(a, b);
+    const M = marker.length;
+    const outside = text.slice(a - M, a) === marker && text.slice(b, b + M) === marker;
+    const insideWrapped = inner.length > 2 * M && inner.startsWith(marker) && inner.endsWith(marker);
+    let next: string, na: number, nb: number;
+    if (outside) { next = text.slice(0, a - M) + inner + text.slice(b + M); na = a - M; nb = b - M; }
+    else if (insideWrapped) { const st = inner.slice(M, inner.length - M); next = text.slice(0, a) + st + text.slice(b); na = a; nb = b - 2 * M; }
+    else { next = text.slice(0, a) + marker + inner + marker + text.slice(b); na = a + M; nb = b + M; }
+    el.textContent = next;
+    onChange(next);
+    decorate();
+    setSelectionOffsets(el, na, nb);
+    reportSelection();
   }
 
   function decorate() {
@@ -168,6 +268,11 @@ export function RichProse({ value, entities, onChange, onSelectText, onOpenEntit
   // Firefox lacks plaintext-only: keep Enter as a real "\n" and paste plain.
   function onKeyDown(e: React.KeyboardEvent) {
     if (e.key === "Escape" && sel) { setSel(null); return; }
+    if ((e.metaKey || e.ctrlKey) && !e.altKey && !e.shiftKey) {
+      const k = e.key.toLowerCase();
+      if (k === "b") { e.preventDefault(); applyWrap("**"); return; }
+      if (k === "i") { e.preventDefault(); applyWrap("*"); return; }
+    }
     if (SUPPORTS_PO) return;
     if (e.key === "Enter") {
       e.preventDefault();
@@ -244,7 +349,7 @@ export function RichProse({ value, entities, onChange, onSelectText, onOpenEntit
         onMouseOver={(e) => { const m = (e.target as HTMLElement).closest?.(".ment") as HTMLElement | null; if (m) showCardFor(m); }}
         onMouseOut={(e) => { const m = (e.target as HTMLElement).closest?.(".ment"); if (m) scheduleHide(); }}
       />
-      {sel && (onNewEntity || onAlias || onMarkMoment) && (
+      {sel && (
         <div className="annot-bar"
           onMouseDown={(e) => e.preventDefault()}
           style={{
@@ -253,6 +358,9 @@ export function RichProse({ value, entities, onChange, onSelectText, onOpenEntit
             top: sel.y > 42 ? sel.y - 8 : sel.y + 24,
             transform: sel.y > 42 ? "translate(-50%, -100%)" : "translate(-50%, 0)",
           }}>
+          <button className="annot-fmt" onClick={() => applyWrap("**")} title="Bold (⌘B)"><b>B</b></button>
+          <button className="annot-fmt" onClick={() => applyWrap("*")} title="Italic (⌘I)"><i>I</i></button>
+          {(onNewEntity || onAlias || onMarkMoment) && <span className="annot-sep" />}
           {onNewEntity && <button onClick={() => { onNewEntity(); setSel(null); }} title="Turn the selection into a new entity">✦ New entity</button>}
           {onAlias && <button onClick={() => { onAlias(); setSel(null); }} title="Attach the selection as another name for an existing entity">⚯ Alias</button>}
           {onMarkMoment && <button disabled={sel.len < 3} onClick={() => { onMarkMoment(); setSel(null); }} title="Record what happens between characters in the selection">✳ Moment</button>}

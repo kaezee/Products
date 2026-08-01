@@ -470,7 +470,19 @@ button.danger:hover:not(:disabled) { filter: brightness(0.93); background: var(-
   border-radius: 6px; color: var(--k-text-primary, var(--ink)); }
 .annot-bar button:hover:not(:disabled) { background: var(--k-bg-hover, var(--wash)); }
 .annot-bar button:disabled { opacity: .4; }
+.annot-bar .annot-fmt { min-width: 26px; padding: 4px 7px; }
+.annot-bar .annot-fmt b { font-weight: 700; }
+.annot-bar .annot-fmt i { font-style: italic; font-family: var(--serif); }
+.annot-sep { width: 1px; align-self: stretch; margin: 3px 2px; background: var(--line); }
 @keyframes annot-in { from { opacity: 0; transform: translate(-50%, calc(-100% + 4px)); } }
+
+/* Lightweight markdown emphasis in the prose. The **/* markers stay in the
+   plain-text value (dimmed here), while the wrapped text renders bold/italic —
+   decoration only, so nothing about the stored body or the caret logic changes. */
+.rich .md-em.md-em { } /* structural hook; strong/em carry the weight/slant */
+.rich strong.md-em { font-weight: 650; }
+.rich em.md-em { font-style: italic; }
+.rich .md-mark { opacity: .32; font-weight: 400; font-style: normal; }
 
 /* Level 2 (full): contentEditable prose surface with real inline mentions */
 .rich { white-space: pre-wrap; overflow-wrap: break-word; word-break: break-word;

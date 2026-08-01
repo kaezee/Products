@@ -49,7 +49,10 @@ const SUPPORTS_PO = (() => {
 // only add the decoration spans and preserve the caret across re-highlights.
 // A small imperative handle a parent can hold to select an anchor range in this
 // prose (used to jump to a comment). Returns false if the quote can't be found.
-export interface ProseApi { selectRange: (start: number, end: number, quote: string) => boolean }
+export interface ProseApi {
+  selectRange: (start: number, end: number, quote: string) => boolean;
+  format: (marker: "**" | "*") => void;
+}
 
 export function RichProse({ value, entities, onChange, onSelectText, onOpenEntity, stateOf, onNewEntity, onAlias, onMarkMoment, onComment, apiRef, placeholder }: {
   value: string;
@@ -203,7 +206,7 @@ export function RichProse({ value, entities, onChange, onSelectText, onOpenEntit
     return true;
   }
   useEffect(() => {
-    apiRef?.({ selectRange });
+    apiRef?.({ selectRange, format: applyWrap });
     return () => apiRef?.(null);
     // eslint-disable-next-line
   }, [apiRef]);

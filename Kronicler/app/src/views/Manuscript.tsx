@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   getChapters, getEntities, createChapter, reorderChapters, updateChapterTitle, softDeleteChapter,
   getSegments, createSegment, updateSegment, softDeleteSegment, setChapterSegment,
@@ -36,6 +36,14 @@ export function Manuscript({ worldId, focusChapterId, openImport, go, onLeaf }: 
   const [segDraft, setSegDraft] = useState("");
   const [importing, setImporting] = useState(!!openImport);
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
+  const [overflowOpen, setOverflowOpen] = useState(false);
+  const overflowRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!overflowOpen) return;
+    const h = (e: MouseEvent) => { if (overflowRef.current && !overflowRef.current.contains(e.target as Node)) setOverflowOpen(false); };
+    window.addEventListener("mousedown", h);
+    return () => window.removeEventListener("mousedown", h);
+  }, [overflowOpen]);
 
   async function reload() {
     try {
@@ -238,7 +246,23 @@ export function Manuscript({ worldId, focusChapterId, openImport, go, onLeaf }: 
         <div className="write-tree-actions">
           <button onClick={() => { setAdding(true); setNewTitle(""); }}>+ Chapter</button>
           <button onClick={() => addSegment(null)} title="Add a top-level book / part">+ Book</button>
-          <button onClick={() => setImporting(true)} title="Bring in a manuscript — upload a .docx or paste">Import</button>
+          {chapters.length === 0 ? (
+            // Empty world: Import is the migrating writer's first action (§3.1).
+            <button className="primary" onClick={() => setImporting(true)}
+              title="Bring in a manuscript — upload a .docx or paste">Import</button>
+          ) : (
+            <div className="write-overflow" ref={overflowRef}>
+              <button className="write-overflow-btn" title="More" aria-haspopup="menu" aria-expanded={overflowOpen}
+                onClick={() => setOverflowOpen((v) => !v)}>···</button>
+              {overflowOpen && (
+                <div className="write-overflow-menu" role="menu">
+                  <button role="menuitem" onClick={() => { setOverflowOpen(false); setImporting(true); }}>
+                    <Icon name="arrow" size={13} /> Import a manuscript
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
         </div>
         {adding && (
           <div className="write-add">

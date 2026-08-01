@@ -30,7 +30,7 @@ type SaveState = "saved" | "saving" | "dirty";
 // inspector act on whichever chapter is active.
 function ChapterBlock({
   chapter, entities, stateOf, onOpenEntity, onSelect, onMentions,
-  onNewEntity, onAlias, onMarkMoment, onComment, registerApi,
+  onNewEntity, onAlias, onMarkMoment, onComment, registerApi, onSaveState,
 }: {
   chapter: Chapter;
   entities: Entity[];
@@ -43,6 +43,7 @@ function ChapterBlock({
   onMarkMoment: (chapterId: string) => void;
   onComment: (chapterId: string, range: { start: number; end: number; quote: string }) => void;
   registerApi: (chapterId: string, api: ProseApi | null) => void;
+  onSaveState: (s: SaveState) => void;
 }) {
   const [body, setBody] = useState(chapter.body);
   const [saveState, setSaveState] = useState<SaveState>("saved");
@@ -68,19 +69,34 @@ function ChapterBlock({
   }, [chapter.id, chapter.planned]);
 
   useEffect(() => () => window.clearTimeout(saveTimer.current), []);
+  useEffect(() => { onSaveState(saveState); }, [saveState]); // eslint-disable-line
+
+  // Live word count for the inline chapter-properties line (§3.3).
+  const words = useMemo(() => { const t = body.trim(); return t ? t.split(/\s+/).length : 0; }, [body]);
 
   const mentioned = useMemo(() => detectMentions(body, entities), [body, entities]);
   useEffect(() => { onMentions(chapter.id, mentioned.map((e) => e.id)); }, [mentioned, chapter.id]); // eslint-disable-line
 
   const stOf = useCallback((id: string) => stateOf(id, chapter.manuscript_order), [stateOf, chapter.manuscript_order]);
 
+  // In-world date summary for the properties line — numeric, no calendar (§9).
+  const dateLabel = useMemo(() => {
+    const p: string[] = [];
+    if (chapter.time_year != null) p.push(String(chapter.time_year));
+    if (chapter.time_month != null) p.push("M" + chapter.time_month);
+    if (chapter.time_day != null) p.push("day " + chapter.time_day);
+    return p.join(" · ");
+  }, [chapter.time_year, chapter.time_month, chapter.time_day]);
+
   return (
     <section className="ed-chapter" data-chapter={chapter.id}>
       <div className="ed-canvas-head">
+        {/* Inline chapter properties (§3.3): number · in-world date · words. */}
         <div className="ed-kicker">
           <span>Chapter {chapter.manuscript_order}</span>
+          {dateLabel && <><span className="ed-dot">·</span><span>{dateLabel}</span></>}
+          <span className="ed-dot">·</span><span>{words.toLocaleString()} {words === 1 ? "word" : "words"}</span>
           {chapter.planned && <span className="ed-kicker-plan">planned</span>}
-          <span className="ed-chapter-save muted">{saveState === "saved" ? "saved" : saveState === "saving" ? "saving…" : "unsaved"}</span>
         </div>
         {editingTitle ? (
           <input className="ed-canvas-title ed-canvas-input" autoFocus value={title}
@@ -166,12 +182,11 @@ export function BookCanvas(props: {
   useEffect(() => setActiveId(openId), [openId]);
   const activeChapter = useMemo(() => chapters.find((c) => c.id === activeId) ?? chapters[0], [chapters, activeId]);
 
-  // Selection: text plus the chapter it lives in, so entity/moment actions hit
-  // the right chapter even mid-scroll.
+  // Selection text (the marking verbs live in the prose popover now, but the
+  // moment composer still reads the selected sentence as its note).
   const [selText, setSelText] = useState("");
-  const [selChapterId, setSelChapterId] = useState(openId);
-  const onSelect = useCallback((chapterId: string, text: string) => {
-    setSelText(text); setSelChapterId(chapterId); if (text) setActiveId(chapterId);
+  const onSelect = useCallback((_chapterId: string, text: string) => {
+    setSelText(text);
   }, []);
 
   // Mentions per chapter, so "Cast detected" reflects the active chapter.
@@ -184,6 +199,7 @@ export function BookCanvas(props: {
   const [dismissed, setDismissed] = useState<Set<string>>(new Set());
   const [noteCount, setNoteCount] = useState(0);
   const [commentCount, setCommentCount] = useState(0);
+  const [chSaveState, setChSaveState] = useState<SaveState>("saved");
   const [pendingComment, setPendingComment] = useState<{ chapterId: string; start: number; end: number; quote: string } | null>(null);
   // Each chapter block registers a small handle so a comment can jump to its range.
   const proseApis = useRef(new Map<string, ProseApi | null>());
@@ -312,16 +328,13 @@ export function BookCanvas(props: {
 
   return (
     <div className={"ed-shell" + (focused ? " ed-focus" : "")}>
-      {/* Top toolbar: always-present writing tools, acting on the active chapter. */}
+      {/* Top toolbar: document chrome only — the things a Docs/Word writer already
+          knows how to find. Kronicler's marking verbs live in the selection
+          popover, never here (IA handoff §3.2). */}
       <div className="ed-toolbar">
-        <button disabled={!selText.trim()} onClick={() => openEntMode("new", selChapterId)}
-          title="Turn the selected word into a new character, place, item…">✦ New entity</button>
-        <button disabled={!selText.trim()} onClick={() => openEntMode("alias", selChapterId)}
-          title="Attach the selected word as another name for an entity you already have">⚯ Alias</button>
-        <button disabled={selText.trim().length < 3} onClick={() => { setEntChId(selChapterId); setComposerOpen(true); }}
-          title={selText ? "Record what happens between two characters in the selected sentence" : "Select a sentence in the draft first"}>✳ Mark a moment</button>
-        <span className="ed-hint">select a word → entity · a sentence → a moment</span>
-        <span className="spacer" />
+        <button className="ed-fmt" onMouseDown={(e) => e.preventDefault()} onClick={() => proseApis.current.get(openId)?.format("**")} title="Bold (⌘B)"><b>B</b></button>
+        <button className="ed-fmt" onMouseDown={(e) => e.preventDefault()} onClick={() => proseApis.current.get(openId)?.format("*")} title="Italic (⌘I)"><i>I</i></button>
+        <span className="ed-tbsep" />
         <select className="sel ed-face" value={readFace} title="Font the chapter is set in"
           onChange={(e) => changeFace(e.target.value as ReadFace)}>
           {READ_FACES.map((f) => <option key={f.key} value={f.key}>{f.label}</option>)}
@@ -331,6 +344,8 @@ export function BookCanvas(props: {
           <span>{readSize}</span>
           <button disabled={readSize >= READ_SIZE_MAX} onClick={() => changeSize(readSize + 1)} title="Larger">+</button>
         </div>
+        <span className="spacer" style={{ flex: 1 }} />
+        <span className="ed-save muted">{chSaveState === "saved" ? "saved" : chSaveState === "saving" ? "saving…" : "unsaved"}</span>
         <button className="iconbtn" onClick={() => setFocused((f) => !f)}
           title={focused ? "Exit focus mode (Esc)" : "Focus mode — distraction-free writing"}>
           <Icon name={focused ? "shrink" : "expand"} size={15} />
@@ -384,7 +399,7 @@ export function BookCanvas(props: {
               onMentions={onMentions}
               onNewEntity={(id) => openEntMode("new", id)} onAlias={(id) => openEntMode("alias", id)}
               onMarkMoment={(id) => { setEntChId(id); setComposerOpen(true); }}
-              onComment={onComment} registerApi={registerApi} />
+              onComment={onComment} registerApi={registerApi} onSaveState={setChSaveState} />
           )}
 
           {/* Prev/next — step through the manuscript without leaving the page. */}

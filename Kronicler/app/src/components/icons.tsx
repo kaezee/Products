@@ -46,6 +46,8 @@ import {
   Eye,
   ArrowUpDown,
   HelpCircle,
+  Maximize2,
+  Minimize2,
   type LucideIcon,
 } from "lucide-react";
 
@@ -104,6 +106,8 @@ const REGISTRY = {
   eye: Eye,               // point of view
   sort: ArrowUpDown,      // ordered by
   help: HelpCircle,       // legend
+  expand: Maximize2,      // enter focus mode
+  shrink: Minimize2,      // exit focus mode
 } satisfies Record<string, LucideIcon>;
 
 export type IconName = keyof typeof REGISTRY;

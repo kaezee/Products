@@ -34,6 +34,14 @@ export function ChapterEditor(props: {
   const [saveState, setSaveState] = useState<SaveState>("saved");
   const [selText, setSelText] = useState("");
   const [composerOpen, setComposerOpen] = useState(false);
+  // Focus mode (§ phase 2): a full-viewport, distraction-free writing surface.
+  const [focused, setFocused] = useState(false);
+  useEffect(() => {
+    if (!focused) return;
+    const h = (e: KeyboardEvent) => { if (e.key === "Escape") setFocused(false); };
+    window.addEventListener("keydown", h);
+    return () => window.removeEventListener("keydown", h);
+  }, [focused]);
 
   // The chapter side panel: collapsible, and it holds the reading controls.
   const [panelOpen, setPanelOpen] = useState(() => localStorage.getItem("k.chpanel") !== "0");
@@ -207,7 +215,7 @@ export function ChapterEditor(props: {
   }
 
   return (
-    <div className="ed-shell">
+    <div className={"ed-shell" + (focused ? " ed-focus" : "")}>
       <div className="ed-head">
         <span className="ed-num">{String(chapter.manuscript_order).padStart(2, "0")}</span>
         {editingTitle ? (
@@ -248,6 +256,10 @@ export function ChapterEditor(props: {
           <span>{readSize}</span>
           <button disabled={readSize >= READ_SIZE_MAX} onClick={() => changeSize(readSize + 1)} title="Larger">+</button>
         </div>
+        <button className="iconbtn" onClick={() => setFocused((f) => !f)}
+          title={focused ? "Exit focus mode (Esc)" : "Focus mode — distraction-free writing"}>
+          <Icon name={focused ? "shrink" : "expand"} size={15} />
+        </button>
       </div>
 
       {err && <p className="err">{err}</p>}
@@ -305,7 +317,7 @@ export function ChapterEditor(props: {
           />
         </div>
 
-        <SidePanel open={panelOpen} onToggle={togglePanel}>
+        {!focused && <SidePanel open={panelOpen} onToggle={togglePanel}>
           <Disclosure label="Chapter" defaultOpen>
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               <span className="muted" style={{ fontSize: 11 }}>In-world date — sets this chapter's place on the Timeline.</span>
@@ -354,7 +366,7 @@ export function ChapterEditor(props: {
               </div>
             ))}
           </Disclosure>
-        </SidePanel>
+        </SidePanel>}
       </div>
 
       {composerOpen && (

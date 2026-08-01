@@ -250,6 +250,15 @@ textarea { font-family: var(--serif); }
 .ed-body { flex: 1 1 auto; min-height: 0; display: flex; gap: 16px; }
 .ed-prose { flex: 1 1 auto; min-width: 0; overflow-y: auto; display: flex; flex-direction: column; }
 
+/* Focus mode: the editor takes the whole viewport, chrome falls away, the
+   prose sits in one comfortable measure. Esc (or the shrink button) exits. */
+.ed-focus { position: fixed; inset: 0; z-index: 200; background: var(--k-bg-canvas);
+  padding: 22px clamp(20px, 6vw, 90px) 8px; animation: fi .18s ease; }
+.ed-focus .ed-head, .ed-focus .ed-prose > * { max-width: 760px; margin-left: auto; margin-right: auto; width: 100%; }
+.ed-focus .ed-toolbar { background: var(--k-bg-canvas); flex-wrap: nowrap; }
+.ed-focus .ed-hint { display: none; } /* distraction-free: drop the helper text */
+.ed-focus .ed-prose { padding-bottom: 40vh; } /* room to keep the caret line up high */
+
 /* Write (§3) — persistent structure tree beside the editor. */
 .write-shell { height: 100%; display: flex; gap: 14px; min-height: 0; }
 .write-tree { flex: 0 0 268px; min-width: 0; display: flex; flex-direction: column;

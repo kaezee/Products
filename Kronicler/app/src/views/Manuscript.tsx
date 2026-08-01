@@ -300,7 +300,7 @@ export function Manuscript({ worldId, focusChapterId, openImport, go, onLeaf }: 
         ) : open ? (
           <BookCanvas key={worldId} worldId={worldId} chapters={chapters} openId={open.id}
             entities={entities} onOpenEntity={(id) => go({ scope: "library", entityId: id })}
-            onNavigate={(id) => setOpenId(id)} />
+            onNavigate={(id) => setOpenId(id)} onChapterMetaChanged={() => void reload()} />
         ) : (
           <div className="write-placeholder">
             <Icon name="feather" size={26} />

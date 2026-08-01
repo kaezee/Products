@@ -29,9 +29,10 @@ type SaveState = "saved" | "saving" | "dirty";
 // which block the caret is in up to the BookCanvas — the shared toolbar and the
 // inspector act on whichever chapter is active.
 function ChapterBlock({
-  chapter, entities, stateOf, onOpenEntity, onSelect, onMentions,
-  onNewEntity, onAlias, onMarkMoment, onComment, registerApi, onSaveState,
+  worldId, chapter, entities, stateOf, onOpenEntity, onSelect, onMentions,
+  onNewEntity, onAlias, onMarkMoment, onComment, registerApi, onSaveState, onDateChanged,
 }: {
+  worldId: string;
   chapter: Chapter;
   entities: Entity[];
   stateOf: (id: string, order: number) => ReturnType<typeof statesAsOf>;
@@ -44,11 +45,13 @@ function ChapterBlock({
   onComment: (chapterId: string, range: { start: number; end: number; quote: string }) => void;
   registerApi: (chapterId: string, api: ProseApi | null) => void;
   onSaveState: (s: SaveState) => void;
+  onDateChanged: () => void;
 }) {
   const [body, setBody] = useState(chapter.body);
   const [saveState, setSaveState] = useState<SaveState>("saved");
   const [title, setTitle] = useState(chapter.title);
   const [editingTitle, setEditingTitle] = useState(false);
+  const [editingDate, setEditingDate] = useState(false);
   const saveTimer = useRef<number | undefined>(undefined);
   const clearedPlanned = useRef(false);
 
@@ -91,13 +94,24 @@ function ChapterBlock({
   return (
     <section className="ed-chapter" data-chapter={chapter.id}>
       <div className="ed-canvas-head">
-        {/* Inline chapter properties (§3.3): number · in-world date · words. */}
+        {/* Inline chapter properties (§3.3): number · in-world date · words.
+            Click the date to edit in place — a numeric control, no calendar. */}
         <div className="ed-kicker">
           <span>Chapter {chapter.manuscript_order}</span>
-          {dateLabel && <><span className="ed-dot">·</span><span>{dateLabel}</span></>}
+          <span className="ed-dot">·</span>
+          <button className={"ed-prop" + (editingDate ? " on" : "")} onClick={() => setEditingDate((v) => !v)}
+            title="Set the in-world date — sets this chapter's place on the Timeline">
+            {dateLabel || <span className="muted">add date</span>}
+          </button>
           <span className="ed-dot">·</span><span>{words.toLocaleString()} {words === 1 ? "word" : "words"}</span>
           {chapter.planned && <span className="ed-kicker-plan">planned</span>}
         </div>
+        {editingDate && (
+          <div className="ed-dateedit">
+            <ChapterDate worldId={worldId} chapter={chapter} onChanged={() => onDateChanged()} />
+            <button className="ed-dateedit-done" onClick={() => setEditingDate(false)}>Done</button>
+          </div>
+        )}
         {editingTitle ? (
           <input className="ed-canvas-title ed-canvas-input" autoFocus value={title}
             onChange={(e) => setTitle(e.target.value)}
@@ -145,8 +159,9 @@ export function BookCanvas(props: {
   entities: Entity[];
   onOpenEntity?: (id: string) => void;
   onNavigate: (chapterId: string) => void;
+  onChapterMetaChanged?: () => void;   // e.g. an in-world date edit — refresh the chapter list
 }) {
-  const { worldId, chapters, openId, entities, onOpenEntity, onNavigate } = props;
+  const { worldId, chapters, openId, entities, onOpenEntity, onNavigate, onChapterMetaChanged } = props;
 
   // Prev/next chapter by manuscript order (spans books — a continuous read).
   const ordered = useMemo(() => [...chapters].sort((a, b) => a.manuscript_order - b.manuscript_order), [chapters]);
@@ -394,12 +409,13 @@ export function BookCanvas(props: {
           )}
 
           {activeChapter && (
-            <ChapterBlock key={activeChapter.id} chapter={activeChapter} entities={ents} stateOf={stateOf}
+            <ChapterBlock key={activeChapter.id} worldId={worldId} chapter={activeChapter} entities={ents} stateOf={stateOf}
               onOpenEntity={onOpenEntity} onSelect={onSelect}
               onMentions={onMentions}
               onNewEntity={(id) => openEntMode("new", id)} onAlias={(id) => openEntMode("alias", id)}
               onMarkMoment={(id) => { setEntChId(id); setComposerOpen(true); }}
-              onComment={onComment} registerApi={registerApi} onSaveState={setChSaveState} />
+              onComment={onComment} registerApi={registerApi} onSaveState={setChSaveState}
+              onDateChanged={() => onChapterMetaChanged?.()} />
           )}
 
           {/* Prev/next — step through the manuscript without leaving the page. */}
@@ -417,14 +433,8 @@ export function BookCanvas(props: {
         </div>
 
         {!focused && activeChapter && <SidePanel open={panelOpen} onToggle={togglePanel}>
-          <Disclosure label="Chapter" defaultOpen>
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              <span className="muted" style={{ fontSize: 11 }}>Ch. {activeChapter.manuscript_order} · {activeChapter.title}</span>
-              <span className="muted" style={{ fontSize: 11 }}>In-world date — sets this chapter's place on the Timeline.</span>
-              <ChapterDate key={activeChapter.id} worldId={worldId} chapter={activeChapter} onChanged={() => {}} />
-            </div>
-          </Disclosure>
-
+          {/* Chapter properties (date, number, words) live inline under the H1
+              now (§3.3); the panel holds only the lists. */}
           <Disclosure label="Notes" count={noteCount} defaultOpen>
             <ChapterNotes key={activeChapter.id} worldId={worldId} chapterId={activeChapter.id} onCount={setNoteCount} />
           </Disclosure>

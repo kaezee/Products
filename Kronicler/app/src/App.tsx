@@ -237,7 +237,8 @@ function Workspace({ session }: { session: Session }) {
   if (searching) {
     crumbs.push({ label: "Overview", icon: "overview", onClick: () => go({ scope: "overview" }) });
     crumbs.push({ label: `“${query.trim()}”`, icon: "search" });
-  } else if (nav.scope !== "overview") {
+  } else if (nav.scope !== "overview" && nav.scope !== "manuscript") {
+    // Write owns its own navigation (the structure tree), so it shows no breadcrumb.
     const m = SCOPE_META[nav.scope];
     crumbs.push({ label: "Overview", icon: "overview", onClick: () => go({ scope: "overview" }) });
     // The section crumb closes an open leaf when there is one; otherwise it's the current page.

@@ -234,12 +234,11 @@ export function Manuscript({ worldId, focusChapterId, openImport, go, onLeaf }: 
       <aside className="write-tree">
         <div className="write-tree-head">
           <h2 className="scope-title" style={{ fontSize: 18, margin: 0 }}>Write</h2>
-          <span className="spacer" />
-          <button className="iconbtn" title="Import / paste a manuscript" onClick={() => setImporting(true)}><Icon name="book" size={15} /></button>
         </div>
         <div className="write-tree-actions">
           <button onClick={() => { setAdding(true); setNewTitle(""); }}>+ Chapter</button>
           <button onClick={() => addSegment(null)} title="Add a top-level book / part">+ Book</button>
+          <button onClick={() => setImporting(true)} title="Bring in a manuscript — upload a .docx or paste">Import</button>
         </div>
         {adding && (
           <div className="write-add">

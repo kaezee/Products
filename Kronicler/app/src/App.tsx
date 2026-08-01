@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { supabase } from "./lib/supabase";
-import { getMyWorlds, createWorld, softDeleteWorld, renameWorld, seedSampleWorld } from "./lib/api";
+import { getMyWorlds, createWorld, softDeleteWorld, renameWorld, seedSampleWorld, getChapters, getEntities, getNotes } from "./lib/api";
 import type { World } from "./lib/types";
 import { AuthGate } from "./auth/AuthGate";
 import { Library } from "./views/Library";
@@ -222,6 +222,17 @@ function Workspace({ session }: { session: Session }) {
   }
 
   function go(n: Nav) { setQuery(""); setLeaf(null); setNav(n); }
+
+  // Landing rule (§2): a truly empty world (no cast, chapters, notes, comments)
+  // opens straight into Write — there's nothing to orient yet. Runs once per world.
+  const landedFor = useRef<string | null>(null);
+  useEffect(() => {
+    if (!worldId || landedFor.current === worldId) return;
+    landedFor.current = worldId;
+    Promise.all([getChapters(worldId), getEntities(worldId), getNotes(worldId)])
+      .then(([c, e, n]) => { if (c.length === 0 && e.length === 0 && n.length === 0) setNav({ scope: "manuscript" }); })
+      .catch(() => {});
+  }, [worldId]);
 
   if (!worlds) return (
     <div className="center">

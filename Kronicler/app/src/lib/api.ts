@@ -89,6 +89,19 @@ export async function getChapterComments(chapterId: string): Promise<Comment[]> 
   return (data ?? []) as Comment[];
 }
 
+// All of a world's comments (for Overview's trail and the Book/World panel scope).
+export async function getWorldComments(worldId: string): Promise<Comment[]> {
+  const { data, error } = await supabase
+    .from("comments").select(COMMENT_COLS)
+    .eq("world_id", worldId).is("deleted_at", null)
+    .order("created_at", { ascending: false });
+  if (error) {
+    if (error.code === "42P01") return [];
+    throw error;
+  }
+  return (data ?? []) as Comment[];
+}
+
 export async function createComment(
   worldId: string, chapterId: string,
   patch: { body: string; anchor_start: number; anchor_end: number; quote: string },

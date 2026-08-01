@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { getStream, getEntities, getRelationshipTypes, getChapters, softDeleteEntity } from "../lib/api";
-import type { StreamRow, Entity, RelationshipType, Chapter } from "../lib/types";
+import { getStream, getEntities, getRelationshipTypes, getChapters, softDeleteEntity, getNotes, getWorldComments } from "../lib/api";
+import type { StreamRow, Entity, RelationshipType, Chapter, Note, Comment } from "../lib/types";
 import { isBelief } from "../lib/knowledge";
 import { findIssues } from "../lib/continuity";
 import { findDuplicates } from "../lib/dedupe";
@@ -23,6 +23,8 @@ export function Overview({ worldId, go }: { worldId: string; go: (n: Nav) => voi
   const [entities, setEntities] = useState<Entity[]>([]);
   const [types, setTypes] = useState<RelationshipType[]>([]);
   const [chapters, setChapters] = useState<Chapter[]>([]);
+  const [notes, setNotes] = useState<Note[]>([]);
+  const [comments, setComments] = useState<Comment[]>([]);
   const [err, setErr] = useState<string | null>(null);
   const [allOrphans, setAllOrphans] = useState(false);
   const [checklistOff, setChecklistOff] = useState(() => localStorage.getItem(`k.checklist.${worldId}`) === "1");
@@ -31,8 +33,8 @@ export function Overview({ worldId, go }: { worldId: string; go: (n: Nav) => voi
 
   useEffect(() => {
     let alive = true;
-    Promise.all([getStream(worldId), getEntities(worldId), getRelationshipTypes(worldId), getChapters(worldId)])
-      .then(([s, e, t, c]) => { if (!alive) return; setStream(s); setEntities(e); setTypes(t); setChapters(c); })
+    Promise.all([getStream(worldId), getEntities(worldId), getRelationshipTypes(worldId), getChapters(worldId), getNotes(worldId), getWorldComments(worldId)])
+      .then(([s, e, t, c, n, cm]) => { if (!alive) return; setStream(s); setEntities(e); setTypes(t); setChapters(c); setNotes(n); setComments(cm); })
       .catch((x) => alive && setErr(String(x)));
     return () => { alive = false; };
   }, [worldId]);
@@ -96,6 +98,12 @@ export function Overview({ worldId, go }: { worldId: string; go: (n: Nav) => voi
     const byOrder = [...chapters].sort((a, b) => b.manuscript_order - a.manuscript_order);
     return byOrder.find((c) => !c.planned && (c.body || "").trim().length > 0) ?? byOrder.find((c) => !c.planned) ?? byOrder[0];
   }, [chapters]);
+
+  // Writer's trail (§2): unresolved comments + recent notes, deep-linked.
+  const openComments = useMemo(() => comments.filter((c) => !c.resolved), [comments]);
+  const commentChapters = useMemo(() => new Set(openComments.map((c) => c.chapter_id)), [openComments]);
+  const chById = useMemo(() => new Map(chapters.map((c) => [c.id, c])), [chapters]);
+  const recentNotes = useMemo(() => [...notes].reverse().slice(0, 4), [notes]);
 
   async function delOrphan(e: Entity, ev: React.MouseEvent) {
     ev.stopPropagation();
@@ -223,6 +231,40 @@ export function Overview({ worldId, go }: { worldId: string; go: (n: Nav) => voi
           </>
         )}
       </div>
+
+      {/* Writer's trail (§2): unresolved comments + recent notes, deep-linked. */}
+      {(openComments.length > 0 || recentNotes.length > 0) && (
+        <div style={{ marginBottom: 18 }}>
+          <div className="label" style={{ marginTop: 0 }}>Writer's trail</div>
+          <div className="card">
+            {openComments.length > 0 && (
+              <div className="row click" onClick={() => go({ scope: "manuscript", chapterId: openComments[0].chapter_id })}>
+                <span className="chip">comments</span>
+                <span style={{ fontSize: 12.5 }}>
+                  <b>{openComments.length}</b> unresolved comment{openComments.length === 1 ? "" : "s"} across {commentChapters.size} chapter{commentChapters.size === 1 ? "" : "s"}
+                </span>
+                <span className="spacer" />
+                <Icon name="arrow" size={14} style={{ color: "var(--faint)" }} />
+              </div>
+            )}
+            {recentNotes.map((n) => {
+              const ch = (n.chapter_ids ?? []).map((id) => chById.get(id)).find(Boolean);
+              const ent = !ch && (n.entity_ids ?? []).length ? entities.find((e) => e.id === n.entity_ids[0]) : null;
+              const label = ch ? `Ch. ${ch.manuscript_order}` : ent ? ent.title : "World";
+              const nav: Nav = ch ? { scope: "manuscript", chapterId: ch.id } : ent ? { scope: "library", entityId: ent.id } : { scope: "overview" };
+              return (
+                <div className="row click" key={n.id} onClick={() => go(nav)}>
+                  <span className="chip warn">note</span>
+                  <span style={{ fontSize: 12.5, flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {n.body.trim().slice(0, 70) || <span className="muted">(empty note)</span>}
+                  </span>
+                  <span className="muted" style={{ fontSize: 11 }}>{label}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       <div className="dash-cols">
         <div>

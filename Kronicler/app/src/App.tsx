@@ -8,7 +8,6 @@ import { Library } from "./views/Library";
 import { Relationships } from "./views/Relationships";
 import { Manuscript } from "./views/Manuscript";
 import { WorldTimeline } from "./views/WorldTimeline";
-import { Notes } from "./views/Notes";
 import { Overview } from "./views/Overview";
 import { Settings } from "./views/Settings";
 import { SearchResults } from "./views/SearchResults";
@@ -42,11 +41,12 @@ export interface Nav { scope: Scope; entityId?: string; chapterId?: string; open
 // IA restructure §1: destinations rename — Manuscript→Write, Collection→World —
 // and Relationships sits above Timeline. Notes stays in the rail until §5 lands
 // (it becomes an anchored object surfaced in Overview/Write, not a destination).
+// IA v2 §1: exactly five destinations. Notes is no longer a rail item — it's an
+// anchored object reached through the Write/World panels and Overview.
 const RAIL_CORE: [Scope, string, IconName][] = [
   ["overview", "Overview", "overview"],
   ["manuscript", "Write", "manuscript"],
   ["library", "World", "library"],
-  ["notes", "Notes", "notes"],
 ];
 const RAIL_MORE: [Scope, string, IconName][] = [
   ["relationships", "Relationships", "relationships"],
@@ -252,50 +252,6 @@ function Workspace({ session }: { session: Session }) {
         <div className="shellcard">
           {/* chrome */}
           <div className="chrome">
-            <div className="worldchip" ref={worldsRef}>
-              <span className="k">K</span>
-              {worlds.length > 0 ? (
-                <button className="world-switch" onClick={() => setWorldsOpen((v) => !v)} aria-expanded={worldsOpen} aria-haspopup="menu" title="Switch world">
-                  <span className="world-switch-name">{worlds.find((w) => w.id === worldId)?.name ?? "Select a world"}</span>
-                  <Icon name="chevron-down" size={ICON_SIZE.sm} />
-                </button>
-              ) : (
-                <button className="world-switch" onClick={makeWorld} title="Create your first world"><span className="world-switch-name">Kronicler</span></button>
-              )}
-              {worldsOpen && worlds.length > 0 && (
-                <div className="worlds-pop" role="menu">
-                  <div className="worlds-poplab">Worlds</div>
-                  <div className="worlds-list">
-                    {worlds.map((w) => (renameId === w.id ? (
-                      <div className="worlds-row" key={w.id}>
-                        <input autoFocus value={worldNameDraft} className="worlds-renameinput"
-                          onChange={(e) => setWorldNameDraft(e.target.value)}
-                          onKeyDown={(e) => { if (e.key === "Enter") commitRename(); if (e.key === "Escape") setRenameId(null); }}
-                          onBlur={commitRename} />
-                      </div>
-                    ) : (
-                      <div key={w.id} className={"worlds-row" + (w.id === worldId ? " on" : "")} role="menuitemradio" aria-checked={w.id === worldId}
-                        onClick={() => { setWorldId(w.id); go({ scope: "overview" }); setWorldsOpen(false); }}>
-                        <span className="worlds-check">{w.id === worldId && <Icon name="check" size={14} />}</span>
-                        <span className="worlds-name">{w.name}</span>
-                        {w.is_sample && <span className="worlds-tag">Example</span>}
-                        <span className="spacer" style={{ flex: 1 }} />
-                        <span className="worlds-act" title="Rename" onClick={(e) => { e.stopPropagation(); startRename(w.id); }}><Icon name="edit" size={13} /></span>
-                        <span className="worlds-act danger" title="Delete" onClick={(e) => { e.stopPropagation(); void confirmDeleteWorld(w); }}><Icon name="trash" size={13} /></span>
-                      </div>
-                    )))}
-                  </div>
-                  <div className="worlds-foot">
-                    <button className="worlds-action" onClick={makeWorld}><Icon name="plus" size={14} /> New world</button>
-                    {!worlds.some((w) => w.is_sample) && (
-                      <button className="worlds-action" disabled={seeding} onClick={() => !seeding && loadExample()}>
-                        {seeding ? <Spinner size={12} /> : <Icon name="book" size={14} />} Load example
-                      </button>
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
             <div className="searchwrap">
               <span className="ic"><Icon name="search" size={ICON_SIZE.md} /></span>
               <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search world content — try a name, a place, a line…" />
@@ -326,7 +282,50 @@ function Workspace({ session }: { session: Session }) {
           <div className="shellbody">
             {/* rail */}
             <div className={"rail" + (railCollapsed ? " rail-collapsed" : "")}>
+              {/* Rail header (§1/§7): K mark + full world name + chevron → the
+                  world switcher popover, in place. The name never truncates. */}
               <div className="rail-top">
+                <div className="railworld" ref={worldsRef}>
+                  <button className="railworld-btn" title="Switch world" aria-haspopup="menu" aria-expanded={worldsOpen}
+                    onClick={() => (worlds.length > 0 ? setWorldsOpen((v) => !v) : makeWorld())}>
+                    <span className="k">K</span>
+                    {!railCollapsed && <span className="railworld-name">{worlds.find((w) => w.id === worldId)?.name ?? "Kronicler"}</span>}
+                    {!railCollapsed && worlds.length > 0 && <Icon name="chevron-down" size={ICON_SIZE.sm} />}
+                  </button>
+                  {worldsOpen && worlds.length > 0 && (
+                    <div className="worlds-pop rail" role="menu">
+                      <div className="worlds-poplab">Worlds</div>
+                      <div className="worlds-list">
+                        {worlds.map((w) => (renameId === w.id ? (
+                          <div className="worlds-row" key={w.id}>
+                            <input autoFocus value={worldNameDraft} className="worlds-renameinput"
+                              onChange={(e) => setWorldNameDraft(e.target.value)}
+                              onKeyDown={(e) => { if (e.key === "Enter") commitRename(); if (e.key === "Escape") setRenameId(null); }}
+                              onBlur={commitRename} />
+                          </div>
+                        ) : (
+                          <div key={w.id} className={"worlds-row" + (w.id === worldId ? " on" : "")} role="menuitemradio" aria-checked={w.id === worldId}
+                            onClick={() => { setWorldId(w.id); go({ scope: "overview" }); setWorldsOpen(false); }}>
+                            <span className="worlds-check">{w.id === worldId && <Icon name="check" size={14} />}</span>
+                            <span className="worlds-name">{w.name}</span>
+                            {w.is_sample && <span className="worlds-tag">Example</span>}
+                            <span className="spacer" style={{ flex: 1 }} />
+                            <span className="worlds-act" title="Rename" onClick={(e) => { e.stopPropagation(); startRename(w.id); }}><Icon name="edit" size={13} /></span>
+                            <span className="worlds-act danger" title="Delete" onClick={(e) => { e.stopPropagation(); void confirmDeleteWorld(w); }}><Icon name="trash" size={13} /></span>
+                          </div>
+                        )))}
+                      </div>
+                      <div className="worlds-foot">
+                        <button className="worlds-action" onClick={makeWorld}><Icon name="plus" size={14} /> New world</button>
+                        {!worlds.some((w) => w.is_sample) && (
+                          <button className="worlds-action" disabled={seeding} onClick={() => !seeding && loadExample()}>
+                            {seeding ? <Spinner size={12} /> : <Icon name="book" size={14} />} Load example
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
                 <button className="rail-toggle-btn" onClick={toggleRail}
                   title={railCollapsed ? "Expand sidebar" : "Collapse sidebar"} aria-label={railCollapsed ? "Expand sidebar" : "Collapse sidebar"}>
                   <PanelToggleIcon size={16} />
@@ -394,7 +393,9 @@ function Workspace({ session }: { session: Session }) {
               ) : nav.scope === "timeline" ? (
                 <WorldTimeline key={worldId} worldId={worldId} go={go} />
               ) : nav.scope === "notes" ? (
-                <Notes key={worldId} worldId={worldId} />
+                // §1: Notes is no longer a destination — anything routing here
+                // lands on Overview, where notes surface as an anchored object.
+                <Overview worldId={worldId} go={go} />
               ) : nav.scope === "settings" ? (
                 <Settings
                   worldId={worldId}

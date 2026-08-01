@@ -38,6 +38,15 @@ export function Manuscript({ worldId, focusChapterId, openImport, go, onLeaf }: 
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const [overflowOpen, setOverflowOpen] = useState(false);
   const overflowRef = useRef<HTMLDivElement>(null);
+  // Fullscreen writing — hides the Kronicler app shell but KEEPS the Write
+  // workspace (tree + editor + panels), so navigation survives.
+  const [focused, setFocused] = useState(false);
+  useEffect(() => {
+    if (!focused) return;
+    const h = (e: KeyboardEvent) => { if (e.key === "Escape") setFocused(false); };
+    window.addEventListener("keydown", h);
+    return () => window.removeEventListener("keydown", h);
+  }, [focused]);
   useEffect(() => {
     if (!overflowOpen) return;
     const h = (e: MouseEvent) => { if (overflowRef.current && !overflowRef.current.contains(e.target as Node)) setOverflowOpen(false); };
@@ -238,7 +247,7 @@ export function Manuscript({ worldId, focusChapterId, openImport, go, onLeaf }: 
   };
 
   return (
-    <div className="fi write-shell">
+    <div className={"fi write-shell" + (focused ? " focus" : "")}>
       <aside className="write-tree">
         <div className="write-tree-head">
           <h2 className="scope-title" style={{ fontSize: 18, margin: 0 }}>Write</h2>
@@ -300,7 +309,8 @@ export function Manuscript({ worldId, focusChapterId, openImport, go, onLeaf }: 
         ) : open ? (
           <BookCanvas key={worldId} worldId={worldId} chapters={chapters} openId={open.id}
             entities={entities} onOpenEntity={(id) => go({ scope: "library", entityId: id })}
-            onNavigate={(id) => setOpenId(id)} onChapterMetaChanged={() => void reload()} />
+            onNavigate={(id) => setOpenId(id)} onChapterMetaChanged={() => void reload()}
+            focused={focused} onToggleFocus={() => setFocused((f) => !f)} />
         ) : (
           <div className="write-placeholder">
             <Icon name="feather" size={26} />

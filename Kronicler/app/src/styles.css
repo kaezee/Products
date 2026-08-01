@@ -257,7 +257,7 @@ h2.ed-canvas-title, .ed-canvas-input { margin: 0; }
    sitting on the tinted canvas. The title header AND the prose both live on the
    sheet, so the whole chapter reads as one document. */
 .ed-prose { background: var(--paper); }
-.ed-chapter { max-width: 820px; margin: 12px auto 0 24px; background: var(--surface);
+.ed-chapter { max-width: 820px; margin: 14px auto 0 0; background: var(--surface);
   border: 1px solid var(--line); border-radius: 4px;
   box-shadow: 0 1px 2px rgba(0,0,0,.04), 0 10px 30px rgba(0,0,0,.05);
   padding: clamp(32px, 4.5vw, 60px) clamp(24px, 5vw, 72px); }
@@ -283,14 +283,10 @@ h2.ed-canvas-title, .ed-canvas-input { margin: 0; }
   opacity: 0; transition: opacity .2s; }
 .ed-chapter:focus-within .ed-chapter-save { opacity: 1; }
 
-/* Prev/next chapter — quiet, on the canvas below the sheet. */
-.ed-nav { display: flex; align-items: center; gap: 10px; max-width: 820px; margin: 16px auto 24vh 24px; }
-.ed-nav button { display: inline-flex; align-items: center; gap: 5px; max-width: 46%;
-  padding: 6px 11px; font-size: 12.5px; color: var(--sub); background: none; border: 1px solid var(--line); border-radius: 8px;
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.ed-nav button:hover:not(:disabled) { color: var(--ink); border-color: var(--lineStrong); background: var(--wash); }
-.ed-nav button:disabled { opacity: .4; }
-.ed-toolbar { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; padding: 4px 0 10px; margin-bottom: 12px; border-bottom: 1px solid var(--line); }
+/* Top toolbar — a surface-coloured bar across the top of the editor (like Docs),
+   distinct from the tinted page area beneath it. */
+.ed-toolbar { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; padding: 8px 14px; margin-bottom: 14px;
+  background: var(--surface); border-bottom: 1px solid var(--line); }
 .ed-hint { font-size: 11px; color: var(--muted); }
 .ed-face { font-size: 12px; padding: 4px 8px; max-width: 132px; }
 .ed-size { display: inline-flex; align-items: center; gap: 2px; border: 1px solid var(--lineStrong); border-radius: 7px; padding: 1px; }
@@ -326,18 +322,17 @@ h2.ed-canvas-title, .ed-canvas-input { margin: 0; }
 .ed-takeover-head { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-bottom: 1px solid var(--line); }
 .ed-takeover-title { font-weight: 600; font-size: 14px; }
 .ed-takeover-body { flex: 1; min-height: 0; overflow-y: auto; max-width: 640px; width: 100%; margin: 0 auto; padding: 16px 20px; }
-.ed-prose { flex: 1 1 auto; min-width: 0; overflow-y: auto; display: flex; flex-direction: column; padding: 0 16px; }
+.ed-prose { flex: 1 1 auto; min-width: 0; overflow-y: auto; display: flex; flex-direction: column; padding: 0 14px 24vh; }
 /* When a panel is docked right, reserve its width so the left-aligned page never
    slides under it — the page position is fixed, only the empty gutter changes. */
 .ed-body.has-panel .ed-prose { padding-right: 356px; }
 
-/* Focus mode: the editor takes the whole viewport, chrome falls away, the
-   prose sits in one comfortable measure. Esc (or the shrink button) exits. */
-.ed-focus { position: fixed; inset: 0; z-index: 200; background: var(--k-bg-canvas);
-  padding: 22px clamp(20px, 6vw, 90px) 8px; animation: fi .18s ease; }
-.ed-focus .ed-toolbar { background: var(--k-bg-canvas); flex-wrap: nowrap; }
-.ed-focus .ed-hint { display: none; } /* distraction-free: drop the helper text */
-.ed-focus .ed-prose { padding-bottom: 40vh; } /* room to keep the caret line up high */
+/* Fullscreen writing: the whole Write workspace (tree + editor + panels) takes
+   the viewport and the Kronicler app shell (rail + top bar) falls away — so you
+   can write through every chapter with navigation intact. Esc or the shrink
+   button exits. */
+.write-shell.focus { position: fixed; inset: 0; z-index: 200; background: var(--paper);
+  padding: 12px; margin: 0; animation: fi .18s ease; }
 
 /* Write (§3) — persistent structure tree beside the editor. */
 .write-shell { height: 100%; display: flex; gap: 14px; min-height: 0; }

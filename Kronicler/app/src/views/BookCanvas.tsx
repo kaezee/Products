@@ -159,8 +159,10 @@ export function BookCanvas(props: {
   onOpenEntity?: (id: string) => void;
   onNavigate: (chapterId: string) => void;
   onChapterMetaChanged?: () => void;   // e.g. an in-world date edit — refresh the chapter list
+  focused: boolean;                    // fullscreen writing — owned by Manuscript (keeps the tree)
+  onToggleFocus: () => void;
 }) {
-  const { worldId, chapters, openId, entities, onOpenEntity, onNavigate, onChapterMetaChanged } = props;
+  const { worldId, chapters, openId, entities, onOpenEntity, onNavigate, onChapterMetaChanged, focused, onToggleFocus } = props;
 
   // Prev/next chapter by manuscript order (spans books — a continuous read).
   const ordered = useMemo(() => [...chapters].sort((a, b) => a.manuscript_order - b.manuscript_order), [chapters]);
@@ -168,13 +170,6 @@ export function BookCanvas(props: {
   const prevCh = idx > 0 ? ordered[idx - 1] : null;
   const nextCh = idx >= 0 && idx < ordered.length - 1 ? ordered[idx + 1] : null;
 
-  const [focused, setFocused] = useState(false);
-  useEffect(() => {
-    if (!focused) return;
-    const h = (e: KeyboardEvent) => { if (e.key === "Escape") setFocused(false); };
-    window.addEventListener("keydown", h);
-    return () => window.removeEventListener("keydown", h);
-  }, [focused]);
 
   const [readFace, setReadFaceState] = useState<ReadFace>(getReadFace());
   const [readSize, setReadSizeState] = useState<number>(getReadSize());
@@ -348,7 +343,7 @@ export function BookCanvas(props: {
   );
 
   return (
-    <div className={"ed-shell" + (focused ? " ed-focus" : "")}>
+    <div className="ed-shell">
       {/* Top toolbar: document chrome only — the things a Docs/Word writer already
           knows how to find. Kronicler's marking verbs live in the selection
           popover, never here (IA handoff §3.2). */}
@@ -377,8 +372,8 @@ export function BookCanvas(props: {
             title="Cast in this chapter">{unlinkedCount > 0 && <span className="ed-badge dot" />}<Icon name="cast" size={15} /></button>
           <button className={"iconbtn" + (takeover === "history" ? " on" : "")} onClick={() => summonTakeover("history")}
             title="Version history">{versions.length > 0 && <span className="ed-badge">{versions.length > 99 ? "99+" : versions.length}</span>}<Icon name="history" size={15} /></button>
-          <button className="iconbtn" onClick={() => setFocused((f) => !f)}
-            title={focused ? "Exit focus mode (Esc)" : "Focus mode — distraction-free writing"}>
+          <button className={"iconbtn" + (focused ? " on" : "")} onClick={onToggleFocus}
+            title={focused ? "Exit fullscreen (Esc)" : "Fullscreen — write without the Kronicler chrome"}>
             <Icon name={focused ? "shrink" : "expand"} size={15} />
           </button>
         </span>
@@ -434,19 +429,6 @@ export function BookCanvas(props: {
               onComment={onComment} registerApi={registerApi} onSaveState={setChSaveState}
               onDateChanged={() => onChapterMetaChanged?.()} />
           )}
-
-          {/* Prev/next — step through the manuscript without leaving the page. */}
-          <div className="ed-nav">
-            <button disabled={!prevCh} onClick={() => prevCh && onNavigate(prevCh.id)}
-              title={prevCh ? `Previous: ${prevCh.title} (Alt+←)` : "This is the first chapter"}>
-              <Icon name="chevron-left" size={14} /> {prevCh ? prevCh.title : "First chapter"}
-            </button>
-            <span className="spacer" style={{ flex: 1 }} />
-            <button disabled={!nextCh} onClick={() => nextCh && onNavigate(nextCh.id)}
-              title={nextCh ? `Next: ${nextCh.title} (Alt+→)` : "This is the last chapter"}>
-              {nextCh ? nextCh.title : "Last chapter"} <Icon name="chevron" size={14} />
-            </button>
-          </div>
         </div>
 
         {/* Summoned panel (§3.4): docks in the empty right space as a side nav,

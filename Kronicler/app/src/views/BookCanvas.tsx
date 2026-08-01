@@ -374,7 +374,7 @@ export function BookCanvas(props: {
           <button className={"iconbtn" + (panel === "notes" ? " on" : "")} onClick={() => summon("notes")}
             title="Notes">{noteCount > 0 && <span className="ed-badge">{noteCount > 99 ? "99+" : noteCount}</span>}<Icon name="notes" size={15} /></button>
           <button className={"iconbtn" + (panel === "continuity" ? " on" : "")} onClick={() => summon("continuity")}
-            title="Continuity — cast & moments in this chapter">{unlinkedCount > 0 && <span className="ed-badge dot" />}<Icon name="asterisk" size={15} /></button>
+            title="Cast in this chapter">{unlinkedCount > 0 && <span className="ed-badge dot" />}<Icon name="cast" size={15} /></button>
           <button className={"iconbtn" + (takeover === "history" ? " on" : "")} onClick={() => summonTakeover("history")}
             title="Version history">{versions.length > 0 && <span className="ed-badge">{versions.length > 99 ? "99+" : versions.length}</span>}<Icon name="history" size={15} /></button>
           <button className="iconbtn" onClick={() => setFocused((f) => !f)}
@@ -386,7 +386,7 @@ export function BookCanvas(props: {
 
       {err && <p className="err">{err}</p>}
 
-      <div className="ed-body">
+      <div className={"ed-body" + (panel ? " has-panel" : "")}>
         <div className="ed-prose" ref={scroller}>
           {entMode === "new" && (
             <div className="card" style={{ padding: 10, marginBottom: 8, display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
@@ -449,12 +449,12 @@ export function BookCanvas(props: {
           </div>
         </div>
 
-        {/* Summoned panel (§3.4): overlays the right margin, never reflows the
-            prose column. One at a time. Empty by default. */}
-        {!focused && panel && activeChapter && (
+        {/* Summoned panel (§3.4): docks in the empty right space as a side nav,
+            available in focus mode too. One at a time. Empty by default. */}
+        {panel && activeChapter && (
           <div className="ed-panel">
             <div className="ed-panel-head">
-              <span className="ed-panel-title">{panel === "comments" ? "Comments" : panel === "notes" ? "Notes" : "Continuity"}</span>
+              <span className="ed-panel-title">{panel === "comments" ? "Comments" : panel === "notes" ? "Notes" : "Cast"}</span>
               <span className="spacer" style={{ flex: 1 }} />
               <button className="iconbtn" onClick={() => setPanel(null)} title="Close panel"><Icon name="close" size={15} /></button>
             </div>
@@ -474,20 +474,20 @@ export function BookCanvas(props: {
                 const unlinked = visible.filter((e) => !castIds.includes(e.id));
                 return (
                   <div className="ed-panel-sect">
-                    <div className="ed-panel-lab">Cast detected {visible.length > 0 && <span className="ed-panel-count">{visible.length}</span>}</div>
+                    <div className="ed-panel-lab">In this chapter {visible.length > 0 && <span className="ed-panel-count">{visible.length}</span>}</div>
                     {unlinked.length > 1 && (
                       <button style={{ padding: "3px 9px", fontSize: 11, marginBottom: 8 }} onClick={() => linkAll(unlinked.map((e) => e.id))}
-                        title="Add all detected characters to this chapter's cast">link all {unlinked.length}</button>
+                        title="Add all detected characters to this chapter">Add all {unlinked.length}</button>
                     )}
-                    {visible.length === 0 && <span className="muted">No known entities mentioned yet.</span>}
+                    {visible.length === 0 && <span className="muted">No known names mentioned yet.</span>}
                     {visible.map((e) => {
                       const linked = castIds.includes(e.id);
                       return (
                         <div className="row" key={e.id} style={{ padding: "7px 0", gap: 6, borderColor: "var(--line)" }}>
                           <span style={{ flex: 1, fontSize: 13 }}>{e.title}</span>
                           {linked
-                            ? <span className="muted" style={{ fontSize: 11 }}>linked</span>
-                            : <button style={{ padding: "3px 8px", fontSize: 11 }} onClick={() => link(e.id)} title="Confirm — add to this chapter's cast">link</button>}
+                            ? <span className="muted" style={{ fontSize: 11 }}>in chapter</span>
+                            : <button style={{ padding: "3px 8px", fontSize: 11 }} onClick={() => link(e.id)} title="Add to this chapter">Add</button>}
                           <span title="Not this — hide the suggestion" onClick={() => setDismissed((d) => new Set(d).add(e.id))}
                             style={{ cursor: "pointer", color: "var(--faint)", display: "inline-flex" }}><Icon name="close" size={13} /></span>
                         </div>

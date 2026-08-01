@@ -80,6 +80,11 @@ export function RichProse({ value, entities, onChange, onSelectText, onOpenEntit
   const entRef = useRef(entities);
   entRef.current = entities;
 
+  // The last non-empty selection, in plain-text offsets. Some browsers drop the
+  // live contentEditable selection when a toolbar button takes the click, so
+  // formatting falls back to this remembered range.
+  const lastRange = useRef<{ start: number; end: number } | null>(null);
+
   // type name (lowercased) → curated swatch, so every mention gets its colour
   // from the world's type registry (built-ins + custom), never a hardcoded hex.
   const swatchRef = useRef<Map<string, string>>(new Map());
@@ -216,7 +221,8 @@ export function RichProse({ value, entities, onChange, onSelectText, onOpenEntit
   function applyWrap(marker: string) {
     const el = edRef.current;
     if (!el) return;
-    const range = selectionOffsets(el);
+    let range = selectionOffsets(el);
+    if (!range || range.start === range.end) range = lastRange.current;   // toolbar/shortcut lost the live selection
     if (!range || range.start === range.end) return;
     const { start: a, end: b } = range;
     const text = el.textContent ?? "";
@@ -231,7 +237,9 @@ export function RichProse({ value, entities, onChange, onSelectText, onOpenEntit
     el.textContent = next;
     onChange(next);
     decorate();
+    el.focus();
     setSelectionOffsets(el, na, nb);
+    lastRange.current = { start: na, end: nb };
     reportSelection();
   }
 
@@ -345,6 +353,7 @@ export function RichProse({ value, entities, onChange, onSelectText, onOpenEntit
     const wrap = wrapRef.current;
     const text = s && el && el.contains(s.anchorNode) ? s.toString() : "";
     onSelectText(text);
+    if (text.trim() && el) { const r = selectionOffsets(el); if (r && r.start !== r.end) lastRange.current = r; }
     if (text.trim() && s && s.rangeCount && wrap) {
       const rect = s.getRangeAt(0).getBoundingClientRect();
       const wr = wrap.getBoundingClientRect();

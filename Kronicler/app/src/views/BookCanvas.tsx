@@ -53,6 +53,8 @@ function ChapterBlock({
   const [editingDate, setEditingDate] = useState(false);
   const saveTimer = useRef<number | undefined>(undefined);
   const clearedPlanned = useRef(false);
+  // Stable so the editor registers its api once, not on every keystroke render.
+  const setApi = useCallback((api: ProseApi | null) => registerApi(chapter.id, api), [registerApi, chapter.id]);
 
   const scheduleSave = useCallback((next: string) => {
     setSaveState("dirty");
@@ -139,7 +141,7 @@ function ChapterBlock({
         onMarkEntity={() => onMarkEntity(chapter.id)}
         onMarkMoment={() => onMarkMoment(chapter.id)}
         onComment={(range) => onComment(chapter.id, range)}
-        apiRef={(api) => registerApi(chapter.id, api)}
+        apiRef={setApi}
         placeholder="Write the chapter here. Known names light up as you type — hover one to peek. Select a sentence to record a state."
       />
     </section>
@@ -159,10 +161,19 @@ export function BookCanvas(props: {
   onOpenEntity?: (id: string) => void;
   onNavigate: (chapterId: string) => void;
   onChapterMetaChanged?: () => void;   // e.g. an in-world date edit — refresh the chapter list
+  onImport?: () => void;               // document action, lives in the editor toolbar's ··· menu
   focused: boolean;                    // fullscreen writing — owned by Manuscript (keeps the tree)
   onToggleFocus: () => void;
 }) {
-  const { worldId, chapters, openId, entities, bookIds, onOpenEntity, onNavigate, onChapterMetaChanged, focused, onToggleFocus } = props;
+  const { worldId, chapters, openId, entities, bookIds, onOpenEntity, onNavigate, onChapterMetaChanged, onImport, focused, onToggleFocus } = props;
+  const [edMenuOpen, setEdMenuOpen] = useState(false);
+  const edMenuRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!edMenuOpen) return;
+    const h = (e: MouseEvent) => { if (edMenuRef.current && !edMenuRef.current.contains(e.target as Node)) setEdMenuOpen(false); };
+    window.addEventListener("mousedown", h);
+    return () => window.removeEventListener("mousedown", h);
+  }, [edMenuOpen]);
   const chapterRefs = useMemo(() => chapters.map((c) => ({ id: c.id, manuscript_order: c.manuscript_order, title: c.title })), [chapters]);
 
   // Prev/next chapter by manuscript order (spans books — a continuous read).
@@ -351,6 +362,16 @@ export function BookCanvas(props: {
           knows how to find. Kronicler's marking verbs live in the selection
           popover, never here (IA handoff §3.2). */}
       <div className="ed-toolbar">
+        {onImport && (
+          <div className="ed-overflow" ref={edMenuRef}>
+            <button className="ed-fmt" title="More" aria-haspopup="menu" aria-expanded={edMenuOpen} onClick={() => setEdMenuOpen((v) => !v)}>···</button>
+            {edMenuOpen && (
+              <div className="write-overflow-menu" role="menu">
+                <button role="menuitem" onClick={() => { setEdMenuOpen(false); onImport(); }}><Icon name="arrow" size={13} /> Import a manuscript</button>
+              </div>
+            )}
+          </div>
+        )}
         <button className="ed-fmt" onMouseDown={(e) => e.preventDefault()} onClick={() => proseApis.current.get(openId)?.format("**")} title="Bold (⌘B)"><b>B</b></button>
         <button className="ed-fmt" onMouseDown={(e) => e.preventDefault()} onClick={() => proseApis.current.get(openId)?.format("*")} title="Italic (⌘I)"><i>I</i></button>
         <span className="ed-tbsep" />

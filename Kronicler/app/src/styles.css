@@ -124,7 +124,9 @@ input, textarea, select { font-size: 13px; padding: 9px 11px; border: 1px solid 
 .railworld-name { flex: 1 1 auto; min-width: 0; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .railworld-btn svg { color: var(--muted); flex: 0 0 auto; }
 .rail-collapsed .railworld { flex: 0 0 auto; }
-.worlds-pop.rail { left: 4px; top: calc(100% + 6px); width: 246px; }
+/* Rail switcher popover is position:fixed (set inline) so it escapes the rail's
+   overflow clip; width sized for the narrow rail. */
+.worlds-pop.rail { width: 244px; z-index: 200; }
 .rail-toggle-btn { display: flex; align-items: center; justify-content: center; width: 30px; height: 30px; padding: 0; border: 1px solid var(--line); border-radius: 8px; background: transparent; color: var(--muted); cursor: pointer; }
 .rail-toggle-btn:hover { background: var(--wash); color: var(--ink); }
 .railitem { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-radius: 8px; font-size: 13px; cursor: pointer; color: var(--sub); font-weight: 450; transition: background var(--k-duration-fast, 120ms) var(--k-ease, ease), color var(--k-duration-fast, 120ms) var(--k-ease, ease); }
@@ -252,6 +254,8 @@ textarea { font-family: var(--serif); }
 .ed-fmt b { font-weight: 700; }
 .ed-fmt i { font-style: italic; font-family: var(--serif); }
 .ed-tbsep { width: 1px; align-self: stretch; margin: 3px 5px; background: var(--line); }
+.ed-overflow { position: relative; display: inline-flex; }
+.ed-overflow .write-overflow-menu { left: 0; right: auto; top: calc(100% + 6px); }
 .ed-dot { color: var(--faint); }
 /* The chapter title, set inside the prose canvas as an inline heading so the
    page reads as one continuous document (title → prose → next chapter…). */

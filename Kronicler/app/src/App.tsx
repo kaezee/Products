@@ -79,6 +79,14 @@ function Workspace({ session }: { session: Session }) {
   const [renameId, setRenameId] = useState<string | null>(null); // world being inline-renamed in the popover
   const [worldNameDraft, setWorldNameDraft] = useState("");
   const [worldsOpen, setWorldsOpen] = useState(false); // worlds popover
+  const [worldsPos, setWorldsPos] = useState({ top: 0, left: 0 }); // fixed pos (escapes rail overflow clip)
+  function openWorlds() {
+    setWorldsOpen((v) => {
+      const next = !v;
+      if (next && worldsRef.current) { const r = worldsRef.current.getBoundingClientRect(); setWorldsPos({ top: r.bottom + 6, left: r.left }); }
+      return next;
+    });
+  }
   const [newWorldOpen, setNewWorldOpen] = useState(false); // new-world dialog
   const [newWorldDraft, setNewWorldDraft] = useState("");
   const [railCollapsed, setRailCollapsed] = useState(() => localStorage.getItem("k.rail") === "1");
@@ -298,13 +306,13 @@ function Workspace({ session }: { session: Session }) {
               <div className="rail-top">
                 <div className="railworld" ref={worldsRef}>
                   <button className="railworld-btn" title="Switch world" aria-haspopup="menu" aria-expanded={worldsOpen}
-                    onClick={() => (worlds.length > 0 ? setWorldsOpen((v) => !v) : makeWorld())}>
+                    onClick={() => (worlds.length > 0 ? openWorlds() : makeWorld())}>
                     <span className="k">K</span>
                     {!railCollapsed && <span className="railworld-name">{worlds.find((w) => w.id === worldId)?.name ?? "Kronicler"}</span>}
                     {!railCollapsed && worlds.length > 0 && <Icon name="chevron-down" size={ICON_SIZE.sm} />}
                   </button>
                   {worldsOpen && worlds.length > 0 && (
-                    <div className="worlds-pop rail" role="menu">
+                    <div className="worlds-pop rail" role="menu" style={{ position: "fixed", top: worldsPos.top, left: worldsPos.left }}>
                       <div className="worlds-poplab">Worlds</div>
                       <div className="worlds-list">
                         {worlds.map((w) => (renameId === w.id ? (

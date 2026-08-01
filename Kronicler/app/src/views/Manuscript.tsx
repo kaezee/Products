@@ -6,6 +6,7 @@ import {
 } from "../lib/api";
 import type { Chapter, Entity, Segment, SegmentKind } from "../lib/types";
 import { buildKindSwatches } from "../lib/segmentKinds";
+import { getLevelNames } from "../lib/levelNames";
 import { BookCanvas } from "./BookCanvas";
 import { ImportDocx } from "./ImportDocx";
 import type { Nav, LeafCrumb } from "../App";
@@ -152,7 +153,7 @@ export function Manuscript({ worldId, focusChapterId, openImport, go, onLeaf }: 
     const siblings = segments.filter((s) => s.parent_id === parentId);
     const order = siblings.length ? Math.max(...siblings.map((s) => s.seg_order)) + 1 : 0;
     const kind = parentId ? "part" : "book";
-    const name = parentId ? "New part" : "New book";
+    const name = parentId ? "New part" : `New ${getLevelNames(worldId).container}`;
     try {
       const s = await createSegment(worldId, { parent_id: parentId, kind, name, seg_order: order });
       setSegments((p) => [...p, s]);
@@ -275,7 +276,7 @@ export function Manuscript({ worldId, focusChapterId, openImport, go, onLeaf }: 
         </div>
         <div className="write-tree-actions">
           <button onClick={() => { setAdding(true); setNewTitle(""); }}>+ Chapter</button>
-          <button onClick={() => addSegment(null)} title="Add a top-level book / part">+ Book</button>
+          <button onClick={() => addSegment(null)} title={`Add a top-level ${getLevelNames(worldId).container.toLowerCase()}`}>+ {getLevelNames(worldId).container}</button>
           {chapters.length === 0 ? (
             // Empty world: Import is the migrating writer's first action (§3.1).
             <button className="primary" onClick={() => setImporting(true)}

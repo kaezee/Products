@@ -9,6 +9,7 @@ import { detectMentions } from "../lib/mentions";
 import { computeBrief } from "../lib/brief";
 import { statesAsOf } from "../lib/mentionState";
 import { CANONICAL_ENTITY_TYPES, CUSTOM_TYPE } from "../lib/entityTypes";
+import { getLevelNames } from "../lib/levelNames";
 import { Composer } from "./Composer";
 import { BriefPanel } from "./BriefPanel";
 import { RichProse, type ProseApi } from "./RichProse";
@@ -95,7 +96,7 @@ function ChapterBlock({
         {/* Inline chapter properties (§3.3): number · in-world date · words.
             Click the date to edit in place — a numeric control, no calendar. */}
         <div className="ed-kicker">
-          <span>Chapter {chapter.manuscript_order}</span>
+          <span>{getLevelNames(worldId).leaf} {chapter.manuscript_order}</span>
           <span className="ed-dot">·</span>
           <button className={"ed-prop" + (editingDate ? " on" : "")} onClick={() => setEditingDate((v) => !v)}
             title="Set the in-world date — sets this chapter's place on the Timeline">

@@ -3,6 +3,7 @@ import { supabase } from "../lib/supabase";
 import { exportWorld, getChapters, getEntities, getTrashCount } from "../lib/api";
 import type { Entity } from "../lib/types";
 import { Trash } from "./Trash";
+import { getLevelNames, setLevelNames } from "../lib/levelNames";
 import { Icon } from "../components/icons";
 import { Spinner } from "../components/Skeleton";
 import { confirmDialog } from "../components/confirm";
@@ -30,6 +31,9 @@ export function Settings({ worldId, worldName, userEmail, onDeleteWorld, onWorld
   const [err, setErr] = useState<string | null>(null);
   const [trashOpen, setTrashOpen] = useState(false);
   const [trashCount, setTrashCount] = useState<number | null>(null);
+  const [levels, setLevels] = useState(() => getLevelNames(worldId));
+  useEffect(() => { setLevels(getLevelNames(worldId)); }, [worldId]);
+  function commitLevels(next: { container: string; leaf: string }) { setLevels(setLevelNames(worldId, next)); }
 
   useEffect(() => {
     let alive = true;
@@ -112,6 +116,32 @@ export function Settings({ worldId, worldName, userEmail, onDeleteWorld, onWorld
         </div>
       </div>
       {err && <p className="err">{err}</p>}
+
+      <div className="label" style={{ marginTop: 28 }}>Structure names</div>
+      <div className="card">
+        <div className="row" style={{ borderBottom: "none", alignItems: "flex-start" }}>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontWeight: 500 }}>What you call the two structure levels</div>
+            <span className="muted" style={{ fontSize: 12.5 }}>Book / Chapter is the default — rename them to fit your story (Season / Episode, Act / Scene, Volume / Issue). Used everywhere in Write.</span>
+          </div>
+          <div style={{ display: "flex", gap: 8, flex: "0 0 auto" }}>
+            <label style={{ display: "flex", flexDirection: "column", gap: 3, fontSize: 11, color: "var(--muted)" }}>
+              Container
+              <input value={levels.container} placeholder="Book" style={{ width: 120 }}
+                onChange={(e) => setLevels((v) => ({ ...v, container: e.target.value }))}
+                onBlur={() => commitLevels(levels)}
+                onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }} />
+            </label>
+            <label style={{ display: "flex", flexDirection: "column", gap: 3, fontSize: 11, color: "var(--muted)" }}>
+              Leaf
+              <input value={levels.leaf} placeholder="Chapter" style={{ width: 120 }}
+                onChange={(e) => setLevels((v) => ({ ...v, leaf: e.target.value }))}
+                onBlur={() => commitLevels(levels)}
+                onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }} />
+            </label>
+          </div>
+        </div>
+      </div>
 
       <div className="label" style={{ marginTop: 28 }}>Trash · recently deleted</div>
       <div className="card">

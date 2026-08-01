@@ -154,13 +154,15 @@ export function BookCanvas(props: {
   chapters: Chapter[];        // the manuscript's chapters in order, for prev/next
   openId: string;             // the chapter being edited
   entities: Entity[];
+  bookIds: Set<string>;                // chapters in the open chapter's book (panel scope)
   onOpenEntity?: (id: string) => void;
   onNavigate: (chapterId: string) => void;
   onChapterMetaChanged?: () => void;   // e.g. an in-world date edit — refresh the chapter list
   focused: boolean;                    // fullscreen writing — owned by Manuscript (keeps the tree)
   onToggleFocus: () => void;
 }) {
-  const { worldId, chapters, openId, entities, onOpenEntity, onNavigate, onChapterMetaChanged, focused, onToggleFocus } = props;
+  const { worldId, chapters, openId, entities, bookIds, onOpenEntity, onNavigate, onChapterMetaChanged, focused, onToggleFocus } = props;
+  const chapterRefs = useMemo(() => chapters.map((c) => ({ id: c.id, manuscript_order: c.manuscript_order, title: c.title })), [chapters]);
 
   // Prev/next chapter by manuscript order (spans books — a continuous read).
   const ordered = useMemo(() => [...chapters].sort((a, b) => a.manuscript_order - b.manuscript_order), [chapters]);
@@ -440,13 +442,15 @@ export function BookCanvas(props: {
             <div className="ed-panel-body">
               {panel === "comments" && (
                 <ChapterComments key={activeChapter.id} worldId={worldId} chapterId={activeChapter.id}
+                  chapters={chapterRefs} bookIds={bookIds}
                   pending={pendingComment && pendingComment.chapterId === activeChapter.id
                     ? { start: pendingComment.start, end: pendingComment.end, quote: pendingComment.quote } : null}
                   onPendingConsumed={() => setPendingComment(null)}
-                  onJump={jumpComment} onCount={setCommentCount} />
+                  onJump={jumpComment} onNavigate={onNavigate} onCount={setCommentCount} />
               )}
               {panel === "notes" && (
-                <ChapterNotes key={activeChapter.id} worldId={worldId} chapterId={activeChapter.id} onCount={setNoteCount} />
+                <ChapterNotes key={activeChapter.id} worldId={worldId} chapterId={activeChapter.id}
+                  chapters={chapterRefs} bookIds={bookIds} onNavigate={onNavigate} onCount={setNoteCount} />
               )}
               {panel === "continuity" && (() => {
                 const visible = activeMentions.filter((e) => !dismissed.has(e.id));

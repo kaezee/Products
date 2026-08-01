@@ -180,6 +180,17 @@ export function Manuscript({ worldId, focusChapterId, openImport, go, onLeaf }: 
   const roots = segments.filter((s) => !s.parent_id || !segIds.has(s.parent_id));
   const childrenOf = (id: string) => segments.filter((s) => s.parent_id === id);
 
+  // The top-level book a chapter sits under (walk to the root segment); powers
+  // the Book scope in the Write panels. Unfiled chapters share the "unfiled" book.
+  const segById = new Map(segments.map((s) => [s.id, s]));
+  const rootOf = (segId: string | null): string => {
+    let id = segId && segIds.has(segId) ? segId : null;
+    while (id) { const s = segById.get(id); if (!s || !s.parent_id || !segIds.has(s.parent_id)) break; id = s.parent_id; }
+    return id ?? "unfiled";
+  };
+  const openRoot = open ? rootOf(open.segment_id) : null;
+  const bookIds = new Set(open && openRoot ? chapters.filter((c) => rootOf(c.segment_id) === openRoot).map((c) => c.id) : []);
+
   // A chapter as a leaf node. Click opens it in place; drag to reorder (drop on
   // another chapter) or to file it (drop on a segment).
   const chNode = (c: Chapter, depth: number) => {
@@ -308,7 +319,7 @@ export function Manuscript({ worldId, focusChapterId, openImport, go, onLeaf }: 
             onClose={() => setImporting(false)} onDone={() => reload()} />
         ) : open ? (
           <BookCanvas key={worldId} worldId={worldId} chapters={chapters} openId={open.id}
-            entities={entities} onOpenEntity={(id) => go({ scope: "library", entityId: id })}
+            entities={entities} bookIds={bookIds} onOpenEntity={(id) => go({ scope: "library", entityId: id })}
             onNavigate={(id) => setOpenId(id)} onChapterMetaChanged={() => void reload()}
             focused={focused} onToggleFocus={() => setFocused((f) => !f)} />
         ) : (

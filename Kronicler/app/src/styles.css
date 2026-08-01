@@ -333,6 +333,16 @@ h2.ed-canvas-title, .ed-canvas-input { margin: 0; }
 .ed-panel-count { display: inline-flex; align-items: center; justify-content: center; min-width: 17px; height: 16px; padding: 0 5px;
   font-size: 10.5px; font-weight: 600; border-radius: 8px; background: var(--wash); color: var(--sub); font-variant-numeric: tabular-nums; }
 
+/* §3.5 panel controls: scope toggle · search · count line · chapter groups. */
+.ed-scope { display: inline-flex; gap: 2px; padding: 2px; background: var(--wash); border-radius: 8px; margin-bottom: 8px; }
+.ed-scope-btn { border: none; background: none; box-shadow: none; padding: 3px 11px; font-size: 11.5px; border-radius: 6px; color: var(--sub); cursor: pointer; }
+.ed-scope-btn.on { background: var(--surface); color: var(--ink); box-shadow: 0 1px 2px rgba(0,0,0,.06); }
+.ed-panel-search { width: 100%; padding: 6px 9px; font-size: 12.5px; margin-bottom: 8px; }
+.ccmts > .ed-panel-count, .cnotes > .ed-panel-count { display: block; background: none; padding: 0 0 8px; color: var(--muted); font-size: 11px; height: auto; text-align: left; }
+.ccmt-group { margin-bottom: 4px; }
+.ccmt-group-head { font-size: 10.5px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); padding: 9px 0 5px; }
+.ccmt-group-head.on { color: var(--bond); font-weight: 600; }
+
 /* Takeover — replaces the editing surface (History, later Timeline). */
 .ed-takeover { position: absolute; inset: 0; z-index: 25; display: flex; flex-direction: column; background: var(--paper); }
 .ed-takeover-head { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-bottom: 1px solid var(--line); }

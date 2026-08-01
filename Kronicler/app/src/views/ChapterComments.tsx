@@ -1,20 +1,28 @@
-import { useEffect, useState } from "react";
-import { getChapterComments, createComment, updateComment, softDeleteComment } from "../lib/api";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { getWorldComments, createComment, updateComment, softDeleteComment } from "../lib/api";
 import type { Comment } from "../lib/types";
 import { Icon } from "../components/icons";
 
-// §6 comments: margin comments on the active chapter's prose. Create one by
-// selecting text and hitting "Comment" in the selection bar; the comment stores
-// the quoted range. Click a comment's quote to jump back to it in the prose.
-export function ChapterComments({ worldId, chapterId, pending, onPendingConsumed, onJump, onCount }: {
+type Scope = "chapter" | "book" | "world";
+type ChapterRef = { id: string; manuscript_order: number; title: string };
+
+// §6 comments + §3.5 panel: margin comments anchored to prose. Scope the list to
+// this Chapter, its Book, or the whole World; search; group by chapter when the
+// scope is wider than one. Create from the selection bar; click a quote to jump.
+export function ChapterComments({ worldId, chapterId, chapters, bookIds, pending, onPendingConsumed, onJump, onNavigate, onCount }: {
   worldId: string;
   chapterId: string;
+  chapters: ChapterRef[];
+  bookIds: Set<string>;
   pending: { start: number; end: number; quote: string } | null;
   onPendingConsumed: () => void;
   onJump: (c: Comment) => boolean;
+  onNavigate: (chapterId: string) => void;
   onCount?: (n: number) => void;
 }) {
-  const [comments, setComments] = useState<Comment[] | null>(null);
+  const [all, setAll] = useState<Comment[] | null>(null);
+  const [scope, setScope] = useState<Scope>("chapter");
+  const [q, setQ] = useState("");
   const [compose, setCompose] = useState<{ start: number; end: number; quote: string } | null>(null);
   const [draft, setDraft] = useState("");
   const [editId, setEditId] = useState<string | null>(null);
@@ -23,53 +31,50 @@ export function ChapterComments({ worldId, chapterId, pending, onPendingConsumed
   const [detached, setDetached] = useState<Set<string>>(new Set());
   const [err, setErr] = useState<string | null>(null);
 
-  useEffect(() => {
-    let live = true;
-    getChapterComments(chapterId).then((c) => live && setComments(c)).catch((x) => live && setErr(String(x)));
-    return () => { live = false; };
-  }, [chapterId]);
+  const reload = useCallback(() => {
+    getWorldComments(worldId).then(setAll).catch((x) => setErr(String(x)));
+  }, [worldId]);
+  useEffect(() => { reload(); }, [reload]);
 
-  // A pending range from the selection bar → open the composer for it.
   useEffect(() => {
     if (pending) { setCompose(pending); setDraft(""); onPendingConsumed(); }
     // eslint-disable-next-line
   }, [pending]);
 
-  const open = (comments ?? []).filter((c) => !c.resolved);
-  const resolved = (comments ?? []).filter((c) => c.resolved);
-  useEffect(() => { onCount?.(open.length); }, [open.length]); // eslint-disable-line
+  const chById = useMemo(() => new Map(chapters.map((c) => [c.id, c])), [chapters]);
+
+  // Scope → search → split. The toolbar badge always reflects THIS chapter.
+  const scoped = useMemo(() => {
+    const inScope = (c: Comment) => scope === "world" ? true : scope === "book" ? bookIds.has(c.chapter_id) : c.chapter_id === chapterId;
+    const needle = q.trim().toLowerCase();
+    return (all ?? []).filter((c) => inScope(c) && (!needle || (c.body + " " + c.quote).toLowerCase().includes(needle)));
+  }, [all, scope, q, bookIds, chapterId]);
+  const open = scoped.filter((c) => !c.resolved);
+  const resolved = scoped.filter((c) => c.resolved);
+  const chapterUnresolved = useMemo(() => (all ?? []).filter((c) => c.chapter_id === chapterId && !c.resolved).length, [all, chapterId]);
+  useEffect(() => { onCount?.(chapterUnresolved); }, [chapterUnresolved]); // eslint-disable-line
 
   async function save() {
     const body = draft.trim();
     if (!body || !compose) { setCompose(null); setDraft(""); return; }
-    try {
-      const c = await createComment(worldId, chapterId, { body, anchor_start: compose.start, anchor_end: compose.end, quote: compose.quote });
-      setComments((p) => [...(p ?? []), c]);
-    } catch (x) { setErr(String(x)); }
+    try { await createComment(worldId, chapterId, { body, anchor_start: compose.start, anchor_end: compose.end, quote: compose.quote }); reload(); }
+    catch (x) { setErr(String(x)); }
     setCompose(null); setDraft("");
   }
   async function toggleResolve(c: Comment) {
-    try {
-      await updateComment(c.id, { resolved: !c.resolved });
-      setComments((p) => (p ?? []).map((x) => (x.id === c.id ? { ...x, resolved: !x.resolved } : x)));
-    } catch (x) { setErr(String(x)); }
+    try { await updateComment(c.id, { resolved: !c.resolved }); reload(); } catch (x) { setErr(String(x)); }
   }
   async function saveEdit(c: Comment) {
     const body = editDraft.trim();
     setEditId(null);
     if (!body || body === c.body) return;
-    try {
-      await updateComment(c.id, { body });
-      setComments((p) => (p ?? []).map((x) => (x.id === c.id ? { ...x, body } : x)));
-    } catch (x) { setErr(String(x)); }
+    try { await updateComment(c.id, { body }); reload(); } catch (x) { setErr(String(x)); }
   }
   async function del(c: Comment) {
-    try {
-      await softDeleteComment(c.id);
-      setComments((p) => (p ?? []).filter((x) => x.id !== c.id));
-    } catch (x) { setErr(String(x)); }
+    try { await softDeleteComment(c.id); reload(); } catch (x) { setErr(String(x)); }
   }
   function jump(c: Comment) {
+    if (c.chapter_id !== chapterId) { onNavigate(c.chapter_id); return; }
     const ok = onJump(c);
     setDetached((d) => { const n = new Set(d); ok ? n.delete(c.id) : n.add(c.id); return n; });
   }
@@ -79,7 +84,7 @@ export function ChapterComments({ worldId, chapterId, pending, onPendingConsumed
       <div className="ccmt-quote" onClick={() => jump(c)} title="Jump to this passage">
         <span className="ccmt-bar" />
         <span className="ccmt-quote-t">{c.quote || <span className="muted">(no quote)</span>}</span>
-        {detached.has(c.id) && <span className="ccmt-detached" title="The quoted text was edited away — this comment is detached">detached</span>}
+        {detached.has(c.id) && <span className="ccmt-detached" title="The quoted text was edited away">detached</span>}
       </div>
       {editId === c.id ? (
         <textarea autoFocus className="cnote-edit" value={editDraft} rows={2}
@@ -99,9 +104,39 @@ export function ChapterComments({ worldId, chapterId, pending, onPendingConsumed
     </div>
   );
 
+  // Group rows by chapter when the scope is wider than one chapter.
+  const grouped = (list: Comment[]) => {
+    if (scope === "chapter") return list.map(row);
+    const byCh = new Map<string, Comment[]>();
+    for (const c of list) { const a = byCh.get(c.chapter_id) ?? []; a.push(c); byCh.set(c.chapter_id, a); }
+    return [...byCh.entries()]
+      .sort((a, b) => (chById.get(a[0])?.manuscript_order ?? 0) - (chById.get(b[0])?.manuscript_order ?? 0))
+      .map(([cid, rows]) => {
+        const ch = chById.get(cid);
+        return (
+          <div className="ccmt-group" key={cid}>
+            <div className={"ccmt-group-head" + (cid === chapterId ? " on" : "")}>
+              Ch. {ch?.manuscript_order ?? "?"} · {ch?.title ?? "—"}
+            </div>
+            {rows.map(row)}
+          </div>
+        );
+      });
+  };
+
+  const chapterCount = useMemo(() => new Set(open.map((c) => c.chapter_id)).size, [open]);
+
   return (
     <div className="ccmts">
       {err && <p className="err" style={{ margin: "0 0 8px" }}>{err}</p>}
+      <div className="ed-scope">
+        {(["chapter", "book", "world"] as Scope[]).map((s) => (
+          <button key={s} className={"ed-scope-btn" + (scope === s ? " on" : "")} onClick={() => setScope(s)}>{s[0].toUpperCase() + s.slice(1)}</button>
+        ))}
+      </div>
+      <input className="ed-panel-search" value={q} placeholder="Search comments…" onChange={(e) => setQ(e.target.value)} />
+      <div className="ed-panel-count">{open.length} unresolved{scope !== "chapter" ? ` · ${chapterCount} chapter${chapterCount === 1 ? "" : "s"}` : ""}</div>
+
       {compose && (
         <div className="ccmt compose">
           <div className="ccmt-quote"><span className="ccmt-bar" /><span className="ccmt-quote-t">{compose.quote}</span></div>
@@ -114,17 +149,17 @@ export function ChapterComments({ worldId, chapterId, pending, onPendingConsumed
           </div>
         </div>
       )}
-      {comments === null && <span className="muted">Loading comments…</span>}
-      {comments !== null && open.length === 0 && !compose && (
-        <span className="muted">No comments yet — select a passage in the prose and choose “Comment”.</span>
+      {all === null && <span className="muted">Loading comments…</span>}
+      {all !== null && open.length === 0 && !compose && (
+        <span className="muted">{q.trim() ? "No comments match." : "No comments here — select a passage and choose “Comment”."}</span>
       )}
-      {open.map(row)}
+      {grouped(open)}
       {resolved.length > 0 && (
         <>
           <button className="ccmt-toggle" onClick={() => setShowResolved((v) => !v)}>
             <Icon name={showResolved ? "chevron-down" : "chevron"} size={12} /> {resolved.length} resolved
           </button>
-          {showResolved && resolved.map(row)}
+          {showResolved && grouped(resolved)}
         </>
       )}
     </div>

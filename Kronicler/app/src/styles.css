@@ -244,13 +244,34 @@ textarea { font-family: var(--serif); }
 h2.ed-canvas-title { cursor: text; }
 .ed-canvas-input { display: block; width: 100%; border: none; background: none; padding: 0;
   outline: none; border-bottom: 1px solid var(--bond); }
-/* Continuous scroll: a book's chapters stacked as blocks in one column. Each
-   chapter is separated by generous space and a hairline, so the seam reads as
-   a chapter break without breaking the single-document flow. */
-.ed-chapter { display: block; scroll-margin-top: 8px; }
-.ed-chapter + .ed-chapter { margin-top: 46px; padding-top: 40px; border-top: 1px solid var(--line); }
-.ed-chapter-save { float: right; font-size: 11px; font-weight: 400; letter-spacing: 0; opacity: 0; transition: opacity .2s; }
-.ed-chapter:focus-within .ed-canvas-title .ed-chapter-save { opacity: 1; }
+h2.ed-canvas-title, .ed-canvas-input { margin: 0; }
+
+/* One chapter on a clean page (Docs-like): the prose has no card border, so the
+   header flows straight into it, and the whole thing sits in one comfortable
+   measure centred in the pane. */
+.ed-prose > * { max-width: 760px; margin-left: auto; margin-right: auto; width: 100%; }
+.ed-prose .rich { border: none; background: transparent; padding: 0; border-radius: 0; min-height: 340px; }
+.ed-prose .rich:focus { border-color: transparent; box-shadow: none; }
+.ed-chapter { display: block; }
+
+/* The in-canvas chapter header: a small number kicker over the title, so a
+   reader scrolling always knows which chapter (and where) they are. */
+.ed-canvas-head { margin: 4px 0 20px; }
+.ed-kicker { display: flex; align-items: center; gap: 8px; margin-bottom: 4px;
+  font-size: 11px; letter-spacing: .07em; text-transform: uppercase; color: var(--muted); font-variant-numeric: tabular-nums; }
+.ed-kicker-plan { text-transform: none; letter-spacing: 0; font-size: 10.5px; color: var(--sub);
+  border: 1px solid var(--line); border-radius: 5px; padding: 0 5px; }
+.ed-chapter-save { margin-left: auto; text-transform: none; letter-spacing: 0; font-size: 11px;
+  opacity: 0; transition: opacity .2s; }
+.ed-chapter:focus-within .ed-chapter-save { opacity: 1; }
+
+/* Prev/next chapter — quiet, at the foot of the page. */
+.ed-nav { display: flex; align-items: center; gap: 10px; margin: 44px 0 20vh; padding-top: 18px; border-top: 1px solid var(--line); }
+.ed-nav button { display: inline-flex; align-items: center; gap: 5px; max-width: 46%;
+  padding: 6px 11px; font-size: 12.5px; color: var(--sub); background: none; border: 1px solid var(--line); border-radius: 8px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ed-nav button:hover:not(:disabled) { color: var(--ink); border-color: var(--lineStrong); background: var(--wash); }
+.ed-nav button:disabled { opacity: .4; }
 .ed-toolbar { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; padding: 4px 0 10px; margin-bottom: 12px; border-bottom: 1px solid var(--line); }
 .ed-hint { font-size: 11px; color: var(--muted); }
 .ed-face { font-size: 12px; padding: 4px 8px; max-width: 132px; }

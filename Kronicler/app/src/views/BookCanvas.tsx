@@ -29,7 +29,7 @@ type SaveState = "saved" | "saving" | "dirty";
 // which block the caret is in up to the BookCanvas — the shared toolbar and the
 // inspector act on whichever chapter is active.
 function ChapterBlock({
-  chapter, entities, stateOf, onOpenEntity, onSelect, onActivate, onMentions, registerRef,
+  chapter, entities, stateOf, onOpenEntity, onSelect, onMentions,
   onNewEntity, onAlias, onMarkMoment, onComment, registerApi,
 }: {
   chapter: Chapter;
@@ -37,9 +37,7 @@ function ChapterBlock({
   stateOf: (id: string, order: number) => ReturnType<typeof statesAsOf>;
   onOpenEntity?: (id: string) => void;
   onSelect: (chapterId: string, text: string) => void;
-  onActivate: (chapterId: string) => void;
   onMentions: (chapterId: string, ids: string[]) => void;
-  registerRef: (chapterId: string, el: HTMLElement | null) => void;
   onNewEntity: (chapterId: string) => void;
   onAlias: (chapterId: string) => void;
   onMarkMoment: (chapterId: string) => void;
@@ -77,28 +75,31 @@ function ChapterBlock({
   const stOf = useCallback((id: string) => stateOf(id, chapter.manuscript_order), [stateOf, chapter.manuscript_order]);
 
   return (
-    <section className="ed-chapter" ref={(el) => registerRef(chapter.id, el)}
-      data-chapter={chapter.id} onFocusCapture={() => onActivate(chapter.id)}>
-      {editingTitle ? (
-        <input className="ed-canvas-title ed-canvas-input" autoFocus value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") (e.target as HTMLInputElement).blur();
-            if (e.key === "Escape") { setTitle(chapter.title); setEditingTitle(false); }
-          }}
-          onBlur={async () => {
-            const t = title.trim();
-            setEditingTitle(false);
-            if (!t || t === chapter.title) { setTitle(chapter.title); return; }
-            try { await updateChapterTitle(chapter.id, t); } catch { /* handled on reload */ }
-          }} />
-      ) : (
-        <h2 className="ed-canvas-title" title="Double-click to rename this chapter"
-          onDoubleClick={() => setEditingTitle(true)}>
-          {title}
+    <section className="ed-chapter" data-chapter={chapter.id}>
+      <div className="ed-canvas-head">
+        <div className="ed-kicker">
+          <span>Chapter {chapter.manuscript_order}</span>
+          {chapter.planned && <span className="ed-kicker-plan">planned</span>}
           <span className="ed-chapter-save muted">{saveState === "saved" ? "saved" : saveState === "saving" ? "saving…" : "unsaved"}</span>
-        </h2>
-      )}
+        </div>
+        {editingTitle ? (
+          <input className="ed-canvas-title ed-canvas-input" autoFocus value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+              if (e.key === "Escape") { setTitle(chapter.title); setEditingTitle(false); }
+            }}
+            onBlur={async () => {
+              const t = title.trim();
+              setEditingTitle(false);
+              if (!t || t === chapter.title) { setTitle(chapter.title); return; }
+              try { await updateChapterTitle(chapter.id, t); } catch { /* handled on reload */ }
+            }} />
+        ) : (
+          <h2 className="ed-canvas-title" title="Double-click to rename this chapter"
+            onDoubleClick={() => setEditingTitle(true)}>{title}</h2>
+        )}
+      </div>
       <RichProse
         value={body}
         entities={entities}
@@ -117,17 +118,25 @@ function ChapterBlock({
   );
 }
 
-// Write, continuous-scroll mode: a whole book's chapters stacked in one smooth
-// editable column. The toolbar (top) and inspector (right) follow the active
-// chapter — the one the caret sits in, or the one scrolled into view.
+// Write: one chapter at a time on a clean, Docs-like page — the tree is the
+// navigator, so the editor holds a single chapter (fast, and every bit of the
+// inspector belongs to that one chapter). Prev/next step through the manuscript
+// without leaving the page. The title is an in-canvas header (number + title).
 export function BookCanvas(props: {
   worldId: string;
-  chapters: Chapter[];        // the book's chapters, in manuscript order
-  openId: string;             // the chapter to land on / scroll to
+  chapters: Chapter[];        // the manuscript's chapters in order, for prev/next
+  openId: string;             // the chapter being edited
   entities: Entity[];
   onOpenEntity?: (id: string) => void;
+  onNavigate: (chapterId: string) => void;
 }) {
-  const { worldId, chapters, openId, entities, onOpenEntity } = props;
+  const { worldId, chapters, openId, entities, onOpenEntity, onNavigate } = props;
+
+  // Prev/next chapter by manuscript order (spans books — a continuous read).
+  const ordered = useMemo(() => [...chapters].sort((a, b) => a.manuscript_order - b.manuscript_order), [chapters]);
+  const idx = useMemo(() => ordered.findIndex((c) => c.id === openId), [ordered, openId]);
+  const prevCh = idx > 0 ? ordered[idx - 1] : null;
+  const nextCh = idx >= 0 && idx < ordered.length - 1 ? ordered[idx + 1] : null;
 
   const [focused, setFocused] = useState(false);
   useEffect(() => {
@@ -186,8 +195,6 @@ export function BookCanvas(props: {
     setPendingComment({ chapterId, ...range });
   }, []);
   const jumpComment = useCallback((c: Comment): boolean => {
-    setActiveId(c.chapter_id);
-    refs.current.get(c.chapter_id)?.scrollIntoView({ block: "start", behavior: "smooth" });
     return proseApis.current.get(c.chapter_id)?.selectRange(c.anchor_start, c.anchor_end, c.quote) ?? false;
   }, []);
   const [entMode, setEntMode] = useState<null | "new" | "alias">(null);
@@ -237,39 +244,20 @@ export function BookCanvas(props: {
     [stream, castIds, activeChapter, typesById],
   );
 
-  // ── scroll: register each block, land on openId, track the active one ──────
-  const refs = useRef(new Map<string, HTMLElement>());
   const scroller = useRef<HTMLDivElement | null>(null);
-  const registerRef = useCallback((chapterId: string, el: HTMLElement | null) => {
-    if (el) refs.current.set(chapterId, el); else refs.current.delete(chapterId);
-  }, []);
+  // Editing one chapter → scroll the page back to the top when it changes.
+  useEffect(() => { scroller.current?.scrollTo({ top: 0 }); }, [openId]);
 
-  // Land on the requested chapter when it changes (tree click).
+  // prev/next also from the keyboard (Alt+←/→), so flow never needs the mouse.
   useEffect(() => {
-    const el = refs.current.get(openId);
-    if (el) el.scrollIntoView({ block: "start", behavior: "auto" });
-    setActiveId(openId);
-  }, [openId]);
-
-  // Active = the topmost chapter whose heading has crossed the top band.
-  useEffect(() => {
-    const root = scroller.current;
-    if (!root) return;
-    const io = new IntersectionObserver(
-      (entries) => {
-        // pick the entry nearest the top that is at least partly visible
-        const vis = entries.filter((e) => e.isIntersecting)
-          .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top);
-        if (vis[0]) {
-          const id = (vis[0].target as HTMLElement).dataset.chapter;
-          if (id) setActiveId(id);
-        }
-      },
-      { root, rootMargin: "0px 0px -70% 0px", threshold: 0 },
-    );
-    refs.current.forEach((el) => io.observe(el));
-    return () => io.disconnect();
-  }, [chapters]);
+    const h = (e: KeyboardEvent) => {
+      if (!e.altKey || e.metaKey || e.ctrlKey) return;
+      if (e.key === "ArrowLeft" && prevCh) { e.preventDefault(); onNavigate(prevCh.id); }
+      if (e.key === "ArrowRight" && nextCh) { e.preventDefault(); onNavigate(nextCh.id); }
+    };
+    window.addEventListener("keydown", h);
+    return () => window.removeEventListener("keydown", h);
+  }, [prevCh, nextCh, onNavigate]);
 
   function openEntMode(mode: "new" | "alias", chapterId: string) {
     const w = selText.trim();
@@ -390,14 +378,27 @@ export function BookCanvas(props: {
             </div>
           )}
 
-          {chapters.map((c) => (
-            <ChapterBlock key={c.id} chapter={c} entities={ents} stateOf={stateOf}
-              onOpenEntity={onOpenEntity} onSelect={onSelect} onActivate={setActiveId}
-              onMentions={onMentions} registerRef={registerRef}
+          {activeChapter && (
+            <ChapterBlock key={activeChapter.id} chapter={activeChapter} entities={ents} stateOf={stateOf}
+              onOpenEntity={onOpenEntity} onSelect={onSelect}
+              onMentions={onMentions}
               onNewEntity={(id) => openEntMode("new", id)} onAlias={(id) => openEntMode("alias", id)}
               onMarkMoment={(id) => { setEntChId(id); setComposerOpen(true); }}
               onComment={onComment} registerApi={registerApi} />
-          ))}
+          )}
+
+          {/* Prev/next — step through the manuscript without leaving the page. */}
+          <div className="ed-nav">
+            <button disabled={!prevCh} onClick={() => prevCh && onNavigate(prevCh.id)}
+              title={prevCh ? `Previous: ${prevCh.title} (Alt+←)` : "This is the first chapter"}>
+              <Icon name="chevron-left" size={14} /> {prevCh ? prevCh.title : "First chapter"}
+            </button>
+            <span className="spacer" style={{ flex: 1 }} />
+            <button disabled={!nextCh} onClick={() => nextCh && onNavigate(nextCh.id)}
+              title={nextCh ? `Next: ${nextCh.title} (Alt+→)` : "This is the last chapter"}>
+              {nextCh ? nextCh.title : "Last chapter"} <Icon name="chevron" size={14} />
+            </button>
+          </div>
         </div>
 
         {!focused && activeChapter && <SidePanel open={panelOpen} onToggle={togglePanel}>

@@ -158,22 +158,6 @@ export function Manuscript({ worldId, focusChapterId, openImport, go, onLeaf }: 
   const open = openId ? chapters.find((c) => c.id === openId) : null;
 
   const segIds = new Set(segments.map((s) => s.id));
-  const segById = new Map(segments.map((s) => [s.id, s]));
-  // The top-level book a chapter belongs to (walk parents to the root segment).
-  // Unfiled chapters share the "unfiled" book — so a book scrolls as one column.
-  const bookOf = (c: Chapter): string => {
-    let id = c.segment_id && segIds.has(c.segment_id) ? c.segment_id : null;
-    while (id) {
-      const s = segById.get(id);
-      if (!s || !s.parent_id || !segIds.has(s.parent_id)) break;
-      id = s.parent_id;
-    }
-    return id ?? "unfiled";
-  };
-  // Chapters of the open chapter's book, in manuscript order — the scroll stack.
-  const bookStack = open
-    ? chapters.filter((c) => bookOf(c) === bookOf(open)).sort((a, b) => a.manuscript_order - b.manuscript_order)
-    : [];
   const chaptersOf = (segId: string) => chapters.filter((c) => c.segment_id === segId);
   const unfiled = chapters.filter((c) => !(c.segment_id && segIds.has(c.segment_id)));
   const roots = segments.filter((s) => !s.parent_id || !segIds.has(s.parent_id));
@@ -290,8 +274,9 @@ export function Manuscript({ worldId, focusChapterId, openImport, go, onLeaf }: 
             existingTitles={entities.map((e) => e.title)}
             onClose={() => setImporting(false)} onDone={() => reload()} />
         ) : open ? (
-          <BookCanvas key={bookOf(open)} worldId={worldId} chapters={bookStack} openId={open.id}
-            entities={entities} onOpenEntity={(id) => go({ scope: "library", entityId: id })} />
+          <BookCanvas key={worldId} worldId={worldId} chapters={chapters} openId={open.id}
+            entities={entities} onOpenEntity={(id) => go({ scope: "library", entityId: id })}
+            onNavigate={(id) => setOpenId(id)} />
         ) : (
           <div className="write-placeholder">
             <Icon name="feather" size={26} />

@@ -11,7 +11,6 @@ import { statesAsOf } from "../lib/mentionState";
 import { CANONICAL_ENTITY_TYPES, CUSTOM_TYPE } from "../lib/entityTypes";
 import { Composer } from "./Composer";
 import { BriefPanel } from "./BriefPanel";
-import { WorldTimeline } from "./WorldTimeline";
 import { RichProse, type ProseApi } from "./RichProse";
 import { ChapterDate } from "./ChapterDate";
 import { ChapterNotes } from "./ChapterNotes";
@@ -208,9 +207,9 @@ export function BookCanvas(props: {
   const [chSaveState, setChSaveState] = useState<SaveState>("saved");
   // Summoned right-margin panels (one at a time) and full-surface takeovers.
   const [panel, setPanel] = useState<null | "comments" | "notes" | "continuity">(null);
-  const [takeover, setTakeover] = useState<null | "history" | "timeline">(null);
+  const [takeover, setTakeover] = useState<null | "history">(null);
   const summon = (p: "comments" | "notes" | "continuity") => { setTakeover(null); setPanel((cur) => (cur === p ? null : p)); };
-  const summonTakeover = (t: "history" | "timeline") => { setPanel(null); setTakeover((cur) => (cur === t ? null : t)); };
+  const summonTakeover = (t: "history") => { setPanel(null); setTakeover((cur) => (cur === t ? null : t)); };
   const [pendingComment, setPendingComment] = useState<{ chapterId: string; start: number; end: number; quote: string } | null>(null);
   // Each chapter block registers a small handle so a comment can jump to its range.
   const proseApis = useRef(new Map<string, ProseApi | null>());
@@ -373,8 +372,6 @@ export function BookCanvas(props: {
             title="Notes">{noteCount > 0 && <span className="ed-badge">{noteCount > 99 ? "99+" : noteCount}</span>}<Icon name="notes" size={15} /></button>
           <button className={"iconbtn" + (panel === "continuity" ? " on" : "")} onClick={() => summon("continuity")}
             title="Cast in this chapter">{unlinkedCount > 0 && <span className="ed-badge dot" />}<Icon name="cast" size={15} /></button>
-          <button className={"iconbtn" + (takeover === "timeline" ? " on" : "")} onClick={() => summonTakeover("timeline")}
-            title="Timeline">{<Icon name="clock" size={15} />}</button>
           <button className={"iconbtn" + (takeover === "history" ? " on" : "")} onClick={() => summonTakeover("history")}
             title="Version history">{versions.length > 0 && <span className="ed-badge">{versions.length > 99 ? "99+" : versions.length}</span>}<Icon name="history" size={15} /></button>
           <button className={"iconbtn" + (focused ? " on" : "")} onClick={onToggleFocus}
@@ -485,19 +482,6 @@ export function BookCanvas(props: {
                   </div>
                 );
               })()}
-            </div>
-          </div>
-        )}
-
-        {/* Timeline takeover (§3.4): the world timeline, replacing the surface. */}
-        {takeover === "timeline" && (
-          <div className="ed-takeover">
-            <div className="ed-takeover-head">
-              <button className="iconbtn" onClick={() => setTakeover(null)} title="Back to the chapter"><Icon name="chevron-left" size={16} /></button>
-              <span className="ed-takeover-title">Timeline</span>
-            </div>
-            <div className="ed-takeover-body" style={{ maxWidth: "none", padding: 0, display: "flex" }}>
-              <WorldTimeline worldId={worldId} go={() => setTakeover(null)} />
             </div>
           </div>
         )}

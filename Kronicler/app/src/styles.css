@@ -236,10 +236,14 @@ textarea { font-family: var(--serif); }
 
 /* Chapter editor — clean prose column, a thin top toolbar, a right inspector. */
 .ed-shell { height: 100%; display: flex; flex-direction: column; min-height: 0; }
-.ed-head { display: flex; align-items: baseline; gap: 12px; margin-bottom: 6px; }
-.ed-num { font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
-.ed-title { font-family: var(--serif); font-weight: 500; font-size: 22px; margin: 0; cursor: text; }
 .ed-save { font-size: 12px; }
+/* The chapter title, set inside the prose canvas as an inline heading so the
+   page reads as one continuous document (title → prose → next chapter…). */
+.ed-canvas-title { font-family: var(--serif); font-weight: 500; font-size: 27px; line-height: 1.2;
+  margin: 6px 0 18px; color: var(--ink); letter-spacing: -.01em; }
+h2.ed-canvas-title { cursor: text; }
+.ed-canvas-input { display: block; width: 100%; border: none; background: none; padding: 0;
+  outline: none; border-bottom: 1px solid var(--bond); }
 .ed-toolbar { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; padding: 4px 0 10px; margin-bottom: 12px; border-bottom: 1px solid var(--line); }
 .ed-hint { font-size: 11px; color: var(--muted); }
 .ed-face { font-size: 12px; padding: 4px 8px; max-width: 132px; }
@@ -254,7 +258,7 @@ textarea { font-family: var(--serif); }
    prose sits in one comfortable measure. Esc (or the shrink button) exits. */
 .ed-focus { position: fixed; inset: 0; z-index: 200; background: var(--k-bg-canvas);
   padding: 22px clamp(20px, 6vw, 90px) 8px; animation: fi .18s ease; }
-.ed-focus .ed-head, .ed-focus .ed-prose > * { max-width: 760px; margin-left: auto; margin-right: auto; width: 100%; }
+.ed-focus .ed-prose > * { max-width: 760px; margin-left: auto; margin-right: auto; width: 100%; }
 .ed-focus .ed-toolbar { background: var(--k-bg-canvas); flex-wrap: nowrap; }
 .ed-focus .ed-hint { display: none; } /* distraction-free: drop the helper text */
 .ed-focus .ed-prose { padding-bottom: 40vh; } /* room to keep the caret line up high */

@@ -216,28 +216,10 @@ export function ChapterEditor(props: {
 
   return (
     <div className={"ed-shell" + (focused ? " ed-focus" : "")}>
-      <div className="ed-head">
-        <span className="ed-num">{String(chapter.manuscript_order).padStart(2, "0")}</span>
-        {editingTitle ? (
-          <input autoFocus value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); if (e.key === "Escape") { setTitle(chapter.title); setEditingTitle(false); } }}
-            onBlur={async () => {
-              const t = title.trim();
-              setEditingTitle(false);
-              if (!t || t === chapter.title) { setTitle(chapter.title); return; }
-              try { await updateChapterTitle(chapter.id, t); } catch (x) { setErr(String(x)); }
-            }}
-            style={{ fontFamily: "var(--serif)", fontWeight: 500, fontSize: 22, flex: 1, padding: "2px 8px" }} />
-        ) : (
-          <h2 className="ed-title" title="Double-click to rename" onDoubleClick={() => setEditingTitle(true)}>{title}</h2>
-        )}
-        <span className="spacer" />
-        <span className="ed-save muted">{saveState === "saved" ? "saved" : saveState === "saving" ? "saving…" : "unsaved"}</span>
-      </div>
-
       {/* Top toolbar: always-present writing tools. The Kronicler verbs on the
-          left (they light up on a selection); font + size on the right. */}
+          left (they light up on a selection); font + size on the right. The
+          chapter title lives in the canvas below, not here, so the prose flows
+          as one document (groundwork for continuous book scroll). */}
       <div className="ed-toolbar">
         <button disabled={!selText.trim()} onClick={() => openEntMode("new")}
           title="Turn the selected word into a new character, place, item…">✦ New entity</button>
@@ -247,6 +229,7 @@ export function ChapterEditor(props: {
           title={selText ? "Record what happens between two characters in the selected sentence" : "Select a sentence in the draft first"}>✳ Mark a moment</button>
         <span className="ed-hint">select a word → entity · a sentence → a moment</span>
         <span className="spacer" />
+        <span className="ed-save muted">{saveState === "saved" ? "saved" : saveState === "saving" ? "saving…" : "unsaved"}</span>
         <select className="sel ed-face" value={readFace} title="Font the chapter is set in"
           onChange={(e) => changeFace(e.target.value as ReadFace)}>
           {READ_FACES.map((f) => <option key={f.key} value={f.key}>{f.label}</option>)}
@@ -266,6 +249,27 @@ export function ChapterEditor(props: {
 
       <div className="ed-body">
         <div className="ed-prose">
+
+          {/* The chapter title lives inside the canvas as an inline heading, so
+              the page reads title → prose as one continuous document (and books
+              can later stack these into one smooth scroll). Double-click to rename. */}
+          {editingTitle ? (
+            <input className="ed-canvas-title ed-canvas-input" autoFocus value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+                if (e.key === "Escape") { setTitle(chapter.title); setEditingTitle(false); }
+              }}
+              onBlur={async () => {
+                const t = title.trim();
+                setEditingTitle(false);
+                if (!t || t === chapter.title) { setTitle(chapter.title); return; }
+                try { await updateChapterTitle(chapter.id, t); } catch (x) { setErr(String(x)); }
+              }} />
+          ) : (
+            <h2 className="ed-canvas-title" title="Double-click to rename this chapter"
+              onDoubleClick={() => setEditingTitle(true)}>{title}</h2>
+          )}
 
           {entMode === "new" && (
             <div className="card" style={{ padding: 10, marginBottom: 8, display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>

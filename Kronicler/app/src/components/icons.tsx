@@ -48,6 +48,9 @@ import {
   HelpCircle,
   Maximize2,
   Minimize2,
+  MessageSquare,
+  Asterisk,
+  History,
   type LucideIcon,
 } from "lucide-react";
 
@@ -108,6 +111,10 @@ const REGISTRY = {
   help: HelpCircle,       // legend
   expand: Maximize2,      // enter focus mode
   shrink: Minimize2,      // exit focus mode
+  // Write editor summon icons (IA handoff §3.4)
+  comment: MessageSquare,
+  asterisk: Asterisk,     // continuity (cast detected + moments)
+  history: History,       // version history takeover
 } satisfies Record<string, LucideIcon>;
 
 export type IconName = keyof typeof REGISTRY;

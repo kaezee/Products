@@ -15,7 +15,6 @@ import { RichProse, type ProseApi } from "./RichProse";
 import { ChapterDate } from "./ChapterDate";
 import { ChapterNotes } from "./ChapterNotes";
 import { ChapterComments } from "./ChapterComments";
-import { SidePanel, Disclosure } from "../components/SidePanel";
 import { Icon } from "../components/icons";
 import { confirmDialog } from "../components/confirm";
 import {
@@ -177,12 +176,8 @@ export function BookCanvas(props: {
     return () => window.removeEventListener("keydown", h);
   }, [focused]);
 
-  const [panelOpen, setPanelOpen] = useState(() => localStorage.getItem("k.chpanel") !== "0");
   const [readFace, setReadFaceState] = useState<ReadFace>(getReadFace());
   const [readSize, setReadSizeState] = useState<number>(getReadSize());
-  function togglePanel() {
-    setPanelOpen((v) => { const n = !v; localStorage.setItem("k.chpanel", n ? "1" : "0"); return n; });
-  }
   function changeFace(f: ReadFace) { setReadFace(f); setReadFaceState(f); }
   function changeSize(n: number) { setReadSize(n); setReadSizeState(getReadSize()); }
 
@@ -215,6 +210,11 @@ export function BookCanvas(props: {
   const [noteCount, setNoteCount] = useState(0);
   const [commentCount, setCommentCount] = useState(0);
   const [chSaveState, setChSaveState] = useState<SaveState>("saved");
+  // Summoned right-margin panels (one at a time) and full-surface takeovers.
+  const [panel, setPanel] = useState<null | "comments" | "notes" | "continuity">(null);
+  const [takeover, setTakeover] = useState<null | "history">(null);
+  const summon = (p: "comments" | "notes" | "continuity") => { setTakeover(null); setPanel((cur) => (cur === p ? null : p)); };
+  const summonTakeover = (t: "history") => { setPanel(null); setTakeover((cur) => (cur === t ? null : t)); };
   const [pendingComment, setPendingComment] = useState<{ chapterId: string; start: number; end: number; quote: string } | null>(null);
   // Each chapter block registers a small handle so a comment can jump to its range.
   const proseApis = useRef(new Map<string, ProseApi | null>());
@@ -224,6 +224,7 @@ export function BookCanvas(props: {
   const onComment = useCallback((chapterId: string, range: { start: number; end: number; quote: string }) => {
     setActiveId(chapterId);
     setPendingComment({ chapterId, ...range });
+    setTakeover(null); setPanel("comments");
   }, []);
   const jumpComment = useCallback((c: Comment): boolean => {
     return proseApis.current.get(c.chapter_id)?.selectRange(c.anchor_start, c.anchor_end, c.quote) ?? false;
@@ -340,6 +341,11 @@ export function BookCanvas(props: {
     () => (mentionsByCh[activeId] ?? []).map((id) => ents.find((e) => e.id === id)).filter(Boolean) as Entity[],
     [mentionsByCh, activeId, ents],
   );
+  // New unlinked detections drive the Continuity badge (no zero badge).
+  const unlinkedCount = useMemo(
+    () => activeMentions.filter((e) => !castIds.includes(e.id) && !dismissed.has(e.id)).length,
+    [activeMentions, castIds, dismissed],
+  );
 
   return (
     <div className={"ed-shell" + (focused ? " ed-focus" : "")}>
@@ -361,10 +367,21 @@ export function BookCanvas(props: {
         </div>
         <span className="spacer" style={{ flex: 1 }} />
         <span className="ed-save muted">{chSaveState === "saved" ? "saved" : chSaveState === "saving" ? "saving…" : "unsaved"}</span>
-        <button className="iconbtn" onClick={() => setFocused((f) => !f)}
-          title={focused ? "Exit focus mode (Esc)" : "Focus mode — distraction-free writing"}>
-          <Icon name={focused ? "shrink" : "expand"} size={15} />
-        </button>
+        {/* Summon icons (§3.4): each opens one panel; opening one closes the rest. */}
+        <span className="ed-summon">
+          <button className={"iconbtn" + (panel === "comments" ? " on" : "")} onClick={() => summon("comments")}
+            title="Comments">{commentCount > 0 && <span className="ed-badge">{commentCount > 99 ? "99+" : commentCount}</span>}<Icon name="comment" size={15} /></button>
+          <button className={"iconbtn" + (panel === "notes" ? " on" : "")} onClick={() => summon("notes")}
+            title="Notes">{noteCount > 0 && <span className="ed-badge">{noteCount > 99 ? "99+" : noteCount}</span>}<Icon name="notes" size={15} /></button>
+          <button className={"iconbtn" + (panel === "continuity" ? " on" : "")} onClick={() => summon("continuity")}
+            title="Continuity — cast & moments in this chapter">{unlinkedCount > 0 && <span className="ed-badge dot" />}<Icon name="asterisk" size={15} /></button>
+          <button className={"iconbtn" + (takeover === "history" ? " on" : "")} onClick={() => summonTakeover("history")}
+            title="Version history">{versions.length > 0 && <span className="ed-badge">{versions.length > 99 ? "99+" : versions.length}</span>}<Icon name="history" size={15} /></button>
+          <button className="iconbtn" onClick={() => setFocused((f) => !f)}
+            title={focused ? "Exit focus mode (Esc)" : "Focus mode — distraction-free writing"}>
+            <Icon name={focused ? "shrink" : "expand"} size={15} />
+          </button>
+        </span>
       </div>
 
       {err && <p className="err">{err}</p>}
@@ -432,64 +449,78 @@ export function BookCanvas(props: {
           </div>
         </div>
 
-        {!focused && activeChapter && <SidePanel open={panelOpen} onToggle={togglePanel}>
-          {/* Chapter properties (date, number, words) live inline under the H1
-              now (§3.3); the panel holds only the lists. */}
-          <Disclosure label="Notes" count={noteCount} defaultOpen>
-            <ChapterNotes key={activeChapter.id} worldId={worldId} chapterId={activeChapter.id} onCount={setNoteCount} />
-          </Disclosure>
+        {/* Summoned panel (§3.4): overlays the right margin, never reflows the
+            prose column. One at a time. Empty by default. */}
+        {!focused && panel && activeChapter && (
+          <div className="ed-panel">
+            <div className="ed-panel-head">
+              <span className="ed-panel-title">{panel === "comments" ? "Comments" : panel === "notes" ? "Notes" : "Continuity"}</span>
+              <span className="spacer" style={{ flex: 1 }} />
+              <button className="iconbtn" onClick={() => setPanel(null)} title="Close panel"><Icon name="close" size={15} /></button>
+            </div>
+            <div className="ed-panel-body">
+              {panel === "comments" && (
+                <ChapterComments key={activeChapter.id} worldId={worldId} chapterId={activeChapter.id}
+                  pending={pendingComment && pendingComment.chapterId === activeChapter.id
+                    ? { start: pendingComment.start, end: pendingComment.end, quote: pendingComment.quote } : null}
+                  onPendingConsumed={() => setPendingComment(null)}
+                  onJump={jumpComment} onCount={setCommentCount} />
+              )}
+              {panel === "notes" && (
+                <ChapterNotes key={activeChapter.id} worldId={worldId} chapterId={activeChapter.id} onCount={setNoteCount} />
+              )}
+              {panel === "continuity" && (() => {
+                const visible = activeMentions.filter((e) => !dismissed.has(e.id));
+                const unlinked = visible.filter((e) => !castIds.includes(e.id));
+                return (
+                  <div className="ed-panel-sect">
+                    <div className="ed-panel-lab">Cast detected {visible.length > 0 && <span className="ed-panel-count">{visible.length}</span>}</div>
+                    {unlinked.length > 1 && (
+                      <button style={{ padding: "3px 9px", fontSize: 11, marginBottom: 8 }} onClick={() => linkAll(unlinked.map((e) => e.id))}
+                        title="Add all detected characters to this chapter's cast">link all {unlinked.length}</button>
+                    )}
+                    {visible.length === 0 && <span className="muted">No known entities mentioned yet.</span>}
+                    {visible.map((e) => {
+                      const linked = castIds.includes(e.id);
+                      return (
+                        <div className="row" key={e.id} style={{ padding: "7px 0", gap: 6, borderColor: "var(--line)" }}>
+                          <span style={{ flex: 1, fontSize: 13 }}>{e.title}</span>
+                          {linked
+                            ? <span className="muted" style={{ fontSize: 11 }}>linked</span>
+                            : <button style={{ padding: "3px 8px", fontSize: 11 }} onClick={() => link(e.id)} title="Confirm — add to this chapter's cast">link</button>}
+                          <span title="Not this — hide the suggestion" onClick={() => setDismissed((d) => new Set(d).add(e.id))}
+                            style={{ cursor: "pointer", color: "var(--faint)", display: "inline-flex" }}><Icon name="close" size={13} /></span>
+                        </div>
+                      );
+                    })}
+                    <div className="ed-panel-lab" style={{ marginTop: 14 }}>The story so far</div>
+                    {!brief ? <span className="muted">Computing…</span>
+                      : <BriefPanel brief={brief} chapterOrder={activeChapter.manuscript_order} nameOf={nameOf} onOpenEntity={onOpenEntity} compact />}
+                  </div>
+                );
+              })()}
+            </div>
+          </div>
+        )}
 
-          <Disclosure label="Comments" count={commentCount} defaultOpen={commentCount > 0}
-            openSignal={pendingComment && pendingComment.chapterId === activeChapter.id ? pendingComment : undefined}>
-            <ChapterComments key={activeChapter.id} worldId={worldId} chapterId={activeChapter.id}
-              pending={pendingComment && pendingComment.chapterId === activeChapter.id
-                ? { start: pendingComment.start, end: pendingComment.end, quote: pendingComment.quote } : null}
-              onPendingConsumed={() => setPendingComment(null)}
-              onJump={jumpComment} onCount={setCommentCount} />
-          </Disclosure>
-
-          {(() => {
-            const visible = activeMentions.filter((e) => !dismissed.has(e.id));
-            const unlinked = visible.filter((e) => !castIds.includes(e.id));
-            return (
-              <Disclosure label="Cast detected" count={visible.length} defaultOpen>
-                {unlinked.length > 1 && (
-                  <button style={{ padding: "3px 9px", fontSize: 11, marginBottom: 8 }} onClick={() => linkAll(unlinked.map((e) => e.id))}
-                    title="Add all detected characters to this chapter's cast">link all {unlinked.length}</button>
-                )}
-                {visible.length === 0 && <span className="muted">No known entities mentioned yet.</span>}
-                {visible.map((e) => {
-                  const linked = castIds.includes(e.id);
-                  return (
-                    <div className="row" key={e.id} style={{ padding: "7px 0", gap: 6, borderColor: "var(--line)" }}>
-                      <span style={{ flex: 1, fontSize: 13 }}>{e.title}</span>
-                      {linked
-                        ? <span className="muted" style={{ fontSize: 11 }}>linked</span>
-                        : <button style={{ padding: "3px 8px", fontSize: 11 }} onClick={() => link(e.id)} title="Confirm — add to this chapter's cast">link</button>}
-                      <span title="Not this — hide the suggestion" onClick={() => setDismissed((d) => new Set(d).add(e.id))}
-                        style={{ cursor: "pointer", color: "var(--faint)", display: "inline-flex" }}><Icon name="close" size={13} /></span>
-                    </div>
-                  );
-                })}
-              </Disclosure>
-            );
-          })()}
-
-          <Disclosure label="Brief">
-            {!brief ? <span className="muted">Computing brief…</span>
-              : <BriefPanel brief={brief} chapterOrder={activeChapter.manuscript_order} nameOf={nameOf} onOpenEntity={onOpenEntity} compact />}
-          </Disclosure>
-
-          <Disclosure label="History" count={versions.length}>
-            {versions.length === 0 && <span className="muted">No versions yet.</span>}
-            {versions.map((v) => (
-              <div className="row" key={v.id} style={{ padding: "7px 0", gap: 8, borderColor: "var(--line)" }}>
-                <span className="muted" style={{ fontSize: 11, flex: 1 }}>{new Date(v.created_at).toLocaleString()}</span>
-                <button style={{ padding: "3px 8px", fontSize: 11 }} onClick={() => restore(v)}>restore</button>
-              </div>
-            ))}
-          </Disclosure>
-        </SidePanel>}
+        {/* Takeover (§3.4): replaces the editing surface; prose goes read-only. */}
+        {takeover === "history" && (
+          <div className="ed-takeover">
+            <div className="ed-takeover-head">
+              <button className="iconbtn" onClick={() => setTakeover(null)} title="Back to the chapter"><Icon name="chevron-left" size={16} /></button>
+              <span className="ed-takeover-title">Version history</span>
+            </div>
+            <div className="ed-takeover-body">
+              {versions.length === 0 && <span className="muted">No versions yet — they're snapshotted as you write.</span>}
+              {versions.map((v) => (
+                <div className="row" key={v.id} style={{ padding: "9px 0", gap: 8, borderColor: "var(--line)" }}>
+                  <span className="muted" style={{ fontSize: 12, flex: 1 }}>{new Date(v.created_at).toLocaleString()}</span>
+                  <button style={{ padding: "3px 10px", fontSize: 11 }} onClick={() => restore(v)}>restore</button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       {composerOpen && activeChapter && (() => {

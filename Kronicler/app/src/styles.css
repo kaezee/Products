@@ -297,7 +297,33 @@ h2.ed-canvas-title, .ed-canvas-input { margin: 0; }
 .ed-size button { border: none; background: none; padding: 2px 9px; font-size: 14px; line-height: 1; cursor: pointer; color: var(--sub); }
 .ed-size button:disabled { opacity: .4; cursor: default; }
 .ed-size span { font-size: 12px; min-width: 20px; text-align: center; font-variant-numeric: tabular-nums; color: var(--sub); }
-.ed-body { flex: 1 1 auto; min-height: 0; display: flex; gap: 16px; }
+.ed-body { flex: 1 1 auto; min-height: 0; display: flex; gap: 16px; position: relative; }
+
+/* Summon icons + badges in the toolbar's right zone (§3.4). */
+.ed-summon { display: inline-flex; align-items: center; gap: 2px; }
+.iconbtn { position: relative; }
+.iconbtn.on { background: var(--bondBg); color: var(--bond); }
+.ed-badge { position: absolute; top: -3px; right: -3px; min-width: 15px; height: 15px; padding: 0 3px;
+  display: inline-flex; align-items: center; justify-content: center; font-size: 9.5px; font-weight: 600;
+  line-height: 1; border-radius: 8px; background: var(--bond); color: #fff; font-variant-numeric: tabular-nums; }
+.ed-badge.dot { min-width: 8px; width: 8px; height: 8px; padding: 0; top: 0; right: 0; border-radius: 999px; }
+
+/* Summoned panel — floats over the right margin; the prose never reflows. */
+.ed-panel { position: absolute; top: 0; right: 0; bottom: 0; width: 348px; max-width: 92%;
+  display: flex; flex-direction: column; background: var(--surface); border: 1px solid var(--lineStrong);
+  border-radius: 12px; box-shadow: var(--pop); z-index: 20; animation: annot-in var(--k-duration-fast, 120ms) var(--k-ease, ease); }
+.ed-panel-head { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-bottom: 1px solid var(--line); }
+.ed-panel-title { font-weight: 600; font-size: 13.5px; color: var(--ink); }
+.ed-panel-body { flex: 1; min-height: 0; overflow-y: auto; padding: 12px; }
+.ed-panel-lab { font-size: 10.5px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
+.ed-panel-count { display: inline-flex; align-items: center; justify-content: center; min-width: 17px; height: 16px; padding: 0 5px;
+  font-size: 10.5px; font-weight: 600; border-radius: 8px; background: var(--wash); color: var(--sub); font-variant-numeric: tabular-nums; }
+
+/* Takeover — replaces the editing surface (History, later Timeline). */
+.ed-takeover { position: absolute; inset: 0; z-index: 25; display: flex; flex-direction: column; background: var(--paper); }
+.ed-takeover-head { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-bottom: 1px solid var(--line); }
+.ed-takeover-title { font-weight: 600; font-size: 14px; }
+.ed-takeover-body { flex: 1; min-height: 0; overflow-y: auto; max-width: 640px; width: 100%; margin: 0 auto; padding: 16px 20px; }
 .ed-prose { flex: 1 1 auto; min-width: 0; overflow-y: auto; display: flex; flex-direction: column; padding: 0 16px; }
 
 /* Focus mode: the editor takes the whole viewport, chrome falls away, the

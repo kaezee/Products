@@ -137,8 +137,18 @@ export function Manuscript({ worldId, focusChapterId, openImport, go, onLeaf }: 
     try { await setChapterSegment(id, segId); await reload(); } catch (x) { setErr(String(x)); await reload(); }
   }
 
+  // Depth of a segment below the world (a top-level book = 1). §4: max depth 3.
+  function segDepth(id: string | null): number {
+    let d = 0, cur = id;
+    const byId = new Map(segments.map((s) => [s.id, s]));
+    while (cur) { const s = byId.get(cur); if (!s) break; d++; cur = s.parent_id && segments.some((z) => z.id === s.parent_id) ? s.parent_id : null; }
+    return d;
+  }
+
   // ── segments ──────────────────────────────────────────────────────────
   async function addSegment(parentId: string | null) {
+    // §4: the structure tree is capped at depth 3 below the world.
+    if (parentId && segDepth(parentId) >= 3) { setErr("Structure is limited to three levels (e.g. Book › Part › Section)."); return; }
     const siblings = segments.filter((s) => s.parent_id === parentId);
     const order = siblings.length ? Math.max(...siblings.map((s) => s.seg_order)) + 1 : 0;
     const kind = parentId ? "part" : "book";

@@ -484,6 +484,21 @@ button.danger:hover:not(:disabled) { filter: brightness(0.93); background: var(-
 .rich em.md-em { font-style: italic; }
 .rich .md-mark { opacity: .32; font-weight: 400; font-style: normal; }
 
+/* §5 notes-in-context: a chapter's pinned notes, in the Write inspector. */
+.cnotes { display: flex; flex-direction: column; gap: 8px; }
+.cnote { display: flex; gap: 6px; align-items: flex-start; padding: 8px 9px; border: 1px solid var(--line);
+  border-radius: 8px; background: color-mix(in srgb, var(--k-entity-amber, #d8a657) 8%, var(--surface)); }
+.cnote-body { flex: 1; font-size: 12.5px; line-height: 1.5; color: var(--ink); white-space: pre-wrap; cursor: text; min-width: 0; overflow-wrap: break-word; }
+.cnote-acts { display: flex; align-items: center; gap: 3px; flex: 0 0 auto; }
+.cnote-act { display: inline-flex; cursor: pointer; color: var(--faint); padding: 1px; border-radius: 4px; }
+.cnote-act:hover { color: var(--sub); background: var(--wash); }
+.cnote-act.danger:hover { color: var(--hostile); }
+.cnote-secret { display: inline-flex; color: var(--obligation); }
+.cnote-edit { width: 100%; font-size: 12.5px; line-height: 1.5; font-family: inherit; resize: vertical;
+  padding: 7px 8px; border: 1px solid var(--bond); border-radius: 8px; background: var(--surface); color: var(--ink); outline: none; }
+.cnote-add { display: inline-flex; align-items: center; gap: 5px; align-self: flex-start; padding: 4px 9px;
+  font-size: 11.5px; color: var(--sub); }
+
 /* Level 2 (full): contentEditable prose surface with real inline mentions */
 .rich { white-space: pre-wrap; overflow-wrap: break-word; word-break: break-word;
   font-family: var(--k-read-face); font-size: var(--k-read-size); line-height: var(--k-read-lh); font-weight: 400;

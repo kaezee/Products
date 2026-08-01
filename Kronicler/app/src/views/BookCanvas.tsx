@@ -13,6 +13,7 @@ import { Composer } from "./Composer";
 import { BriefPanel } from "./BriefPanel";
 import { RichProse } from "./RichProse";
 import { ChapterDate } from "./ChapterDate";
+import { ChapterNotes } from "./ChapterNotes";
 import { SidePanel, Disclosure } from "../components/SidePanel";
 import { Icon } from "../components/icons";
 import { confirmDialog } from "../components/confirm";
@@ -167,6 +168,7 @@ export function BookCanvas(props: {
 
   const [composerOpen, setComposerOpen] = useState(false);
   const [dismissed, setDismissed] = useState<Set<string>>(new Set());
+  const [noteCount, setNoteCount] = useState(0);
   const [entMode, setEntMode] = useState<null | "new" | "alias">(null);
   const [entChId, setEntChId] = useState(openId);      // chapter the entity action targets
   const [selWord, setSelWord] = useState("");
@@ -383,6 +385,10 @@ export function BookCanvas(props: {
               <span className="muted" style={{ fontSize: 11 }}>In-world date — sets this chapter's place on the Timeline.</span>
               <ChapterDate key={activeChapter.id} worldId={worldId} chapter={activeChapter} onChanged={() => {}} />
             </div>
+          </Disclosure>
+
+          <Disclosure label="Notes" count={noteCount} defaultOpen>
+            <ChapterNotes key={activeChapter.id} worldId={worldId} chapterId={activeChapter.id} onCount={setNoteCount} />
           </Disclosure>
 
           {(() => {

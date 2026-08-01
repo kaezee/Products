@@ -54,15 +54,14 @@ export interface ProseApi {
   format: (marker: "**" | "*") => void;
 }
 
-export function RichProse({ value, entities, onChange, onSelectText, onOpenEntity, stateOf, onNewEntity, onAlias, onMarkMoment, onComment, apiRef, placeholder }: {
+export function RichProse({ value, entities, onChange, onSelectText, onOpenEntity, stateOf, onMarkEntity, onMarkMoment, onComment, apiRef, placeholder }: {
   value: string;
   entities: Entity[];
   onChange: (v: string) => void;
   onSelectText: (t: string) => void;
   onOpenEntity?: (id: string) => void;
   stateOf?: (entityId: string) => MentionState[];
-  onNewEntity?: () => void;
-  onAlias?: () => void;
+  onMarkEntity?: () => void;
   onMarkMoment?: () => void;
   onComment?: (range: { start: number; end: number; quote: string }) => void;
   apiRef?: (api: ProseApi | null) => void;
@@ -75,7 +74,7 @@ export function RichProse({ value, entities, onChange, onSelectText, onOpenEntit
   const hideTimer = useRef<number | undefined>(undefined);
   const [peek, setPeek] = useState<{ x: number; y: number; entity: Entity } | null>(null);
   // The floating annotation control — anchored to the current text selection.
-  const [sel, setSel] = useState<{ x: number; y: number; len: number } | null>(null);
+  const [sel, setSel] = useState<{ x: number; y: number; len: number; word: boolean } | null>(null);
 
   // Keep the latest entity set available to the decorate routine.
   const entRef = useRef(entities);
@@ -349,7 +348,7 @@ export function RichProse({ value, entities, onChange, onSelectText, onOpenEntit
     if (text.trim() && s && s.rangeCount && wrap) {
       const rect = s.getRangeAt(0).getBoundingClientRect();
       const wr = wrap.getBoundingClientRect();
-      setSel({ x: rect.left - wr.left + rect.width / 2, y: rect.top - wr.top, len: text.trim().length });
+      setSel({ x: rect.left - wr.left + rect.width / 2, y: rect.top - wr.top, len: text.trim().length, word: !/\s/.test(text.trim()) });
     } else {
       setSel(null);
     }
@@ -398,6 +397,7 @@ export function RichProse({ value, entities, onChange, onSelectText, onOpenEntit
           }}>
           <button className="annot-fmt" onClick={() => applyWrap("**")} title="Bold (⌘B)"><b>B</b></button>
           <button className="annot-fmt" onClick={() => applyWrap("*")} title="Italic (⌘I)"><i>I</i></button>
+          {(onComment || onMarkEntity || onMarkMoment) && <span className="annot-sep" />}
           {onComment && (
             <button onClick={() => {
               const el = edRef.current;
@@ -408,10 +408,17 @@ export function RichProse({ value, entities, onChange, onSelectText, onOpenEntit
               setSel(null);
             }} title="Comment on the selection">💬 Comment</button>
           )}
-          {(onNewEntity || onAlias || onMarkMoment) && <span className="annot-sep" />}
-          {onNewEntity && <button onClick={() => { onNewEntity(); setSel(null); }} title="Turn the selection into a new entity">✦ New entity</button>}
-          {onAlias && <button onClick={() => { onAlias(); setSel(null); }} title="Attach the selection as another name for an existing entity">⚯ Alias</button>}
-          {onMarkMoment && <button disabled={sel.len < 3} onClick={() => { onMarkMoment(); setSel(null); }} title="Record what happens between characters in the selection">✳ Moment</button>}
+          {/* Verb order follows selection size (§3.6): a word puts Mark entity
+              first; a sentence puts Mark a moment first. */}
+          {(() => {
+            const markEntity = onMarkEntity && (
+              <button key="me" onClick={() => { onMarkEntity(); setSel(null); }} title="Tag the selection as a character, place, item…">✦ Mark entity</button>
+            );
+            const markMoment = onMarkMoment && (
+              <button key="mm" disabled={sel.len < 3} onClick={() => { onMarkMoment(); setSel(null); }} title="Record what happens between characters in the selection">✳ Mark a moment</button>
+            );
+            return sel.word ? [markEntity, markMoment] : [markMoment, markEntity];
+          })()}
         </div>
       )}
       {peek && (() => {

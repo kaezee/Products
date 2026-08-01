@@ -29,7 +29,7 @@ type SaveState = "saved" | "saving" | "dirty";
 // inspector act on whichever chapter is active.
 function ChapterBlock({
   worldId, chapter, entities, stateOf, onOpenEntity, onSelect, onMentions,
-  onNewEntity, onAlias, onMarkMoment, onComment, registerApi, onSaveState, onDateChanged,
+  onMarkEntity, onMarkMoment, onComment, registerApi, onSaveState, onDateChanged,
 }: {
   worldId: string;
   chapter: Chapter;
@@ -38,8 +38,7 @@ function ChapterBlock({
   onOpenEntity?: (id: string) => void;
   onSelect: (chapterId: string, text: string) => void;
   onMentions: (chapterId: string, ids: string[]) => void;
-  onNewEntity: (chapterId: string) => void;
-  onAlias: (chapterId: string) => void;
+  onMarkEntity: (chapterId: string) => void;
   onMarkMoment: (chapterId: string) => void;
   onComment: (chapterId: string, range: { start: number; end: number; quote: string }) => void;
   registerApi: (chapterId: string, api: ProseApi | null) => void;
@@ -136,8 +135,7 @@ function ChapterBlock({
         onSelectText={(t) => onSelect(chapter.id, t)}
         onOpenEntity={onOpenEntity}
         stateOf={stOf}
-        onNewEntity={() => onNewEntity(chapter.id)}
-        onAlias={() => onAlias(chapter.id)}
+        onMarkEntity={() => onMarkEntity(chapter.id)}
         onMarkMoment={() => onMarkMoment(chapter.id)}
         onComment={(range) => onComment(chapter.id, range)}
         apiRef={(api) => registerApi(chapter.id, api)}
@@ -224,7 +222,7 @@ export function BookCanvas(props: {
   const jumpComment = useCallback((c: Comment): boolean => {
     return proseApis.current.get(c.chapter_id)?.selectRange(c.anchor_start, c.anchor_end, c.quote) ?? false;
   }, []);
-  const [entMode, setEntMode] = useState<null | "new" | "alias">(null);
+  const [entMode, setEntMode] = useState<null | "mark">(null);
   const [entChId, setEntChId] = useState(openId);      // chapter the entity action targets
   const [selWord, setSelWord] = useState("");
   const [newType, setNewType] = useState("Character");
@@ -286,12 +284,14 @@ export function BookCanvas(props: {
     return () => window.removeEventListener("keydown", h);
   }, [prevCh, nextCh, onNavigate]);
 
-  function openEntMode(mode: "new" | "alias", chapterId: string) {
+  // §3.6: one "Mark entity" flow — find an existing entity (records an alias) or
+  // create a new one (adds it to the world). No separate New/Alias buttons.
+  function openMarkEntity(chapterId: string) {
     const w = selText.trim();
     if (!w) return;
     setSelWord(w); setEntChId(chapterId);
     setNewType("Character"); setCustomType(""); setAliasQuery("");
-    setEntMode(mode);
+    setEntMode("mark");
   }
 
   async function createFromSelection() {
@@ -383,39 +383,36 @@ export function BookCanvas(props: {
 
       <div className={"ed-body" + (panel ? " has-panel" : "")}>
         <div className="ed-prose" ref={scroller}>
-          {entMode === "new" && (
-            <div className="card" style={{ padding: 10, marginBottom: 8, display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-              <span className="muted">New entity</span>
-              <span className="title-serif">“{selWord}”</span>
-              <select className="sel" value={newType} onChange={(e) => setNewType(e.target.value)}>
-                {CANONICAL_ENTITY_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
-                <option value={CUSTOM_TYPE}>+ Custom type…</option>
-              </select>
-              {newType === CUSTOM_TYPE && (
-                <input autoFocus value={customType} placeholder="New type (e.g. Deity)" style={{ width: 140 }}
-                  onChange={(e) => setCustomType(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === "Enter") createFromSelection(); }} />
-              )}
-              <button className="primary" onClick={createFromSelection}>Create &amp; mark present</button>
-              <button onClick={() => setEntMode(null)}>Cancel</button>
-            </div>
-          )}
-
-          {entMode === "alias" && (
-            <div className="card" style={{ padding: 10, marginBottom: 8 }}>
-              <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginBottom: 8 }}>
-                <span className="muted">“{selWord}” is another name for</span>
-                <input autoFocus value={aliasQuery} placeholder="search your entities…" style={{ width: 200 }}
-                  onChange={(e) => setAliasQuery(e.target.value)} />
+          {entMode === "mark" && (
+            <div className="card ed-markent" style={{ marginBottom: 8 }}>
+              <div className="ed-markent-head">
+                <span className="muted">Mark</span>
+                <span className="title-serif">“{selWord}”</span>
+                <span className="spacer" style={{ flex: 1 }} />
                 <button onClick={() => setEntMode(null)}>Cancel</button>
               </div>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+              <input autoFocus value={aliasQuery} placeholder="Find an existing character, place, item…" style={{ width: "100%" }}
+                onChange={(e) => setAliasQuery(e.target.value)} />
+              <div className="ed-markent-results">
                 {aliasMatches.map((e) => (
-                  <span key={e.id} className="chip click" onClick={() => addAliasTo(e)}>
+                  <span key={e.id} className="chip click" onClick={() => addAliasTo(e)} title={`Record “${selWord}” as another name for ${e.title}`}>
                     {e.title} <span className="faint" style={{ marginLeft: 4 }}>{e.type}</span>
                   </span>
                 ))}
-                {aliasMatches.length === 0 && <span className="muted">No match — try another search, or use “✦ New entity”.</span>}
+                {aliasMatches.length === 0 && aliasQuery.trim() && <span className="muted">No match — create it below.</span>}
+              </div>
+              <div className="ed-markent-new">
+                <span className="ed-panel-lab" style={{ marginBottom: 0 }}>New to the world</span>
+                <select className="sel" value={newType} onChange={(e) => setNewType(e.target.value)}>
+                  {CANONICAL_ENTITY_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+                  <option value={CUSTOM_TYPE}>+ Custom type…</option>
+                </select>
+                {newType === CUSTOM_TYPE && (
+                  <input value={customType} placeholder="New type (e.g. Deity)" style={{ width: 140 }}
+                    onChange={(e) => setCustomType(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === "Enter") createFromSelection(); }} />
+                )}
+                <button className="primary" onClick={createFromSelection}>Add to world</button>
               </div>
             </div>
           )}
@@ -424,7 +421,7 @@ export function BookCanvas(props: {
             <ChapterBlock key={activeChapter.id} worldId={worldId} chapter={activeChapter} entities={ents} stateOf={stateOf}
               onOpenEntity={onOpenEntity} onSelect={onSelect}
               onMentions={onMentions}
-              onNewEntity={(id) => openEntMode("new", id)} onAlias={(id) => openEntMode("alias", id)}
+              onMarkEntity={(id) => openMarkEntity(id)}
               onMarkMoment={(id) => { setEntChId(id); setComposerOpen(true); }}
               onComment={onComment} registerApi={registerApi} onSaveState={setChSaveState}
               onDateChanged={() => onChapterMetaChanged?.()} />

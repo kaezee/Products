@@ -47,7 +47,11 @@ const SUPPORTS_PO = (() => {
 // inline elements (hover-preview + click-through), while the stored value stays
 // PLAIN TEXT. plaintext-only gives native Enter→\n, plain paste, and undo; we
 // only add the decoration spans and preserve the caret across re-highlights.
-export function RichProse({ value, entities, onChange, onSelectText, onOpenEntity, stateOf, onNewEntity, onAlias, onMarkMoment, placeholder }: {
+// A small imperative handle a parent can hold to select an anchor range in this
+// prose (used to jump to a comment). Returns false if the quote can't be found.
+export interface ProseApi { selectRange: (start: number, end: number, quote: string) => boolean }
+
+export function RichProse({ value, entities, onChange, onSelectText, onOpenEntity, stateOf, onNewEntity, onAlias, onMarkMoment, onComment, apiRef, placeholder }: {
   value: string;
   entities: Entity[];
   onChange: (v: string) => void;
@@ -57,6 +61,8 @@ export function RichProse({ value, entities, onChange, onSelectText, onOpenEntit
   onNewEntity?: () => void;
   onAlias?: () => void;
   onMarkMoment?: () => void;
+  onComment?: (range: { start: number; end: number; quote: string }) => void;
+  apiRef?: (api: ProseApi | null) => void;
   placeholder?: string;
 }) {
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -172,6 +178,35 @@ export function RichProse({ value, entities, onChange, onSelectText, onOpenEntit
     r.setStart(p1.node, p1.off); r.setEnd(p2.node, p2.off);
     const s = window.getSelection(); s?.removeAllRanges(); s?.addRange(r);
   }
+
+  // Select an anchor range so a parent can jump to a comment. If the stored
+  // offsets no longer hold the quote (the prose was edited), re-find the quote;
+  // return false only when it's truly gone (a detached comment).
+  function selectRange(start: number, end: number, quote: string): boolean {
+    const el = edRef.current;
+    if (!el) return false;
+    const text = el.textContent ?? "";
+    let a = start, b = end;
+    if (text.slice(a, b) !== quote) {
+      const idx = quote ? text.indexOf(quote) : -1;
+      if (idx < 0) return false;
+      a = idx; b = idx + quote.length;
+    }
+    el.focus();
+    setSelectionOffsets(el, a, b);
+    const s = window.getSelection();
+    if (s && s.rangeCount) {
+      const r = s.getRangeAt(0).getBoundingClientRect();
+      if (r.top || r.bottom) el.scrollIntoView({ block: "nearest" });
+    }
+    reportSelection();
+    return true;
+  }
+  useEffect(() => {
+    apiRef?.({ selectRange });
+    return () => apiRef?.(null);
+    // eslint-disable-next-line
+  }, [apiRef]);
 
   // Toggle a markdown marker around the selection. Purely a plain-text edit —
   // wrap if bare, unwrap if the markers already hug the selection (either just
@@ -360,6 +395,16 @@ export function RichProse({ value, entities, onChange, onSelectText, onOpenEntit
           }}>
           <button className="annot-fmt" onClick={() => applyWrap("**")} title="Bold (⌘B)"><b>B</b></button>
           <button className="annot-fmt" onClick={() => applyWrap("*")} title="Italic (⌘I)"><i>I</i></button>
+          {onComment && (
+            <button onClick={() => {
+              const el = edRef.current;
+              const range = el && selectionOffsets(el);
+              if (el && range && range.start !== range.end) {
+                onComment({ start: range.start, end: range.end, quote: (el.textContent ?? "").slice(range.start, range.end) });
+              }
+              setSel(null);
+            }} title="Comment on the selection">💬 Comment</button>
+          )}
           {(onNewEntity || onAlias || onMarkMoment) && <span className="annot-sep" />}
           {onNewEntity && <button onClick={() => { onNewEntity(); setSel(null); }} title="Turn the selection into a new entity">✦ New entity</button>}
           {onAlias && <button onClick={() => { onAlias(); setSel(null); }} title="Attach the selection as another name for an existing entity">⚯ Alias</button>}

@@ -1,6 +1,6 @@
 import { supabase } from "./supabase";
 import type {
-  World, Entity, Chapter, Band, RelationshipType, StreamRow, ChapterVersion, ChapterEntity, Note, TimelineMarker, Segment, SegmentKind, EntityType,
+  World, Entity, Chapter, Band, RelationshipType, StreamRow, ChapterVersion, ChapterEntity, Note, Comment, TimelineMarker, Segment, SegmentKind, EntityType,
 } from "./types";
 
 const ET_COLS = "id, world_id, name, mark, swatch, line_style, is_builtin, sort_order";
@@ -69,6 +69,47 @@ export async function updateNote(
 export async function softDeleteNote(id: string): Promise<void> {
   const { error } = await supabase
     .from("notes").update({ deleted_at: new Date().toISOString() }).eq("id", id);
+  if (error) throw error;
+}
+
+// ── comments (§6) ──────────────────────────────────────────────────────────
+const COMMENT_COLS = "id, world_id, chapter_id, body, anchor_start, anchor_end, quote, resolved, created_at, updated_at";
+
+// Until the 0024 migration is applied, the table is absent — degrade to an empty
+// list rather than surfacing an error, so the editor works with or without it.
+export async function getChapterComments(chapterId: string): Promise<Comment[]> {
+  const { data, error } = await supabase
+    .from("comments").select(COMMENT_COLS)
+    .eq("chapter_id", chapterId).is("deleted_at", null)
+    .order("created_at", { ascending: true });
+  if (error) {
+    if (error.code === "42P01") return []; // relation does not exist yet
+    throw error;
+  }
+  return (data ?? []) as Comment[];
+}
+
+export async function createComment(
+  worldId: string, chapterId: string,
+  patch: { body: string; anchor_start: number; anchor_end: number; quote: string },
+): Promise<Comment> {
+  const { data, error } = await supabase
+    .from("comments").insert({ world_id: worldId, chapter_id: chapterId, ...patch }).select(COMMENT_COLS).single();
+  if (error) throw error;
+  return data as Comment;
+}
+
+export async function updateComment(
+  id: string,
+  patch: Partial<Pick<Comment, "body" | "resolved" | "anchor_start" | "anchor_end" | "quote">>,
+): Promise<void> {
+  const { error } = await supabase.from("comments").update(patch).eq("id", id);
+  if (error) throw error;
+}
+
+export async function softDeleteComment(id: string): Promise<void> {
+  const { error } = await supabase
+    .from("comments").update({ deleted_at: new Date().toISOString() }).eq("id", id);
   if (error) throw error;
 }
 

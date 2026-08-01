@@ -53,6 +53,23 @@ export interface Note {
   h: number | null;
 }
 
+// §6 comments: a margin comment anchored to a range of a chapter's prose. The
+// anchor is plain-text character offsets into the body (the editor's coordinate
+// space); `quote` lets a comment re-find its spot, or flag itself detached, if
+// the surrounding prose is edited.
+export interface Comment {
+  id: string;
+  world_id: string;
+  chapter_id: string;
+  body: string;
+  anchor_start: number;
+  anchor_end: number;
+  quote: string;
+  resolved: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface Chapter {
   id: string;
   world_id: string;

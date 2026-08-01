@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Icon } from "./icons";
 
 // The "side panel" toggle: a rounded rectangle with a vertical divider marking a
@@ -39,14 +39,22 @@ export function SidePanel({ open, onToggle, children }: {
 
 // One collapsible section. Header shows a chevron, a label, and an optional
 // count/afford on the right. Only the sections a writer needs are opened.
-export function Disclosure({ label, count, right, defaultOpen = false, children }: {
+export function Disclosure({ label, count, right, defaultOpen = false, openSignal, children }: {
   label: string;
   count?: ReactNode;
   right?: ReactNode;
   defaultOpen?: boolean;
+  // When this value changes to something defined, force the section open (it can
+  // still be collapsed again by hand). Used to reveal a section on a new action.
+  openSignal?: unknown;
   children: ReactNode;
 }) {
   const [open, setOpen] = useState(defaultOpen);
+  const first = useRef(true);
+  useEffect(() => {
+    if (first.current) { first.current = false; return; }
+    if (openSignal !== undefined && openSignal !== null) setOpen(true);
+  }, [openSignal]);
   return (
     <section className={"disc" + (open ? " open" : "")}>
       <button className="disc-head" onClick={() => setOpen((o) => !o)} aria-expanded={open}>

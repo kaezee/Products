@@ -4,16 +4,17 @@ import {
   linkChapterEntity, saveChapterBody, getStream,
   getEntities, createEntity, updateEntity, updateChapterTitle, setChapterPlanned,
 } from "../lib/api";
-import type { Chapter, Entity, RelationshipType, ChapterVersion, ChapterEntity, StreamRow } from "../lib/types";
+import type { Chapter, Entity, RelationshipType, ChapterVersion, ChapterEntity, StreamRow, Comment } from "../lib/types";
 import { detectMentions } from "../lib/mentions";
 import { computeBrief } from "../lib/brief";
 import { statesAsOf } from "../lib/mentionState";
 import { CANONICAL_ENTITY_TYPES, CUSTOM_TYPE } from "../lib/entityTypes";
 import { Composer } from "./Composer";
 import { BriefPanel } from "./BriefPanel";
-import { RichProse } from "./RichProse";
+import { RichProse, type ProseApi } from "./RichProse";
 import { ChapterDate } from "./ChapterDate";
 import { ChapterNotes } from "./ChapterNotes";
+import { ChapterComments } from "./ChapterComments";
 import { SidePanel, Disclosure } from "../components/SidePanel";
 import { Icon } from "../components/icons";
 import { confirmDialog } from "../components/confirm";
@@ -29,7 +30,7 @@ type SaveState = "saved" | "saving" | "dirty";
 // inspector act on whichever chapter is active.
 function ChapterBlock({
   chapter, entities, stateOf, onOpenEntity, onSelect, onActivate, onMentions, registerRef,
-  onNewEntity, onAlias, onMarkMoment,
+  onNewEntity, onAlias, onMarkMoment, onComment, registerApi,
 }: {
   chapter: Chapter;
   entities: Entity[];
@@ -42,6 +43,8 @@ function ChapterBlock({
   onNewEntity: (chapterId: string) => void;
   onAlias: (chapterId: string) => void;
   onMarkMoment: (chapterId: string) => void;
+  onComment: (chapterId: string, range: { start: number; end: number; quote: string }) => void;
+  registerApi: (chapterId: string, api: ProseApi | null) => void;
 }) {
   const [body, setBody] = useState(chapter.body);
   const [saveState, setSaveState] = useState<SaveState>("saved");
@@ -106,6 +109,8 @@ function ChapterBlock({
         onNewEntity={() => onNewEntity(chapter.id)}
         onAlias={() => onAlias(chapter.id)}
         onMarkMoment={() => onMarkMoment(chapter.id)}
+        onComment={(range) => onComment(chapter.id, range)}
+        apiRef={(api) => registerApi(chapter.id, api)}
         placeholder="Write the chapter here. Known names light up as you type — hover one to peek. Select a sentence to record a state."
       />
     </section>
@@ -169,6 +174,22 @@ export function BookCanvas(props: {
   const [composerOpen, setComposerOpen] = useState(false);
   const [dismissed, setDismissed] = useState<Set<string>>(new Set());
   const [noteCount, setNoteCount] = useState(0);
+  const [commentCount, setCommentCount] = useState(0);
+  const [pendingComment, setPendingComment] = useState<{ chapterId: string; start: number; end: number; quote: string } | null>(null);
+  // Each chapter block registers a small handle so a comment can jump to its range.
+  const proseApis = useRef(new Map<string, ProseApi | null>());
+  const registerApi = useCallback((chapterId: string, api: ProseApi | null) => {
+    if (api) proseApis.current.set(chapterId, api); else proseApis.current.delete(chapterId);
+  }, []);
+  const onComment = useCallback((chapterId: string, range: { start: number; end: number; quote: string }) => {
+    setActiveId(chapterId);
+    setPendingComment({ chapterId, ...range });
+  }, []);
+  const jumpComment = useCallback((c: Comment): boolean => {
+    setActiveId(c.chapter_id);
+    refs.current.get(c.chapter_id)?.scrollIntoView({ block: "start", behavior: "smooth" });
+    return proseApis.current.get(c.chapter_id)?.selectRange(c.anchor_start, c.anchor_end, c.quote) ?? false;
+  }, []);
   const [entMode, setEntMode] = useState<null | "new" | "alias">(null);
   const [entChId, setEntChId] = useState(openId);      // chapter the entity action targets
   const [selWord, setSelWord] = useState("");
@@ -374,7 +395,8 @@ export function BookCanvas(props: {
               onOpenEntity={onOpenEntity} onSelect={onSelect} onActivate={setActiveId}
               onMentions={onMentions} registerRef={registerRef}
               onNewEntity={(id) => openEntMode("new", id)} onAlias={(id) => openEntMode("alias", id)}
-              onMarkMoment={(id) => { setEntChId(id); setComposerOpen(true); }} />
+              onMarkMoment={(id) => { setEntChId(id); setComposerOpen(true); }}
+              onComment={onComment} registerApi={registerApi} />
           ))}
         </div>
 
@@ -389,6 +411,15 @@ export function BookCanvas(props: {
 
           <Disclosure label="Notes" count={noteCount} defaultOpen>
             <ChapterNotes key={activeChapter.id} worldId={worldId} chapterId={activeChapter.id} onCount={setNoteCount} />
+          </Disclosure>
+
+          <Disclosure label="Comments" count={commentCount} defaultOpen={commentCount > 0}
+            openSignal={pendingComment && pendingComment.chapterId === activeChapter.id ? pendingComment : undefined}>
+            <ChapterComments key={activeChapter.id} worldId={worldId} chapterId={activeChapter.id}
+              pending={pendingComment && pendingComment.chapterId === activeChapter.id
+                ? { start: pendingComment.start, end: pendingComment.end, quote: pendingComment.quote } : null}
+              onPendingConsumed={() => setPendingComment(null)}
+              onJump={jumpComment} onCount={setCommentCount} />
           </Disclosure>
 
           {(() => {

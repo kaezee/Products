@@ -1,6 +1,6 @@
 import { supabase } from "./supabase";
 import type {
-  World, Entity, Chapter, Band, RelationshipType, StreamRow, ChapterVersion, ChapterEntity, Note, Comment, TimelineMarker, Segment, SegmentKind, EntityType,
+  World, Entity, Chapter, ChapterStatus, Band, RelationshipType, StreamRow, ChapterVersion, ChapterEntity, Note, Comment, TimelineMarker, Segment, SegmentKind, EntityType,
 } from "./types";
 
 const ET_COLS = "id, world_id, name, mark, swatch, line_style, is_builtin, sort_order";
@@ -248,7 +248,7 @@ export async function softDeleteEntity(id: string): Promise<void> {
 export async function getChapters(worldId: string): Promise<Chapter[]> {
   const { data, error } = await supabase
     .from("chapters")
-    .select("id, world_id, title, manuscript_order, story_time_ref, story_time_label, body, band_id, segment_id, planned, time_year, time_month, time_day, time_precision, day_num_start, day_num_end, anachronic")
+    .select("id, world_id, title, manuscript_order, story_time_ref, story_time_label, body, band_id, segment_id, planned, status, time_year, time_month, time_day, time_precision, day_num_start, day_num_end, anachronic")
     .eq("world_id", worldId)
     .is("deleted_at", null)
     .order("manuscript_order", { ascending: true });
@@ -493,7 +493,7 @@ export async function createChapter(
   const { data, error } = await supabase
     .from("chapters")
     .insert({ world_id: worldId, title, manuscript_order: manuscriptOrder, body, ...extra })
-    .select("id, world_id, title, manuscript_order, story_time_ref, story_time_label, body, band_id, segment_id, planned, time_year, time_month, time_day, time_precision, day_num_start, day_num_end, anachronic")
+    .select("id, world_id, title, manuscript_order, story_time_ref, story_time_label, body, band_id, segment_id, planned, status, time_year, time_month, time_day, time_precision, day_num_start, day_num_end, anachronic")
     .single();
   if (error) throw error;
   return data;
@@ -502,6 +502,13 @@ export async function createChapter(
 // A planned chapter is a placeholder beat; writing it clears the flag.
 export async function setChapterPlanned(chapterId: string, planned: boolean): Promise<void> {
   const { error } = await supabase.from("chapters").update({ planned }).eq("id", chapterId);
+  if (error) throw error;
+}
+
+// Where a chapter sits in the pipeline (Planned/Draft/Review/Ready/On Hold). A
+// DB trigger keeps the legacy `planned` flag in sync, so callers set only this.
+export async function setChapterStatus(chapterId: string, status: ChapterStatus): Promise<void> {
+  const { error } = await supabase.from("chapters").update({ status }).eq("id", chapterId);
   if (error) throw error;
 }
 
@@ -739,7 +746,7 @@ export async function restoreEntity(id: string): Promise<void> {
 export async function getDeletedChapters(worldId: string): Promise<Chapter[]> {
   const { data, error } = await supabase
     .from("chapters")
-    .select("id, world_id, title, manuscript_order, story_time_ref, story_time_label, body, band_id, segment_id, planned, time_year, time_month, time_day, time_precision, day_num_start, day_num_end, anachronic, deleted_at")
+    .select("id, world_id, title, manuscript_order, story_time_ref, story_time_label, body, band_id, segment_id, planned, status, time_year, time_month, time_day, time_precision, day_num_start, day_num_end, anachronic, deleted_at")
     .eq("world_id", worldId)
     .not("deleted_at", "is", null)
     .order("deleted_at", { ascending: false });

@@ -2,9 +2,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   getRelationshipTypes, getChapterVersions, getChapterEntities,
   linkChapterEntity, saveChapterBody, getStream,
-  getEntities, createEntity, updateEntity, updateChapterTitle, setChapterPlanned,
+  getEntities, createEntity, updateEntity, updateChapterTitle, setChapterStatus,
 } from "../lib/api";
-import type { Chapter, Entity, RelationshipType, ChapterVersion, ChapterEntity, StreamRow, Comment } from "../lib/types";
+import type { Chapter, ChapterStatus, Entity, RelationshipType, ChapterVersion, ChapterEntity, StreamRow, Comment } from "../lib/types";
+import { CHAPTER_STATUSES, statusMeta } from "../lib/chapterStatus";
 import { detectMentions } from "../lib/mentions";
 import { computeBrief } from "../lib/brief";
 import { statesAsOf } from "../lib/mentionState";
@@ -52,7 +53,12 @@ function ChapterBlock({
   const [editingTitle, setEditingTitle] = useState(false);
   const [editingDate, setEditingDate] = useState(false);
   const saveTimer = useRef<number | undefined>(undefined);
-  const clearedPlanned = useRef(false);
+  const [status, setStatus] = useState<ChapterStatus>(chapter.status ?? "draft");
+  const [statusMenu, setStatusMenu] = useState(false);
+  const statusRef = useRef(status);
+  statusRef.current = status;
+  const statusWrap = useRef<HTMLDivElement>(null);
+  useEffect(() => { setStatus(chapter.status ?? "draft"); }, [chapter.status]);
   // Stable so the editor registers its api once, not on every keystroke render.
   const setApi = useCallback((api: ProseApi | null) => registerApi(chapter.id, api), [registerApi, chapter.id]);
 
@@ -64,13 +70,26 @@ function ChapterBlock({
       try {
         await saveChapterBody(chapter.id, next);
         setSaveState("saved");
-        if (chapter.planned && !clearedPlanned.current && next.trim()) {
-          clearedPlanned.current = true;
-          setChapterPlanned(chapter.id, false).catch(() => {});
+        // Writing into a planned beat moves it along to Draft on its own.
+        if (statusRef.current === "planned" && next.trim()) {
+          setStatus("draft");
+          setChapterStatus(chapter.id, "draft").then(onDateChanged).catch(() => {});
         }
       } catch { setSaveState("dirty"); }
     }, 1200);
-  }, [chapter.id, chapter.planned]);
+  }, [chapter.id, onDateChanged]);
+
+  function pickStatus(k: ChapterStatus) {
+    setStatus(k);
+    setStatusMenu(false);
+    setChapterStatus(chapter.id, k).then(onDateChanged).catch(() => {});
+  }
+  useEffect(() => {
+    if (!statusMenu) return;
+    const h = (e: MouseEvent) => { if (!statusWrap.current?.contains(e.target as Node)) setStatusMenu(false); };
+    window.addEventListener("mousedown", h);
+    return () => window.removeEventListener("mousedown", h);
+  }, [statusMenu]);
 
   useEffect(() => () => window.clearTimeout(saveTimer.current), []);
   useEffect(() => { onSaveState(saveState); }, [saveState]); // eslint-disable-line
@@ -105,7 +124,24 @@ function ChapterBlock({
             {dateLabel || <span className="muted">add date</span>}
           </button>
           <span className="ed-dot">·</span><span>{words.toLocaleString()} {words === 1 ? "word" : "words"}</span>
-          {chapter.planned && <span className="ed-kicker-plan">planned</span>}
+          <span className="ed-dot">·</span>
+          <div className="ed-status-wrap" ref={statusWrap}>
+            <button className={"ed-status" + (statusMenu ? " on" : "")} onClick={() => setStatusMenu((v) => !v)} title="Chapter status">
+              <span className="ed-status-dot" style={{ background: statusMeta(status).color }} />
+              {statusMeta(status).label}
+              <Icon name="chevron-down" size={11} />
+            </button>
+            {statusMenu && (
+              <div className="ed-status-menu">
+                {CHAPTER_STATUSES.map((s) => (
+                  <button key={s.key} className={"ed-status-opt" + (s.key === status ? " on" : "")} onClick={() => pickStatus(s.key)}>
+                    <span className="ed-status-dot" style={{ background: s.color }} />{s.label}
+                    {s.key === status && <Icon name="check" size={13} style={{ marginLeft: "auto" }} />}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
         {editingDate && (
           <div className="ed-dateedit">

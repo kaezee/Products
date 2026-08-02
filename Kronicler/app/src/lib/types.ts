@@ -70,6 +70,10 @@ export interface Comment {
   updated_at: string;
 }
 
+// Where a chapter is in the writer's pipeline. Kept in sync with the legacy
+// `planned` flag DB-side (planned ⇔ status === "planned").
+export type ChapterStatus = "planned" | "draft" | "review" | "ready" | "on_hold";
+
 export interface Chapter {
   id: string;
   world_id: string;
@@ -81,6 +85,7 @@ export interface Chapter {
   band_id: string | null;
   segment_id: string | null;
   planned: boolean;
+  status: ChapterStatus;
   // World clock (design doc 3). Authored date + precision is truth; day_num_* is
   // the derived cache the timeline positions on. anachronic = a flashback that
   // sits off its segment's span and renders as a tethered marker.

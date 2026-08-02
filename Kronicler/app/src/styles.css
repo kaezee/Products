@@ -310,8 +310,20 @@ h2.ed-canvas-title, .ed-canvas-input { margin: 0; }
 .ed-canvas-head { margin: 0 0 22px; }
 .ed-kicker { display: flex; align-items: center; gap: 8px; margin-bottom: 4px;
   font-size: 11px; letter-spacing: .07em; text-transform: uppercase; color: var(--muted); font-variant-numeric: tabular-nums; }
-.ed-kicker-plan { text-transform: none; letter-spacing: 0; font-size: 10.5px; color: var(--sub);
-  border: 1px solid var(--line); border-radius: 5px; padding: 0 5px; }
+/* Chapter status picker in the kicker line. Only the dot carries colour, so
+   the label stays legible in both themes. */
+.ed-status-wrap { position: relative; text-transform: none; letter-spacing: 0; }
+.ed-status { display: inline-flex; align-items: center; gap: 5px; border: 1px solid var(--line); background: var(--surface);
+  border-radius: 6px; padding: 1px 6px; font-size: 11px; color: var(--sub); cursor: pointer; box-shadow: none; }
+.ed-status:hover, .ed-status.on { background: var(--wash); color: var(--ink); border-color: var(--lineStrong); }
+.ed-status svg { color: var(--faint); }
+.ed-status-dot { width: 8px; height: 8px; border-radius: 999px; flex: 0 0 auto; }
+.ed-status-menu { position: absolute; top: calc(100% + 4px); left: 0; z-index: 20; min-width: 150px;
+  background: var(--surface); border: 1px solid var(--lineStrong); border-radius: 10px; box-shadow: var(--pop); padding: 4px; }
+.ed-status-opt { display: flex; align-items: center; gap: 8px; width: 100%; text-align: left; border: none; background: none;
+  box-shadow: none; padding: 6px 8px; border-radius: 7px; font-size: 12.5px; color: var(--ink); cursor: pointer; }
+.ed-status-opt:hover { background: var(--wash); }
+.ed-status-opt svg { color: var(--muted); }
 /* Click-to-edit properties (the date) in the kicker line. */
 .ed-prop { border: none; background: none; box-shadow: none; padding: 1px 5px; margin: -1px 0; border-radius: 5px;
   font: inherit; letter-spacing: inherit; text-transform: inherit; color: var(--sub); cursor: pointer; }
@@ -423,7 +435,7 @@ h2.ed-canvas-title, .ed-canvas-input { margin: 0; }
 .wt-ch.wt-drop { background: color-mix(in srgb, var(--bond) 14%, transparent); color: var(--bond); }
 .wt-ch > svg { color: var(--faint); flex: 0 0 auto; }
 .wt-ch-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--serif); }
-.wt-plan { font-size: 9px; color: var(--bond); border: 1px solid var(--bondLine); border-radius: 4px; padding: 0 5px; flex: 0 0 auto; }
+.wt-status-dot { width: 7px; height: 7px; border-radius: 999px; flex: 0 0 auto; }
 .wt-rename { flex: 1; min-width: 0; font-family: var(--serif); font-size: 13px; padding: 3px 6px; }
 .wt-act { flex: 0 0 auto; display: inline-flex; color: var(--faint); cursor: pointer; opacity: 0; padding: 1px; border-radius: 4px; }
 .wt-seg:hover .wt-act, .wt-ch:hover .wt-act { opacity: 1; }

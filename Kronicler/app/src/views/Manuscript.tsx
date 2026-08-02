@@ -7,6 +7,7 @@ import {
 import type { Chapter, Entity, Segment, SegmentKind } from "../lib/types";
 import { buildKindSwatches } from "../lib/segmentKinds";
 import { getLevelNames } from "../lib/levelNames";
+import { statusMeta } from "../lib/chapterStatus";
 import { BookCanvas } from "./BookCanvas";
 import { ImportDocx } from "./ImportDocx";
 import type { Nav, LeafCrumb } from "../App";
@@ -221,7 +222,9 @@ export function Manuscript({ worldId, focusChapterId, openImport, go, onLeaf }: 
         ) : (
           <span className="wt-ch-title" onDoubleClick={(e) => { e.stopPropagation(); setRenameId(c.id); setRenameDraft(c.title); }}>{c.title}</span>
         )}
-        {c.planned && <span className="wt-plan" title="Planned — not written yet">planned</span>}
+        {c.status && c.status !== "draft" && (
+          <span className="wt-status-dot" style={{ background: statusMeta(c.status).color }} title={statusMeta(c.status).label} />
+        )}
         <span className="wt-act" title="Delete chapter" onClick={(e) => del(c, e)}><Icon name="close" size={12} /></span>
       </div>
     );

@@ -8,6 +8,7 @@ import { TypeStyleEditor } from "./TypeStyleEditor";
 import { Icon } from "../components/icons";
 import { confirmDialog } from "../components/confirm";
 import { SkeletonRows } from "../components/Skeleton";
+import { EmptyState } from "../components/EmptyState";
 import type { LeafCrumb } from "../App";
 
 export function Library({ worldId, focusEntityId, onLeaf }: { worldId: string; focusEntityId?: string; onLeaf?: (l: LeafCrumb | null) => void }) {
@@ -199,9 +200,11 @@ export function Library({ worldId, focusEntityId, onLeaf }: { worldId: string; f
       )}
 
       {entities.length === 0 ? (
-        <div className="card"><div className="row"><span className="muted">
-          No entities yet — hit “+ New” to add your first character, place, or faction.
-        </span></div></div>
+        <EmptyState icon="library" title="Nobody in the world yet"
+          desc="The World holds everyone and everything your story is made of — characters, places, factions, objects. Add them here, and they light up in your prose as you write."
+          steps={["Add someone or somewhere", "Write them into a chapter", "Watch the web form"]}
+          action={{ label: "Add your first entity", onClick: openFull }}
+          secondary={<button style={{ marginTop: 10 }} onClick={() => setImporting(true)}>Import from .docx</button>} />
       ) : (
         <>
           {/* search + sort */}

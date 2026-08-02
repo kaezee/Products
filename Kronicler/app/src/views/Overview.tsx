@@ -139,11 +139,16 @@ export function Overview({ worldId, go }: { worldId: string; go: (n: Nav) => voi
 
   // Getting-started checklist — the dashboard's "taking shape" state. Each step
   // checks off from real data; the card retires itself once all four are done.
-  const steps: { done: boolean; label: string; desc: string; nav: Nav }[] = [
+  // Some steps have a prerequisite: you can't mark a moment or date a chapter
+  // until prose exists to do it in. Those stay locked (dimmed, non-actionable)
+  // with a hint, so the checklist never sends the writer somewhere that can't
+  // yet do the thing it's asking for.
+  const hasProse = chapters.some((c) => !c.planned && (c.body || "").trim().length > 0);
+  const steps: { done: boolean; label: string; desc: string; nav: Nav; locked?: boolean; lockHint?: string }[] = [
     { done: stats.total > 0, label: "Write your first chapter", desc: "Just start typing — even a title is enough to begin.", nav: { scope: "manuscript" } },
     { done: stats.entities > 0, label: "Add someone or somewhere", desc: "A character, a place, a faction — anyone in your story.", nav: { scope: "library" } },
-    { done: stats.relCount > 0, label: "Mark a moment", desc: "In a chapter, select a line and record what happens between two characters.", nav: { scope: "manuscript" } },
-    { done: stats.dated > 0, label: "Place it in time", desc: "Give a chapter a date and it lands on your timeline.", nav: { scope: "timeline" } },
+    { done: stats.relCount > 0, label: "Mark a moment", desc: "In a chapter, select a line and record what happens between two characters.", nav: { scope: "manuscript" }, locked: !hasProse, lockHint: "Write a chapter first" },
+    { done: stats.dated > 0, label: "Place it in time", desc: "Give a chapter a date and it lands on your timeline.", nav: { scope: "timeline" }, locked: stats.total === 0, lockHint: "Write a chapter first" },
   ];
   const doneCount = steps.filter((s) => s.done).length;
   const showChecklist = !checklistOff && doneCount < steps.length;
@@ -180,17 +185,22 @@ export function Overview({ worldId, go }: { worldId: string; go: (n: Nav) => voi
             <span className="spacer" style={{ flex: 1 }} />
             <span className="checklist-dismiss" title="Dismiss" onClick={dismissChecklist}><Icon name="close" size={14} /></span>
           </div>
-          {steps.map((s, i) => (
-            <div className={"checklist-step" + (s.done ? " done" : "")} key={i} onClick={() => !s.done && go(s.nav)}>
-              <span className="checklist-mark">{s.done ? <Icon name="done" size={16} /> : <span className="checklist-circle" />}</span>
-              <span style={{ minWidth: 0 }}>
-                <span className="checklist-label">{s.label}</span>
-                <span className="checklist-desc">{s.desc}</span>
-              </span>
-              {!s.done && <span className="spacer" style={{ flex: 1 }} />}
-              {!s.done && <Icon name="arrow" size={14} style={{ color: "var(--faint)", flex: "0 0 auto" }} />}
-            </div>
-          ))}
+          {steps.map((s, i) => {
+            const locked = !s.done && !!s.locked;
+            return (
+              <div className={"checklist-step" + (s.done ? " done" : "") + (locked ? " locked" : "")} key={i}
+                onClick={() => !s.done && !locked && go(s.nav)}>
+                <span className="checklist-mark">{s.done ? <Icon name="done" size={16} /> : locked ? <Icon name="lock" size={13} /> : <span className="checklist-circle" />}</span>
+                <span style={{ minWidth: 0 }}>
+                  <span className="checklist-label">{s.label}</span>
+                  <span className="checklist-desc">{s.desc}</span>
+                </span>
+                <span className="spacer" style={{ flex: 1 }} />
+                {locked && <span className="checklist-lock-hint">{s.lockHint}</span>}
+                {!s.done && !locked && <Icon name="arrow" size={14} style={{ color: "var(--faint)", flex: "0 0 auto" }} />}
+              </div>
+            );
+          })}
         </div>
       )}
 

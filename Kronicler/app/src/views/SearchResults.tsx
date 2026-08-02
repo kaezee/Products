@@ -3,6 +3,7 @@ import { getEntities, getChapters, getStream } from "../lib/api";
 import type { Entity, Chapter, StreamRow } from "../lib/types";
 import type { Nav } from "../App";
 import { VALENCE_COLOR } from "../lib/valence";
+import { Icon } from "../components/icons";
 
 // Universal content search (§9.5, the "Find" verb): full-text over entity docs +
 // aliases, chapter prose, and state notes. Output is a results page grouped by
@@ -45,7 +46,7 @@ export function SearchResults({ worldId, query, go }: { worldId: string; query: 
                 <span className="title-serif">{e.title}</span>
                 <span className="chip">{e.type}</span>
                 <span className="spacer" />
-                <span className="faint">→</span>
+                <Icon name="arrow" size={14} style={{ color: "var(--faint)", flex: "0 0 auto" }} />
               </div>
             ))}
           </div>
@@ -60,7 +61,7 @@ export function SearchResults({ worldId, query, go }: { worldId: string; query: 
               <div className="row click" key={c.id} onClick={() => go({ scope: "manuscript", chapterId: c.id })}>
                 <span style={{ fontWeight: 550 }}>Ch. {c.manuscript_order} — {c.title}</span>
                 <span className="note" style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.body.slice(0, 90)}</span>
-                <span className="faint">→</span>
+                <Icon name="arrow" size={14} style={{ color: "var(--faint)", flex: "0 0 auto" }} />
               </div>
             ))}
           </div>
@@ -78,7 +79,7 @@ export function SearchResults({ worldId, query, go }: { worldId: string; query: 
                   {s.participants.map((p) => p.title).join(" · ")} · {s.type_label}
                 </span>
                 <span className="note" style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.note}</span>
-                <span className="faint">→</span>
+                <Icon name="arrow" size={14} style={{ color: "var(--faint)", flex: "0 0 auto" }} />
               </div>
             ))}
           </div>

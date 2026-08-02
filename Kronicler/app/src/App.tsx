@@ -239,18 +239,17 @@ function Workspace({ session }: { session: Session }) {
 
   const searching = query.trim().length >= 2;
 
-  // Breadcrumb trail: Overview › Section › Leaf. Empty on the bare dashboard.
+  // Breadcrumb trail — only shown when it earns its place: a search, or a leaf
+  // you've drilled into (an entity page). A bare destination shows none; the
+  // rail already says where you are, so "Overview › Relationships" is noise.
   const crumbs: Crumb[] = [];
   if (searching) {
     crumbs.push({ label: "Overview", icon: "overview", onClick: () => go({ scope: "overview" }) });
     crumbs.push({ label: `“${query.trim()}”`, icon: "search" });
-  } else if (nav.scope !== "overview" && nav.scope !== "manuscript") {
-    // Write owns its own navigation (the structure tree), so it shows no breadcrumb.
+  } else if (leaf && nav.scope !== "overview" && nav.scope !== "manuscript") {
     const m = SCOPE_META[nav.scope];
-    crumbs.push({ label: "Overview", icon: "overview", onClick: () => go({ scope: "overview" }) });
-    // The section crumb closes an open leaf when there is one; otherwise it's the current page.
-    crumbs.push({ label: m.label, icon: m.icon, onClick: leaf ? leaf.onClear : undefined });
-    if (leaf) crumbs.push({ label: leaf.label });
+    crumbs.push({ label: m.label, icon: m.icon, onClick: leaf.onClear });
+    crumbs.push({ label: leaf.label });
   }
 
   return (

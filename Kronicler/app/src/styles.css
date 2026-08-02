@@ -240,8 +240,11 @@ textarea { font-family: var(--serif); }
 .checklist-dismiss { display: inline-flex; cursor: pointer; color: var(--muted); padding: 2px; border-radius: 6px; }
 .checklist-dismiss:hover { background: var(--wash); color: var(--ink); }
 .checklist-step { display: flex; align-items: center; gap: 10px; padding: 9px 10px; border-radius: 9px; cursor: pointer; }
-.checklist-step:hover:not(.done) { background: var(--wash); }
+.checklist-step:hover:not(.done):not(.locked) { background: var(--wash); }
 .checklist-step.done { cursor: default; }
+.checklist-step.locked { cursor: default; opacity: 0.55; }
+.checklist-step.locked .checklist-mark { color: var(--faint); }
+.checklist-lock-hint { font-size: 11px; color: var(--faint); flex: 0 0 auto; white-space: nowrap; }
 .checklist-mark { display: inline-flex; flex: 0 0 auto; color: var(--allied); }
 .checklist-circle { width: 15px; height: 15px; border: 1.8px solid var(--lineStrong); border-radius: 50%; display: inline-block; }
 .checklist-label { display: block; font-weight: 600; font-size: 13px; color: var(--ink); }

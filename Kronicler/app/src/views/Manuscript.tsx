@@ -203,14 +203,14 @@ export function Manuscript({ worldId, focusChapterId, openImport, go, onLeaf }: 
   const chNode = (c: Chapter, depth: number) => {
     const i = gi.get(c.id)!;
     return (
-      <div className={"wt-ch" + (openId === c.id ? " on" : "")} key={c.id}
+      <div className={"wt-ch" + (openId === c.id ? " on" : "") + (overIndex === i && dragIndex !== null && dragIndex !== i ? " wt-drop" : "")} key={c.id}
         draggable
         onClick={() => setOpenId(c.id)}
         onDragStart={(e) => { setDragIndex(i); e.dataTransfer.effectAllowed = "move"; }}
         onDragEnd={() => { setDragIndex(null); setOverIndex(null); }}
         onDragOver={(e) => { if (dragIndex !== null) { e.preventDefault(); if (overIndex !== i) setOverIndex(i); } }}
         onDrop={(e) => { e.preventDefault(); e.stopPropagation(); void drop(i); }}
-        style={{ paddingLeft: 8 + depth * 14, boxShadow: overIndex === i && dragIndex !== null && dragIndex !== i ? "inset 0 2px 0 var(--bond)" : undefined, opacity: dragIndex === i ? 0.4 : undefined }}>
+        style={{ paddingLeft: 8 + depth * 14, opacity: dragIndex === i ? 0.4 : undefined }}>
         <Icon name="grip" size={12} />
         {renameId === c.id ? (
           <input autoFocus value={renameDraft} className="wt-rename" onClick={(e) => e.stopPropagation()}
@@ -235,10 +235,11 @@ export function Manuscript({ worldId, focusChapterId, openImport, go, onLeaf }: 
     const total = chs.length + kids.reduce((n, k) => n + chaptersOf(k.id).length, 0);
     return (
       <div key={s.id}>
-        <div className="wt-seg" style={{ paddingLeft: 6 + depth * 14, borderLeft: `2px solid ${color}` }}
+        <div className="wt-seg" style={{ paddingLeft: 6 + depth * 14 }}
           onDragOver={(e) => { if (dragIndex !== null) e.preventDefault(); }}
           onDrop={(e) => { if (dragIndex !== null) { e.preventDefault(); e.stopPropagation(); void fileInto(s.id); } }}>
           <span className="wt-chev" onClick={() => toggle(s.id)}><Icon name={isCol ? "chevron" : "chevron-down"} size={13} /></span>
+          <span className="wt-seg-dot" style={{ background: color }} />
           {renameSegId === s.id ? (
             <input autoFocus value={segDraft} className="wt-rename" onClick={(e) => e.stopPropagation()}
               onChange={(e) => setSegDraft(e.target.value)}

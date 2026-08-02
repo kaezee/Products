@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import type { Session } from "@supabase/supabase-js";
 import { supabase } from "./lib/supabase";
 import { getMyWorlds, createWorld, softDeleteWorld, renameWorld, seedSampleWorld, getChapters, getEntities, getNotes } from "./lib/api";
@@ -95,6 +96,7 @@ function Workspace({ session }: { session: Session }) {
   const [seeding, setSeeding] = useState(false);
   const appearanceRef = useRef<HTMLDivElement>(null);
   const worldsRef = useRef<HTMLDivElement>(null);
+  const worldsPopRef = useRef<HTMLDivElement>(null);
 
   function toggleRail() {
     setRailCollapsed((v) => { const n = !v; localStorage.setItem("k.rail", n ? "1" : ""); return n; });
@@ -151,7 +153,10 @@ function Workspace({ session }: { session: Session }) {
     if (!worldsOpen) return;
     const h = (e: MouseEvent) => {
       if (renameId) return; // don't close while inline-renaming a row
-      if (worldsRef.current && !worldsRef.current.contains(e.target as Node)) setWorldsOpen(false);
+      const t = e.target as Node;
+      const inBtn = worldsRef.current?.contains(t);
+      const inPop = worldsPopRef.current?.contains(t);
+      if (!inBtn && !inPop) setWorldsOpen(false);
     };
     window.addEventListener("mousedown", h);
     return () => window.removeEventListener("mousedown", h);
@@ -311,8 +316,8 @@ function Workspace({ session }: { session: Session }) {
                     {!railCollapsed && <span className="railworld-name">{worlds.find((w) => w.id === worldId)?.name ?? "Kronicler"}</span>}
                     {!railCollapsed && worlds.length > 0 && <Icon name="chevron-down" size={ICON_SIZE.sm} />}
                   </button>
-                  {worldsOpen && worlds.length > 0 && (
-                    <div className="worlds-pop rail" role="menu" style={{ position: "fixed", top: worldsPos.top, left: worldsPos.left }}>
+                  {worldsOpen && worlds.length > 0 && createPortal(
+                    <div className="worlds-pop rail" role="menu" ref={worldsPopRef} style={{ position: "fixed", top: worldsPos.top, left: worldsPos.left }}>
                       <div className="worlds-poplab">Worlds</div>
                       <div className="worlds-list">
                         {worlds.map((w) => (renameId === w.id ? (
@@ -342,7 +347,8 @@ function Workspace({ session }: { session: Session }) {
                           </button>
                         )}
                       </div>
-                    </div>
+                    </div>,
+                    document.body,
                   )}
                 </div>
                 <button className="rail-toggle-btn" onClick={toggleRail}

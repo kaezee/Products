@@ -30,7 +30,7 @@ export function BriefPanel(props: {
       <div className="label" style={{ marginTop: 0 }}>True entering ch. {chapterOrder}</div>
       <div className="card">
         {brief.entering.length === 0 && (
-          <div className="row"><span className="muted">No prior states among this cast — a first meeting, relationally.</span></div>
+          <div className="row"><span className="muted">No prior moments between these characters — a first meeting, relationally.</span></div>
         )}
         {brief.entering.map((r) => {
           const arc = brief.arcByRel.get(r.relationship_id) ?? [];
@@ -50,7 +50,7 @@ export function BriefPanel(props: {
       <div className="label">Who's in the dark</div>
       <div className="card" style={{ borderColor: brief.secrets.length ? "var(--hostile)" : undefined }}>
         {brief.secrets.length === 0 && (
-          <div className="row"><span className="muted">No secrets in play among this cast — everyone here knows what you know.</span></div>
+          <div className="row"><span className="muted">No secrets in play among these characters — everyone here knows what you know.</span></div>
         )}
         {brief.secrets.map((r) => {
           const inDark = (r.known_by?.concealed_from ?? []).map(nameOf).join(", ");

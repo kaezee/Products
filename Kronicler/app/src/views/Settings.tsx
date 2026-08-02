@@ -68,7 +68,7 @@ export function Settings({ worldId, worldName, userEmail, onDeleteWorld, onWorld
       const entities = await getEntities(worldId);
       const byType = new Map<string, Entity[]>();
       for (const e of entities) { const a = byType.get(e.type) ?? []; a.push(e); byType.set(e.type, a); }
-      let md = `# ${worldName} — Collection\n\n_Exported ${stamp()} · ${entities.length} entries_\n`;
+      let md = `# ${worldName} — World\n\n_Exported ${stamp()} · ${entities.length} entries_\n`;
       for (const [type, list] of [...byType.entries()].sort()) {
         md += `\n---\n\n## ${type}\n\n`;
         for (const e of list.sort((a, b) => a.title.localeCompare(b.title))) {
@@ -77,7 +77,7 @@ export function Settings({ worldId, worldName, userEmail, onDeleteWorld, onWorld
           md += `\n${(e.body || "").trim() || "_(no description)_"}\n\n`;
         }
       }
-      download(`${slug(worldName)}-collection-${stamp()}.md`, md, "text/markdown");
+      download(`${slug(worldName)}-world-${stamp()}.md`, md, "text/markdown");
     } catch (x) { setErr(String(x)); } finally { setBusy(null); }
   }
 
@@ -85,7 +85,7 @@ export function Settings({ worldId, worldName, userEmail, onDeleteWorld, onWorld
     <div className="fi settings-wrap">
       <h2 className="scope-title">Settings</h2>
       <p className="scope-sub">
-        Your account and this world. Relationship types moved to Relationships → Types.
+        Your account and this project. Relationship kinds live under Relationships → Manage.
       </p>
 
       <div className="label" style={{ marginTop: 8 }}>Account</div>
@@ -109,7 +109,7 @@ export function Settings({ worldId, worldName, userEmail, onDeleteWorld, onWorld
         </div>
         <div className="row" style={{ borderBottom: "none" }}>
           <div style={{ flex: 1 }}>
-            <div style={{ fontWeight: 500 }}>Collection <span className="chip" style={{ fontSize: 10 }}>.md</span></div>
+            <div style={{ fontWeight: 500 }}>World <span className="chip" style={{ fontSize: 10 }}>.md</span></div>
             <span className="muted" style={{ fontSize: 12.5 }}>Every entity by type, with aliases and descriptions — a readable reference document.</span>
           </div>
           <button onClick={bibleMd} disabled={!!busy}>{busy === "bible" ? <Spinner size={13} /> : "Download"}</button>
@@ -117,11 +117,11 @@ export function Settings({ worldId, worldName, userEmail, onDeleteWorld, onWorld
       </div>
       {err && <p className="err">{err}</p>}
 
-      <div className="label" style={{ marginTop: 28 }}>Structure names</div>
+      <div className="label" style={{ marginTop: 28 }}>What things are called</div>
       <div className="card">
         <div className="row" style={{ borderBottom: "none", alignItems: "flex-start" }}>
           <div style={{ flex: 1 }}>
-            <div style={{ fontWeight: 500 }}>What you call the two structure levels</div>
+            <div style={{ fontWeight: 500 }}>Your project, your words</div>
             <span className="muted" style={{ fontSize: 12.5 }}>Book / Chapter is the default — rename them to fit your story (Season / Episode, Act / Scene, Volume / Issue). Used everywhere in Write.</span>
           </div>
           <div style={{ display: "flex", gap: 8, flex: "0 0 auto" }}>
@@ -163,17 +163,17 @@ export function Settings({ worldId, worldName, userEmail, onDeleteWorld, onWorld
           <div style={{ flex: 1 }}>
             <div style={{ fontWeight: 500 }}>Delete “{worldName}”</div>
             <span className="muted" style={{ fontSize: 12.5 }}>
-              Removes this whole world from your list. Soft-deleted first — recoverable from trash for 30 days, then purged.
+              Removes this whole project from your list. Soft-deleted first — recoverable from trash for 30 days, then purged.
             </span>
           </div>
           <button
             style={{ color: "var(--hostile)", borderColor: "var(--hostile)" }}
             onClick={async () => {
-              if (await confirmDialog({ title: "Delete world", message: `Delete the world “${worldName}”?\n\nIt moves to the trash — recoverable for 30 days, then permanently purged. You'll be switched to another world.`, confirmLabel: "Delete world", tone: "danger" })) {
+              if (await confirmDialog({ title: "Delete project", message: `Delete the project “${worldName}”?\n\nIt moves to the trash — recoverable for 30 days, then permanently purged. You'll be switched to another project.`, confirmLabel: "Delete project", tone: "danger" })) {
                 onDeleteWorld();
               }
             }}
-          >Delete world</button>
+          >Delete project</button>
         </div>
       </div>
 

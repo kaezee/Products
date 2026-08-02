@@ -201,8 +201,8 @@ function Workspace({ session }: { session: Session }) {
   }
   async function confirmDeleteWorld(w: World) {
     if (!(await confirmDialog({
-      title: "Delete world", tone: "danger", confirmLabel: "Delete",
-      message: `Delete “${w.name}”? Everything in it — chapters, cast, relationships, timeline — is soft-deleted and recoverable, but it disappears from here.`,
+      title: "Delete project", tone: "danger", confirmLabel: "Delete",
+      message: `Delete “${w.name}”? Everything in it — chapters, people, relationships, timeline — is soft-deleted and recoverable, but it disappears from here.`,
     }))) return;
     await deleteWorld(w.id);
   }
@@ -233,7 +233,7 @@ function Workspace({ session }: { session: Session }) {
   if (!worlds) return (
     <div className="center">
       <Spinner size={26} />
-      <span className="muted">{seeding ? "Building your example world — Sherlock Holmes, fully populated…" : "Loading your worlds…"}</span>
+      <span className="muted">{seeding ? "Building your example project…" : "Loading your projects…"}</span>
     </div>
   );
 
@@ -335,7 +335,7 @@ function Workspace({ session }: { session: Session }) {
               {session.user.is_anonymous && (
                 <div className="guest-banner">
                   <Icon name="book" size={15} />
-                  <span>You're exploring as a <b>guest</b> — this world lives only in this browser.</span>
+                  <span>You're exploring as a <b>guest</b> — this project lives only in this browser.</span>
                   <button onClick={() => go({ scope: "settings" })}>Add an email to keep it</button>
                 </div>
               )}
@@ -343,13 +343,13 @@ function Workspace({ session }: { session: Session }) {
               {worldId && <Breadcrumb items={crumbs} />}
               {!worldId ? (
                 <div className="empty-hero">
-                  <h2 className="scope-title" style={{ marginBottom: 6 }}>Start your first world</h2>
+                  <h2 className="scope-title" style={{ marginBottom: 6 }}>Start your first project</h2>
                   <p className="scope-sub" style={{ maxWidth: 460 }}>
-                    A world holds your cast, your chapters, your timeline, and the web of who-knows-what.
-                    Begin from scratch, or explore a finished example first.
+                    A project holds your whole world — the people and places, the chapters, the timeline,
+                    and the web of who-knows-what. Begin from scratch, or explore a finished example first.
                   </p>
                   <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 4 }}>
-                    <button className="primary" onClick={makeWorld}>Create a world</button>
+                    <button className="primary" onClick={makeWorld}>Create a project</button>
                     <button onClick={loadExample} disabled={seeding} style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
                       {seeding ? <Spinner size={13} /> : <Icon name="book" size={14} />} Explore the example (Sherlock Holmes)
                     </button>
@@ -395,7 +395,7 @@ function Workspace({ session }: { session: Session }) {
         <div className="worlds-screen fi">
           <div className="worlds-screen-head">
             <span className="k">K</span>
-            <h2>Worlds</h2>
+            <h2>Projects</h2>
             <span className="spacer" style={{ flex: 1 }} />
             <button className="iconbtn" onClick={() => setWorldsScreenOpen(false)} title="Close (Esc)"><Icon name="close" size={18} /></button>
           </div>
@@ -423,11 +423,11 @@ function Workspace({ session }: { session: Session }) {
                   </div>
                 ))}
               <button className="worldcard new" onClick={makeWorld}>
-                <Icon name="plus" size={20} /> New world
+                <Icon name="plus" size={20} /> New project
               </button>
               {!worlds.some((w) => w.is_sample) && (
                 <button className="worldcard new" disabled={seeding} onClick={() => !seeding && loadExample()}>
-                  {seeding ? <Spinner size={16} /> : <Icon name="book" size={20} />} Load the example world
+                  {seeding ? <Spinner size={16} /> : <Icon name="book" size={20} />} Load the example project
                 </button>
               )}
             </div>
@@ -439,17 +439,17 @@ function Workspace({ session }: { session: Session }) {
         <div className="overlay" onClick={() => setNewWorldOpen(false)}>
           <div className="modal" onClick={(e) => e.stopPropagation()} style={{ width: 420 }}>
             <div className="row" style={{ borderBottom: "none", padding: 0, marginBottom: 4 }}>
-              <h3 style={{ fontFamily: "var(--serif)", fontWeight: 500, margin: 0, fontSize: 19 }}>New world</h3>
+              <h3 style={{ fontFamily: "var(--serif)", fontWeight: 500, margin: 0, fontSize: 19 }}>New project</h3>
               <span className="spacer" />
               <span onClick={() => setNewWorldOpen(false)} style={{ cursor: "pointer", color: "var(--muted)", display: "inline-flex" }}><Icon name="close" size={16} /></span>
             </div>
-            <p className="muted" style={{ marginTop: 0 }}>A world holds one story’s cast, chapters, timeline, and the web of who-knows-what. Give it a name — you can rename it any time.</p>
+            <p className="muted" style={{ marginTop: 0 }}>A project holds one story’s world — its people, chapters, timeline, and the web of who-knows-what. Give it a name — you can rename it any time.</p>
             <input autoFocus value={newWorldDraft} placeholder="e.g. The Vurnan Chronicles"
               onChange={(e) => setNewWorldDraft(e.target.value)}
               onKeyDown={(e) => { if (e.key === "Enter") void commitNewWorld(); if (e.key === "Escape") setNewWorldOpen(false); }}
               style={{ width: "100%", fontFamily: "var(--serif)", fontSize: 15 }} />
             <div className="row" style={{ borderBottom: "none", padding: 0, marginTop: 14, gap: 10 }}>
-              <button className="primary" disabled={!newWorldDraft.trim()} onClick={() => void commitNewWorld()}>Create world</button>
+              <button className="primary" disabled={!newWorldDraft.trim()} onClick={() => void commitNewWorld()}>Create project</button>
               <button onClick={() => setNewWorldOpen(false)}>Cancel</button>
             </div>
           </div>

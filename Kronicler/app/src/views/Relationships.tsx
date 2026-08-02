@@ -4,6 +4,7 @@ import type { StreamRow, Entity, RelationshipType, EntityType, Valence } from ".
 import type { Nav } from "../App";
 import { visibleUnderLens, latestTruthByRel, latestByRel, isBelief } from "../lib/knowledge";
 import { buildTypeSwatches } from "../lib/entityTypes";
+import { VALENCE_LABEL } from "../lib/valence";
 import { buildArcs, type RelArc } from "../lib/relArc";
 import { Graph } from "./Graph";
 import { TypeDictionary } from "./TypeDictionary";
@@ -163,7 +164,7 @@ export function Relationships({ worldId, go }: { worldId: string; go: (n: Nav) =
         <h2 className="scope-title" style={{ marginBottom: 12 }}>Relationships</h2>
         <EmptyState icon="relationships" title="No relationships yet"
           desc="Relationships grow out of your prose. Open a chapter, select a line where two characters connect, and record what passes between them — it appears here as a living web you can filter and rewind."
-          steps={["Add your cast", "Mark a moment in a chapter", "See the web"]}
+          steps={["Add your characters", "Mark a moment in a chapter", "See the web"]}
           action={{ label: "Open the Manuscript", onClick: () => go({ scope: "manuscript" }) }} />
       </div>
     );
@@ -172,7 +173,7 @@ export function Relationships({ worldId, go }: { worldId: string; go: (n: Nav) =
   // group + sort the List arcs
   const cmp = (a: RelArc, b: RelArc) => order === "changed" ? (b.changes - a.changes || b.lastChangeOrder - a.lastChangeOrder) : (b.lastChangeOrder - a.lastChangeOrder);
   const listGroups: [string, RelArc[]][] = (() => {
-    if (order === "tone") return TONE_GROUP.map((v) => [VALENCE_LABEL_LOCAL[v], visArcs.filter((a) => a.current!.valence === v).sort(cmp)] as [string, RelArc[]]).filter(([, l]) => l.length);
+    if (order === "tone") return TONE_GROUP.map((v) => [VALENCE_LABEL[v], visArcs.filter((a) => a.current!.valence === v).sort(cmp)] as [string, RelArc[]]).filter(([, l]) => l.length);
     if (order === "kind") { const m = new Map<string, RelArc[]>(); for (const a of visArcs) (m.get(a.current!.typeLabel) ?? m.set(a.current!.typeLabel, []).get(a.current!.typeLabel)!).push(a); return [...m.entries()].sort((x, y) => x[0].localeCompare(y[0])).map(([k, l]) => [k, l.sort(cmp)] as [string, RelArc[]]); }
     return [[order === "changed" ? "Changed most often" : "Changed most recently", [...visArcs].sort(cmp)]];
   })();
@@ -194,7 +195,7 @@ export function Relationships({ worldId, go }: { worldId: string; go: (n: Nav) =
           <button className={"iconbtn" + (legendOpen ? " on" : "")} title="What the shapes mean"
             aria-pressed={legendOpen} onClick={() => setLegendOpen((v) => !v)}><Icon name="help" size={15} /></button>
         )}
-        <button onClick={() => setTypesOpen(true)}>Manage kinds</button>
+        <button onClick={() => setTypesOpen(true)}>Manage</button>
       </div>
 
       {lens === "list" && <RelChipBar {...chipData} />}
@@ -255,8 +256,8 @@ export function Relationships({ worldId, go }: { worldId: string; go: (n: Nav) =
         <div className="overlay" onClick={() => setTypesOpen(false)}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <div className="row" style={{ borderBottom: "none", padding: 0, marginBottom: 6 }}>
-              <h3 style={{ fontFamily: "var(--serif)", fontWeight: 500, margin: 0, fontSize: 19 }}>Manage kinds</h3>
-              <span className="muted" style={{ marginLeft: 10 }}>the relationship dictionary for this world</span>
+              <h3 style={{ fontFamily: "var(--serif)", fontWeight: 500, margin: 0, fontSize: 19 }}>Relationship kinds</h3>
+              <span className="muted" style={{ marginLeft: 10 }}>The words this project uses for how people connect.</span>
               <span className="spacer" />
               <span onClick={() => setTypesOpen(false)} title="Close (Esc)" style={{ cursor: "pointer", color: "var(--muted)", display: "inline-flex" }}><Icon name="close" size={16} /></span>
             </div>
@@ -267,6 +268,3 @@ export function Relationships({ worldId, go }: { worldId: string; go: (n: Nav) =
     </div>
   );
 }
-
-// tone group labels (kept local so this file owns its List headers)
-const VALENCE_LABEL_LOCAL: Record<Valence, string> = { bond: "Allied", obligation: "Duty", neutral: "Neutral", hostile: "Hostile" };

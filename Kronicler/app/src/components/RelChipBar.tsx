@@ -24,7 +24,7 @@ export interface ChipData {
 }
 
 const SUGGEST = 7;
-const ORDER_LABEL: Record<OrderBy, string> = { recent: "latest change", changed: "most changes", tone: "tone", kind: "kind" };
+const ORDER_LABEL: Record<OrderBy, string> = { recent: "latest change", changed: "most changes", tone: "standing", kind: "kind" };
 
 export function RelChipBar(d: ChipData) {
   const [open, setOpen] = useState<string | null>(null);
@@ -86,9 +86,9 @@ export function RelChipBar(d: ChipData) {
     if (k === "tone") {
       return (
         <div className="reldrop-list">
-          <div className="reldrop-h">Tone</div>
+          <div className="reldrop-h">Standing</div>
           <button className={"reldrop-opt" + (d.tones.size === 0 ? " on" : "")} onClick={() => d.setTones(new Set())}>
-            any tone<span className="reldrop-n">{d.total}</span>
+            any standing<span className="reldrop-n">{d.total}</span>
           </button>
           {VALENCE_ORDER.map((v) => {
             const c = d.toneCount.get(v) ?? 0;
@@ -197,7 +197,7 @@ export function RelChipBar(d: ChipData) {
     return null;
   }
 
-  const toneLabel = d.tones.size ? [...d.tones].map((v) => VALENCE_LABEL[v]).join(" + ") : "any tone";
+  const toneLabel = d.tones.size ? [...d.tones].map((v) => VALENCE_LABEL[v]).join(" + ") : "any standing";
   const kindsLabel = d.kinds.size ? `${d.kinds.size} of ${d.kindDict.length} kinds` : "every kind";
   const povLabel = d.pov !== "all" ? `as ${d.povPeople.find((p) => p.id === d.pov)?.name ?? "someone"} knows it` : "everyone’s view";
 

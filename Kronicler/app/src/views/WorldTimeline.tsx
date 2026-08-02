@@ -402,7 +402,7 @@ export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) =
     try { await updateSegment(id, { color }); } catch (x) { setErr(String(x)); }
   }
   async function delSeg(s: Segment) {
-    if (!(await confirmDialog({ title: "Delete segment", message: `Delete "${s.name}" and its nested segments? Chapters return to the sidebar. Recoverable.`, confirmLabel: "Delete", tone: "danger" }))) return;
+    if (!(await confirmDialog({ title: "Delete segment", message: `Delete "${s.name}" and everything in it? Chapters return to the sidebar. Recoverable.`, confirmLabel: "Delete", tone: "danger" }))) return;
     try { await softDeleteSegment(s.id); pushUndo(() => restoreSegment(s.id)); await reload(); } catch (x) { setErr(String(x)); }
   }
   async function addSelectedTo(segId: string) {

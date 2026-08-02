@@ -129,7 +129,7 @@ export function Overview({ worldId, go }: { worldId: string; go: (n: Nav) => voi
   const shape = shapeBits.length ? shapeBits.join(" · ") : "A new world — nothing in it yet. Start below.";
 
   const tiles: { key: string; icon: IconName; label: string; value: string; sub: string; nav: Nav }[] = [
-    { key: "cast", icon: "cast", label: "Cast", value: fmt(stats.cast), sub: `${fmt(stats.entities)} entities`, nav: { scope: "library" } },
+    { key: "cast", icon: "cast", label: "Characters", value: fmt(stats.cast), sub: `${fmt(stats.entities)} entities`, nav: { scope: "library" } },
     { key: "places", icon: "place", label: "Places", value: fmt(stats.places), sub: "in the library", nav: { scope: "library" } },
     { key: "chapters", icon: "manuscript", label: "Chapters", value: fmt(stats.written), sub: stats.planned ? `+ ${stats.planned} planned` : `of ${stats.total}`, nav: { scope: "manuscript" } },
     { key: "words", icon: "words", label: "Words", value: fmt(stats.words), sub: "in the manuscript", nav: { scope: "manuscript" } },
@@ -146,7 +146,7 @@ export function Overview({ worldId, go }: { worldId: string; go: (n: Nav) => voi
   const hasProse = chapters.some((c) => !c.planned && (c.body || "").trim().length > 0);
   const steps: { done: boolean; label: string; desc: string; nav: Nav; locked?: boolean; lockHint?: string }[] = [
     { done: stats.total > 0, label: "Write your first chapter", desc: "Just start typing — even a title is enough to begin.", nav: { scope: "manuscript" } },
-    { done: stats.entities > 0, label: "Add someone or somewhere", desc: "A character, a place, a faction — anyone in your story.", nav: { scope: "library" } },
+    { done: stats.entities > 0, label: "Add someone, somewhere, or something", desc: "A character, a place, a faction — anyone in your story.", nav: { scope: "library" } },
     { done: stats.relCount > 0, label: "Mark a moment", desc: "In a chapter, select a line and record what happens between two characters.", nav: { scope: "manuscript" }, locked: !hasProse, lockHint: "Write a chapter first" },
     { done: stats.dated > 0, label: "Place it in time", desc: "Give a chapter a date and it lands on your timeline.", nav: { scope: "timeline" }, locked: stats.total === 0, lockHint: "Write a chapter first" },
   ];
@@ -171,7 +171,7 @@ export function Overview({ worldId, go }: { worldId: string; go: (n: Nav) => voi
           <span className="migrate-icon"><Icon name="feather" size={18} /></span>
           <span className="migrate-copy">
             <span className="migrate-title">Already writing in Google Docs or Word?</span>
-            <span className="migrate-desc">Bring your manuscript over — upload a .docx or paste it in. We’ll split it into chapters and surface the cast we spot in the prose.</span>
+            <span className="migrate-desc">Bring your manuscript over — upload a .docx or paste it in. We’ll split it into chapters and surface the characters we spot in the prose.</span>
           </span>
           <span className="migrate-action">Import <Icon name="arrow" size={15} /></span>
         </button>
@@ -280,7 +280,7 @@ export function Overview({ worldId, go }: { worldId: string; go: (n: Nav) => voi
         <div>
           <div className="label" style={{ marginTop: 0 }}>Recent activity</div>
           <div className="card">
-            {recent.length === 0 && <div className="row"><span className="muted">No state changes yet — mark a moment in a chapter and it shows here.</span></div>}
+            {recent.length === 0 && <div className="row"><span className="muted">No moments yet — select a line in a chapter and record what changes.</span></div>}
             {recent.map((s) => (
               <div className="row click" key={s.state_id} onClick={() => go({ scope: "relationships" })}>
                 <span className="dot" style={{ background: VALENCE_COLOR[s.valence] }} />

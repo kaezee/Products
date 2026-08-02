@@ -201,15 +201,15 @@ export function Library({ worldId, focusEntityId, onLeaf }: { worldId: string; f
 
       {entities.length === 0 ? (
         <EmptyState icon="library" title="Nobody in the world yet"
-          desc="The World holds everyone and everything your story is made of — characters, places, factions, objects. Add them here, and they light up in your prose as you write."
-          steps={["Add someone or somewhere", "Write them into a chapter", "Watch the web form"]}
-          action={{ label: "Add your first entity", onClick: openFull }}
+          desc="Everyone and everything your story is made of — characters, places, factions, objects. Each one is an entity: add them here, and they light up in your prose as you write."
+          steps={["Add someone, somewhere, or something", "Write them into a chapter", "Watch the web form"]}
+          action={{ label: "Add your first character", onClick: openFull }}
           secondary={<button style={{ marginTop: 10 }} onClick={() => setImporting(true)}>Import from .docx</button>} />
       ) : (
         <>
           {/* search + sort */}
           <div className="row" style={{ borderBottom: "none", padding: 0, marginBottom: 10, gap: 8 }}>
-            <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search the collection — name, alias, description…" style={{ flex: 1, maxWidth: 380 }} />
+            <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search your world — name, alias, description…" style={{ flex: 1, maxWidth: 380 }} />
             {query && <span className="tab" onClick={() => setQuery("")}>clear</span>}
             {!query && (
               <>

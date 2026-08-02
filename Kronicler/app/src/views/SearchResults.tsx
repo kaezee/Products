@@ -39,7 +39,7 @@ export function SearchResults({ worldId, query, go }: { worldId: string; query: 
 
       {eHits.length > 0 && (
         <>
-          <div className="label">Entities · {eHits.length}</div>
+          <div className="label">In your world · {eHits.length}</div>
           <div className="card">
             {eHits.map((e) => (
               <div className="row click" key={e.id} onClick={() => go({ scope: "library", entityId: e.id })}>
@@ -70,7 +70,7 @@ export function SearchResults({ worldId, query, go }: { worldId: string; query: 
 
       {sHits.length > 0 && (
         <>
-          <div className="label">State notes · {sHits.length} <span style={{ textTransform: "none", letterSpacing: 0, fontWeight: 450 }}>— the result category no other tool can return</span></div>
+          <div className="label">Moments · {sHits.length} <span style={{ textTransform: "none", letterSpacing: 0, fontWeight: 450 }}>— the moments no other tool can find</span></div>
           <div className="card">
             {sHits.map((s) => (
               <div className="row click" key={s.state_id} onClick={() => go({ scope: "relationships" })}>
@@ -87,7 +87,7 @@ export function SearchResults({ worldId, query, go }: { worldId: string; query: 
       )}
 
       {total === 0 && (
-        <p className="muted">Nothing matches. Search covers entity docs, aliases, chapter prose, and state notes.</p>
+        <p className="muted">Nothing matches. Search covers your world, aliases, chapter prose, and moments.</p>
       )}
     </div>
   );

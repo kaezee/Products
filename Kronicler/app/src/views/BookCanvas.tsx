@@ -142,7 +142,7 @@ function ChapterBlock({
         onMarkMoment={() => onMarkMoment(chapter.id)}
         onComment={(range) => onComment(chapter.id, range)}
         apiRef={setApi}
-        placeholder="Write the chapter here. Known names light up as you type — hover one to peek. Select a sentence to record a state."
+        placeholder="Write the chapter here. Known names light up as you type — hover one to peek. Select a sentence to record a moment."
       />
     </section>
   );
@@ -375,7 +375,7 @@ export function BookCanvas(props: {
           <button className={"iconbtn" + (panel === "notes" ? " on" : "")} onClick={() => summon("notes")}
             title="Notes">{noteCount > 0 && <span className="ed-badge">{noteCount > 99 ? "99+" : noteCount}</span>}<Icon name="notes" size={15} /></button>
           <button className={"iconbtn" + (panel === "continuity" ? " on" : "")} onClick={() => summon("continuity")}
-            title="Cast in this chapter">{unlinkedCount > 0 && <span className="ed-badge dot" />}<Icon name="cast" size={15} /></button>
+            title="Continuity — people and moments in this chapter">{unlinkedCount > 0 && <span className="ed-badge dot" />}<Icon name="cast" size={15} /></button>
           <button className={"iconbtn" + (takeover === "history" ? " on" : "")} onClick={() => summonTakeover("history")}
             title="Version history">{versions.length > 0 && <span className="ed-badge">{versions.length > 99 ? "99+" : versions.length}</span>}<Icon name="history" size={15} /></button>
           <button className={"iconbtn" + (focused ? " on" : "")} onClick={onToggleFocus}
@@ -442,7 +442,7 @@ export function BookCanvas(props: {
         {panel && activeChapter && (
           <div className="ed-panel">
             <div className="ed-panel-head">
-              <span className="ed-panel-title">{panel === "comments" ? "Comments" : panel === "notes" ? "Notes" : "Cast"}</span>
+              <span className="ed-panel-title">{panel === "comments" ? "Comments" : panel === "notes" ? "Notes" : "Continuity"}</span>
               <span className="spacer" style={{ flex: 1 }} />
               <button className="iconbtn" onClick={() => setPanel(null)} title="Close panel"><Icon name="close" size={15} /></button>
             </div>

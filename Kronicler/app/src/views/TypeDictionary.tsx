@@ -48,7 +48,7 @@ export function TypeDictionary({ worldId }: { worldId: string }) {
             <span style={{ color: VALENCE_COLOR[v], fontWeight: 600 }}>{VALENCE_LABEL[v]}</span>
           </span>
         ))}
-        <span className="faint" style={{ fontSize: 11 }}>the tone spectrum — colour carries meaning everywhere</span>
+        <span className="faint" style={{ fontSize: 11 }}>the standing spectrum — colour carries meaning everywhere</span>
       </div>
 
       <div className="card" style={{ maxWidth: 680 }}>

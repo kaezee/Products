@@ -93,7 +93,7 @@ export function NoteToState({ worldId, note, entities, types, chapters, onClose,
                     ))}
                     {canMint && (
                       <div className="ta-row" style={{ flexDirection: "column", alignItems: "flex-start", gap: 6 }}>
-                        <span className="muted">mint “{tq.trim()}” — pick a tone:</span>
+                        <span className="muted">mint “{tq.trim()}” — pick a standing:</span>
                         <span style={{ display: "flex", gap: 6 }}>
                           {VALENCES.map((v) => (
                             <span key={v} title={v} onClick={() => setValence(v)}

@@ -14,9 +14,13 @@ export const VALENCE_COLOR: Record<Valence, string> = {
 // pickers — so the choice reads as a scale, not an arbitrary set.
 export const VALENCE_ORDER: Valence[] = ["bond", "obligation", "neutral", "hostile"];
 
+// The single source of truth for the writer-facing labels of the four standings
+// ("standing" = the writer's word for valence — how two people stand with each
+// other). Capitalized display form, used everywhere: chip bar, dictionary,
+// graph legend, List headers. Do not add a second, local copy of this map.
 export const VALENCE_LABEL: Record<Valence, string> = {
-  bond: "allied",
-  obligation: "duty",
-  neutral: "neutral",
-  hostile: "hostile",
+  bond: "Allied",
+  obligation: "Duty",
+  neutral: "Neutral",
+  hostile: "Hostile",
 };

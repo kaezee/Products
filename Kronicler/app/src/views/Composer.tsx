@@ -125,7 +125,7 @@ export function Composer(props: {
                 ))}
                 {canMint && (
                   <div className="ta-row" style={{ flexDirection: "column", alignItems: "flex-start", gap: 6 }}>
-                    <span className="muted">mint “{typeQuery.trim()}” as a new type — pick a tone:</span>
+                    <span className="muted">mint “{typeQuery.trim()}” as a new type — pick a standing:</span>
                     <span style={{ display: "flex", gap: 6 }}>
                       {VALENCES.map((v) => (
                         <span key={v} title={v} onClick={() => setMintValence(v)}

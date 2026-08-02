@@ -250,7 +250,7 @@ export function ImportDocx({ worldId, mode, startOrder, existingTitles, onClose,
           <div>
             <p style={{ marginTop: 0 }}>
               <span style={{ fontFamily: "var(--serif)", fontSize: 16 }}>Your {progress.total} chapter{progress.total === 1 ? "" : "s"} are in.</span>{" "}
-              <span className="muted">We noticed these recurring names in the prose — tick the ones that are real characters or places and we’ll add them to your Collection. Skip anything that isn’t.</span>
+              <span className="muted">We noticed these recurring names in the prose — tick the ones that are real characters or places and we’ll add them to your world. Skip anything that isn’t.</span>
             </p>
             <div className="row" style={{ borderBottom: "none", padding: 0, marginBottom: 6, gap: 10 }}>
               <span className="muted">adding <b>{castChosen}</b> of {cast.length}</span>
@@ -275,7 +275,7 @@ export function ImportDocx({ worldId, mode, startOrder, existingTitles, onClose,
               ))}
             </div>
             <div className="row" style={{ borderBottom: "none", padding: 0, marginTop: 12, gap: 10 }}>
-              <button className="primary" disabled={castChosen === 0 || castBusy} onClick={addCast}>{castBusy ? "Adding…" : `Add ${castChosen} to your Collection`}</button>
+              <button className="primary" disabled={castChosen === 0 || castBusy} onClick={addCast}>{castBusy ? "Adding…" : `Add ${castChosen} to your world`}</button>
               <button disabled={castBusy} onClick={() => setStage("done")}>Skip — just the chapters</button>
             </div>
           </div>

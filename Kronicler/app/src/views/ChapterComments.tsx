@@ -134,7 +134,8 @@ export function ChapterComments({ worldId, chapterId, chapters, bookIds, pending
           <button key={s} className={"ed-scope-btn" + (scope === s ? " on" : "")} onClick={() => setScope(s)}>{s[0].toUpperCase() + s.slice(1)}</button>
         ))}
       </div>
-      <input className="ed-panel-search" value={q} placeholder="Search comments…" onChange={(e) => setQ(e.target.value)} />
+      <div className="searchwrap pnl"><span className="ic"><Icon name="search" size={13} /></span>
+        <input className="ed-panel-search" value={q} placeholder="Search comments…" onChange={(e) => setQ(e.target.value)} /></div>
       <div className="ed-panel-count">{open.length} unresolved{scope !== "chapter" ? ` · ${chapterCount} chapter${chapterCount === 1 ? "" : "s"}` : ""}</div>
 
       {compose && (

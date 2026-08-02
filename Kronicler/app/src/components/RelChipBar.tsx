@@ -126,6 +126,7 @@ export function RelChipBar(d: ChipData) {
       return (
         <div className="reldrop-combo">
           <div className="reldrop-cbx">
+            <span className="reldrop-ic"><Icon name="search" size={12} /></span>
             <input className="reldrop-search" autoFocus placeholder="Filter kinds…" value={q}
               onChange={(e) => { setQ(e.target.value); setCursor(0); }} onKeyDown={comboKeys(rows)} />
             <span className="reldrop-cbxn">{d.kindDict.length}</span>
@@ -171,6 +172,7 @@ export function RelChipBar(d: ChipData) {
       return (
         <div className="reldrop-combo">
           <div className="reldrop-cbx">
+            <span className="reldrop-ic"><Icon name="search" size={12} /></span>
             <input className="reldrop-search" autoFocus placeholder="Filter people…" value={q}
               onChange={(e) => { setQ(e.target.value); setCursor(0); }} onKeyDown={comboKeys(rows)} />
             <span className="reldrop-cbxn">{d.povPeople.length}</span>

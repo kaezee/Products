@@ -209,7 +209,10 @@ export function Library({ worldId, focusEntityId, onLeaf }: { worldId: string; f
         <>
           {/* search + sort */}
           <div className="row" style={{ borderBottom: "none", padding: 0, marginBottom: 10, gap: 8 }}>
-            <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search your world — name, alias, description…" style={{ flex: 1, maxWidth: 380 }} />
+            <div className="searchwrap" style={{ maxWidth: 380 }}>
+              <span className="ic"><Icon name="search" size={14} /></span>
+              <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search your world — name, alias, description…" />
+            </div>
             {query && <span className="tab" onClick={() => setQuery("")}>clear</span>}
             {!query && (
               <>

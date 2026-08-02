@@ -117,7 +117,8 @@ export function ChapterNotes({ worldId, chapterId, chapters, bookIds, onNavigate
           <button key={s} className={"ed-scope-btn" + (scope === s ? " on" : "")} onClick={() => setScope(s)}>{s[0].toUpperCase() + s.slice(1)}</button>
         ))}
       </div>
-      <input className="ed-panel-search" value={q} placeholder="Search notes…" onChange={(e) => setQ(e.target.value)} />
+      <div className="searchwrap pnl"><span className="ic"><Icon name="search" size={13} /></span>
+        <input className="ed-panel-search" value={q} placeholder="Search notes…" onChange={(e) => setQ(e.target.value)} /></div>
       <div className="ed-panel-count">{scoped.length} note{scoped.length === 1 ? "" : "s"}</div>
 
       {all === null && <span className="muted">Loading notes…</span>}

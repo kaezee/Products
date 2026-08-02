@@ -270,7 +270,7 @@ function Workspace({ session }: { session: Session }) {
             </div>
             <div className="searchwrap">
               <span className="ic"><Icon name="search" size={ICON_SIZE.md} /></span>
-              <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search world content — try a name, a place, a line…" />
+              <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search project content — try a name, a place, a line…" />
             </div>
             <div className="kbtn" onClick={() => setPaletteOpen(true)}>
               <span className="kbd">⌘K</span> Jump or create

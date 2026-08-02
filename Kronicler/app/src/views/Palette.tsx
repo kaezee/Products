@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { getEntities, getChapters } from "../lib/api";
 import type { Entity, Chapter } from "../lib/types";
 import type { Nav } from "../App";
+import { Icon } from "../components/icons";
 
 // ⌘/Ctrl+K switcher (§9.5, the "Go to" verb): name/alias match, global, with
 // create-new inline. Distinct from content search — this is "I know the name,
@@ -35,7 +36,10 @@ export function Palette({ worldId, close, go, onCreateWorld }: {
   return (
     <div className="palette-scrim" onClick={close}>
       <div className="palette pop" onClick={(e) => e.stopPropagation()}>
-        <input ref={ref} value={q} onChange={(e) => setQ(e.target.value)} placeholder="Jump to anything by name — or create" />
+        <div className="palette-search">
+          <span className="palette-ic"><Icon name="search" size={16} /></span>
+          <input ref={ref} value={q} onChange={(e) => setQ(e.target.value)} placeholder="Jump to anything by name — or create" />
+        </div>
         <div style={{ maxHeight: 300, overflowY: "auto" }}>
           {eHits.map((e) => (
             <div className="row click" key={e.id} onClick={() => go({ scope: "library", entityId: e.id })}>

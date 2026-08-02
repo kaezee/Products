@@ -963,7 +963,7 @@ button.danger:hover:not(:disabled) { filter: brightness(0.93); background: var(-
 /* ── ⌘K palette ────────────────────────────────────────── */
 .palette-scrim { position: fixed; inset: 0; background: rgba(31,29,24,.4); display: flex; align-items: flex-start; justify-content: center; padding-top: 120px; z-index: 70; }
 .palette { width: 460px; max-width: calc(100vw - 32px); background: var(--surface); border-radius: 15px; border: 1px solid var(--lineStrong); box-shadow: var(--pop); overflow: hidden; }
-.palette > input { width: 100%; font-size: 14px; padding: 14px 18px; border: none; border-bottom: 1px solid var(--line); border-radius: 0; }
+.palette input { width: 100%; font-size: 14px; padding: 14px 18px; border: none; border-bottom: 1px solid var(--line); border-radius: 0; }
 .palette-foot { padding: 9px 18px; border-top: 1px solid var(--line); font-size: 11px; color: var(--muted); display: flex; gap: 16px; background: var(--inset); }
 
 .pop { animation: pop .18s cubic-bezier(.3,1.2,.5,1); }
@@ -971,3 +971,17 @@ button.danger:hover:not(:disabled) { filter: brightness(0.93); background: var(-
 .fi { animation: fi .22s ease; }
 @keyframes fi { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) { .pop, .fi { animation: none; } }
+
+/* Search fields all carry a leading magnifier, matching the top bar. The
+   generic pattern is .searchwrap + .ic (see :93); these cover the fields that
+   have their own base styling (panels, the ⌘K palette, the relationship filter
+   combos) so every search input reads the same. */
+.reldrop-cbx .reldrop-ic { position: absolute; left: 9px; top: 50%; transform: translateY(-50%); color: var(--muted); display: inline-flex; pointer-events: none; }
+.reldrop-search { padding-left: 28px; }
+/* Panel search sits in a flex column, so the input's own bottom margin would
+   inflate the wrapper and drop the icon low — move that spacing to the wrapper. */
+.searchwrap > .ed-panel-search { margin-bottom: 0; }
+.searchwrap.pnl { margin-bottom: 8px; }
+.palette-search { position: relative; }
+.palette-search .palette-ic { position: absolute; left: 18px; top: 50%; transform: translateY(-50%); color: var(--muted); display: inline-flex; pointer-events: none; }
+.palette input { padding-left: 46px; }

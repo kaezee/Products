@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from "react";
-import { createPortal } from "react-dom";
 import type { Session } from "@supabase/supabase-js";
 import { supabase } from "./lib/supabase";
 import { getMyWorlds, createWorld, softDeleteWorld, renameWorld, seedSampleWorld, getChapters, getEntities, getNotes } from "./lib/api";
@@ -79,15 +78,7 @@ function Workspace({ session }: { session: Session }) {
   const [err, setErr] = useState<string | null>(null);
   const [renameId, setRenameId] = useState<string | null>(null); // world being inline-renamed in the popover
   const [worldNameDraft, setWorldNameDraft] = useState("");
-  const [worldsOpen, setWorldsOpen] = useState(false); // worlds popover
-  const [worldsPos, setWorldsPos] = useState({ top: 0, left: 0 }); // fixed pos (escapes rail overflow clip)
-  function openWorlds() {
-    setWorldsOpen((v) => {
-      const next = !v;
-      if (next && worldsRef.current) { const r = worldsRef.current.getBoundingClientRect(); setWorldsPos({ top: r.bottom + 6, left: r.left }); }
-      return next;
-    });
-  }
+  const [worldsScreenOpen, setWorldsScreenOpen] = useState(false); // full "all worlds" gallery
   const [newWorldOpen, setNewWorldOpen] = useState(false); // new-world dialog
   const [newWorldDraft, setNewWorldDraft] = useState("");
   const [railCollapsed, setRailCollapsed] = useState(() => localStorage.getItem("k.rail") === "1");
@@ -95,8 +86,6 @@ function Workspace({ session }: { session: Session }) {
   const [appearanceOpen, setAppearanceOpen] = useState(false);
   const [seeding, setSeeding] = useState(false);
   const appearanceRef = useRef<HTMLDivElement>(null);
-  const worldsRef = useRef<HTMLDivElement>(null);
-  const worldsPopRef = useRef<HTMLDivElement>(null);
 
   function toggleRail() {
     setRailCollapsed((v) => { const n = !v; localStorage.setItem("k.rail", n ? "1" : ""); return n; });
@@ -150,17 +139,11 @@ function Workspace({ session }: { session: Session }) {
   }, [appearanceOpen]);
 
   useEffect(() => {
-    if (!worldsOpen) return;
-    const h = (e: MouseEvent) => {
-      if (renameId) return; // don't close while inline-renaming a row
-      const t = e.target as Node;
-      const inBtn = worldsRef.current?.contains(t);
-      const inPop = worldsPopRef.current?.contains(t);
-      if (!inBtn && !inPop) setWorldsOpen(false);
-    };
-    window.addEventListener("mousedown", h);
-    return () => window.removeEventListener("mousedown", h);
-  }, [worldsOpen, renameId]);
+    if (!worldsScreenOpen) return;
+    const h = (e: KeyboardEvent) => { if (e.key === "Escape" && !renameId) setWorldsScreenOpen(false); };
+    window.addEventListener("keydown", h);
+    return () => window.removeEventListener("keydown", h);
+  }, [worldsScreenOpen, renameId]);
 
   async function reloadWorlds() {
     try {
@@ -172,7 +155,7 @@ function Workspace({ session }: { session: Session }) {
 
   // New world now opens an in-app dialog (no native prompt). Reused by the
   // worlds popover, the empty-state hero, and the command palette.
-  function makeWorld() { setNewWorldDraft(""); setWorldsOpen(false); setNewWorldOpen(true); }
+  function makeWorld() { setNewWorldDraft(""); setWorldsScreenOpen(false); setNewWorldOpen(true); }
   async function commitNewWorld() {
     const name = newWorldDraft.trim();
     if (!name) return;
@@ -276,6 +259,16 @@ function Workspace({ session }: { session: Session }) {
         <div className="shellcard">
           {/* chrome */}
           <div className="chrome">
+            {/* K logo + current world name (top-chrome, the old model). Clicking
+                the chip opens the full Worlds gallery — Figma "Back to files". */}
+            <div className="worldchip">
+              <button className="world-switch" onClick={() => (worlds.length > 0 ? setWorldsScreenOpen(true) : makeWorld())}
+                title="All worlds" aria-haspopup="dialog">
+                <span className="k">K</span>
+                <span className="world-switch-name">{worlds.find((w) => w.id === worldId)?.name ?? "Kronicler"}</span>
+                {worlds.length > 0 && <Icon name="chevron-down" size={ICON_SIZE.sm} />}
+              </button>
+            </div>
             <div className="searchwrap">
               <span className="ic"><Icon name="search" size={ICON_SIZE.md} /></span>
               <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search world content — try a name, a place, a line…" />
@@ -306,51 +299,7 @@ function Workspace({ session }: { session: Session }) {
           <div className="shellbody">
             {/* rail */}
             <div className={"rail" + (railCollapsed ? " rail-collapsed" : "")}>
-              {/* Rail header (§1/§7): K mark + full world name + chevron → the
-                  world switcher popover, in place. The name never truncates. */}
               <div className="rail-top">
-                <div className="railworld" ref={worldsRef}>
-                  <button className="railworld-btn" title="Switch world" aria-haspopup="menu" aria-expanded={worldsOpen}
-                    onClick={() => (worlds.length > 0 ? openWorlds() : makeWorld())}>
-                    <span className="k">K</span>
-                    {!railCollapsed && <span className="railworld-name">{worlds.find((w) => w.id === worldId)?.name ?? "Kronicler"}</span>}
-                    {!railCollapsed && worlds.length > 0 && <Icon name="chevron-down" size={ICON_SIZE.sm} />}
-                  </button>
-                  {worldsOpen && worlds.length > 0 && createPortal(
-                    <div className="worlds-pop rail" role="menu" ref={worldsPopRef} style={{ position: "fixed", top: worldsPos.top, left: worldsPos.left }}>
-                      <div className="worlds-poplab">Worlds</div>
-                      <div className="worlds-list">
-                        {worlds.map((w) => (renameId === w.id ? (
-                          <div className="worlds-row" key={w.id}>
-                            <input autoFocus value={worldNameDraft} className="worlds-renameinput"
-                              onChange={(e) => setWorldNameDraft(e.target.value)}
-                              onKeyDown={(e) => { if (e.key === "Enter") commitRename(); if (e.key === "Escape") setRenameId(null); }}
-                              onBlur={commitRename} />
-                          </div>
-                        ) : (
-                          <div key={w.id} className={"worlds-row" + (w.id === worldId ? " on" : "")} role="menuitemradio" aria-checked={w.id === worldId}
-                            onClick={() => { setWorldId(w.id); go({ scope: "overview" }); setWorldsOpen(false); }}>
-                            <span className="worlds-check">{w.id === worldId && <Icon name="check" size={14} />}</span>
-                            <span className="worlds-name">{w.name}</span>
-                            {w.is_sample && <span className="worlds-tag">Example</span>}
-                            <span className="spacer" style={{ flex: 1 }} />
-                            <span className="worlds-act" title="Rename" onClick={(e) => { e.stopPropagation(); startRename(w.id); }}><Icon name="edit" size={13} /></span>
-                            <span className="worlds-act danger" title="Delete" onClick={(e) => { e.stopPropagation(); void confirmDeleteWorld(w); }}><Icon name="trash" size={13} /></span>
-                          </div>
-                        )))}
-                      </div>
-                      <div className="worlds-foot">
-                        <button className="worlds-action" onClick={makeWorld}><Icon name="plus" size={14} /> New world</button>
-                        {!worlds.some((w) => w.is_sample) && (
-                          <button className="worlds-action" disabled={seeding} onClick={() => !seeding && loadExample()}>
-                            {seeding ? <Spinner size={12} /> : <Icon name="book" size={14} />} Load example
-                          </button>
-                        )}
-                      </div>
-                    </div>,
-                    document.body,
-                  )}
-                </div>
                 <button className="rail-toggle-btn" onClick={toggleRail}
                   title={railCollapsed ? "Expand sidebar" : "Collapse sidebar"} aria-label={railCollapsed ? "Expand sidebar" : "Collapse sidebar"}>
                   <PanelToggleIcon size={16} />
@@ -439,6 +388,52 @@ function Workspace({ session }: { session: Session }) {
 
       {paletteOpen && worldId && (
         <Palette worldId={worldId} close={() => setPaletteOpen(false)} go={(n) => { setPaletteOpen(false); go(n); }} onCreateWorld={makeWorld} />
+      )}
+
+      {/* Worlds gallery — the Figma "Back to files" / Docs home. All worlds as
+          cards, most-recent first, current marked; pick one to enter. */}
+      {worldsScreenOpen && (
+        <div className="worlds-screen fi">
+          <div className="worlds-screen-head">
+            <span className="k">K</span>
+            <h2>Worlds</h2>
+            <span className="spacer" style={{ flex: 1 }} />
+            <button className="iconbtn" onClick={() => setWorldsScreenOpen(false)} title="Close (Esc)"><Icon name="close" size={18} /></button>
+          </div>
+          <div className="worlds-screen-body">
+            <div className="worlds-grid">
+              {[...worlds]
+                .sort((a, b) => (a.id === worldId ? -1 : b.id === worldId ? 1 : 0))
+                .map((w) => (
+                  <div key={w.id} className={"worldcard" + (w.id === worldId ? " on" : "")}
+                    onClick={() => { if (renameId === w.id) return; setWorldId(w.id); go({ scope: "overview" }); setWorldsScreenOpen(false); }}>
+                    <div className="worldcard-icon"><span className="k">K</span></div>
+                    {renameId === w.id ? (
+                      <input autoFocus value={worldNameDraft} className="worldcard-rename" onClick={(e) => e.stopPropagation()}
+                        onChange={(e) => setWorldNameDraft(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === "Enter") commitRename(); if (e.key === "Escape") setRenameId(null); }}
+                        onBlur={commitRename} />
+                    ) : (
+                      <div className="worldcard-name">{w.name}{w.is_sample && <span className="worlds-tag">Example</span>}</div>
+                    )}
+                    <div className="worldcard-meta">{w.id === worldId ? "Current" : "Open"}</div>
+                    <div className="worldcard-acts" onClick={(e) => e.stopPropagation()}>
+                      <span className="worlds-act" title="Rename" onClick={() => startRename(w.id)}><Icon name="edit" size={14} /></span>
+                      <span className="worlds-act danger" title="Delete" onClick={() => void confirmDeleteWorld(w)}><Icon name="trash" size={14} /></span>
+                    </div>
+                  </div>
+                ))}
+              <button className="worldcard new" onClick={makeWorld}>
+                <Icon name="plus" size={20} /> New world
+              </button>
+              {!worlds.some((w) => w.is_sample) && (
+                <button className="worldcard new" disabled={seeding} onClick={() => !seeding && loadExample()}>
+                  {seeding ? <Spinner size={16} /> : <Icon name="book" size={20} />} Load the example world
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
       )}
 
       {newWorldOpen && (

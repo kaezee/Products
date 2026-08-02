@@ -124,9 +124,28 @@ input, textarea, select { font-size: 13px; padding: 9px 11px; border: 1px solid 
 .railworld-name { flex: 1 1 auto; min-width: 0; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .railworld-btn svg { color: var(--muted); flex: 0 0 auto; }
 .rail-collapsed .railworld { flex: 0 0 auto; }
-/* Rail switcher popover is position:fixed (set inline) so it escapes the rail's
-   overflow clip; width sized for the narrow rail. */
-.worlds-pop.rail { width: 244px; z-index: 200; }
+/* Worlds gallery — the full "all worlds" screen (Figma back-to-files / Docs home). */
+.worlds-screen { position: fixed; inset: 0; z-index: 300; background: var(--paper); display: flex; flex-direction: column; }
+.worlds-screen-head { display: flex; align-items: center; gap: 12px; padding: 18px clamp(20px, 5vw, 56px); border-bottom: 1px solid var(--line); }
+.worlds-screen-head .k { font-family: var(--serif); font-style: italic; font-weight: 600; font-size: 22px; color: var(--bond); }
+.worlds-screen-head h2 { font-family: var(--serif); font-weight: 500; font-size: 22px; margin: 0; }
+.worlds-screen-body { flex: 1; min-height: 0; overflow-y: auto; padding: clamp(20px, 4vw, 44px) clamp(20px, 5vw, 56px) 20vh; }
+.worlds-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; max-width: 1100px; }
+.worldcard { position: relative; display: flex; flex-direction: column; gap: 4px; text-align: left; padding: 18px; min-height: 132px;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 12px; cursor: pointer; box-shadow: 0 1px 2px rgba(0,0,0,.03); transition: border-color .12s, box-shadow .12s; }
+.worldcard:hover { border-color: var(--lineStrong); box-shadow: 0 6px 18px rgba(0,0,0,.06); }
+.worldcard.on { border-color: var(--bond); box-shadow: 0 0 0 2px var(--bondBg); }
+.worldcard-icon { width: 38px; height: 38px; border-radius: 9px; background: var(--bondBg); display: flex; align-items: center; justify-content: center; margin-bottom: 6px; }
+.worldcard-icon .k { font-family: var(--serif); font-style: italic; font-weight: 600; font-size: 20px; color: var(--bond); }
+.worldcard-name { font-weight: 600; font-size: 15px; color: var(--ink); display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.worldcard-meta { font-size: 11.5px; color: var(--muted); margin-top: auto; }
+.worldcard-rename { font-size: 15px; font-weight: 600; width: 100%; }
+.worldcard-acts { position: absolute; top: 12px; right: 12px; display: flex; gap: 4px; opacity: 0; transition: opacity .12s; }
+.worldcard:hover .worldcard-acts, .worldcard.on .worldcard-acts { opacity: 1; }
+.worldcard.new { align-items: center; justify-content: center; flex-direction: row; gap: 8px; color: var(--sub); font-weight: 500; font-size: 14px;
+  background: none; border-style: dashed; box-shadow: none; }
+.worldcard.new:hover { color: var(--ink); background: var(--wash); }
+.worldcard.new:disabled { opacity: .6; cursor: default; }
 .rail-toggle-btn { display: flex; align-items: center; justify-content: center; width: 30px; height: 30px; padding: 0; border: 1px solid var(--line); border-radius: 8px; background: transparent; color: var(--muted); cursor: pointer; }
 .rail-toggle-btn:hover { background: var(--wash); color: var(--ink); }
 .railitem { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-radius: 8px; font-size: 13px; cursor: pointer; color: var(--sub); font-weight: 450; transition: background var(--k-duration-fast, 120ms) var(--k-ease, ease), color var(--k-duration-fast, 120ms) var(--k-ease, ease); }

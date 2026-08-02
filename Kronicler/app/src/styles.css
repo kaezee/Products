@@ -316,10 +316,10 @@ h2.ed-canvas-title, .ed-canvas-input { margin: 0; }
   opacity: 0; transition: opacity .2s; }
 .ed-chapter:focus-within .ed-chapter-save { opacity: 1; }
 
-/* Top toolbar — a surface-coloured bar across the top of the editor (like Docs),
-   distinct from the tinted page area beneath it. */
-.ed-toolbar { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; padding: 8px 14px; margin-bottom: 14px;
-  background: var(--surface); border-bottom: 1px solid var(--line); }
+/* Top toolbar — a surface-coloured rounded bar, bordered all round, floating
+   above the page. */
+.ed-toolbar { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; padding: 7px 12px; margin: 2px 2px 14px;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 1px 2px rgba(0,0,0,.03); }
 .ed-hint { font-size: 11px; color: var(--muted); }
 .ed-face { font-size: 12px; padding: 4px 8px; max-width: 132px; }
 .ed-size { display: inline-flex; align-items: center; gap: 2px; border: 1px solid var(--lineStrong); border-radius: 7px; padding: 1px; }

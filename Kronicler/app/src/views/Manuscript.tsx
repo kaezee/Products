@@ -27,7 +27,7 @@ export function Manuscript({ worldId, focusChapterId, openImport, go, onLeaf }: 
   const [openId, setOpenId] = useState<string | null>(focusChapterId ?? null);
   const [err, setErr] = useState<string | null>(null);
 
-  const [adding, setAdding] = useState(false);
+  const [addMode, setAddMode] = useState<null | "chapter" | "book">(null);
   const [newTitle, setNewTitle] = useState("");
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [overIndex, setOverIndex] = useState<number | null>(null);
@@ -70,13 +70,17 @@ export function Manuscript({ worldId, focusChapterId, openImport, go, onLeaf }: 
   const kindSwatch = useMemo(() => buildKindSwatches(kinds, segments.map((s) => s.kind)), [kinds, segments]);
   const swatchOf = (s: Segment) => s.color ?? kindSwatch.get(s.kind.toLowerCase()) ?? "slate";
 
-  async function create() {
+  // One inline flow for both: name it, hit Enter. A chapter is created and
+  // opened; a book (top-level segment) is created with your chosen name.
+  async function submitAdd() {
     const title = newTitle.trim();
-    if (!title) return;
-    const order = (chapters ?? []).reduce((m, c) => Math.max(m, c.manuscript_order), 0) + 1;
+    if (!title) { setAddMode(null); return; }
+    const mode = addMode;
+    setAddMode(null); setNewTitle("");
     try {
+      if (mode === "book") { await addSegment(null, title); return; }
+      const order = (chapters ?? []).reduce((m, c) => Math.max(m, c.manuscript_order), 0) + 1;
       const c = await createChapter(worldId, title, order);
-      setAdding(false); setNewTitle("");
       setChapters((prev) => [...(prev ?? []), c]);
       setOpenId(c.id);
     } catch (x) { setErr(String(x)); }
@@ -139,13 +143,13 @@ export function Manuscript({ worldId, focusChapterId, openImport, go, onLeaf }: 
   }
 
   // ── segments ──────────────────────────────────────────────────────────
-  async function addSegment(parentId: string | null) {
+  async function addSegment(parentId: string | null, givenName?: string) {
     // §4: the structure tree is capped at depth 3 below the world.
     if (parentId && segDepth(parentId) >= 3) { setErr("Structure is limited to three levels (e.g. Book › Part › Section)."); return; }
     const siblings = segments.filter((s) => s.parent_id === parentId);
     const order = siblings.length ? Math.max(...siblings.map((s) => s.seg_order)) + 1 : 0;
     const kind = parentId ? "part" : "book";
-    const name = parentId ? "New part" : `New ${getLevelNames(worldId).container}`;
+    const name = givenName?.trim() || (parentId ? "New part" : `New ${getLevelNames(worldId).container}`);
     try {
       const s = await createSegment(worldId, { parent_id: parentId, kind, name, seg_order: order });
       setSegments((p) => [...p, s]);
@@ -267,8 +271,9 @@ export function Manuscript({ worldId, focusChapterId, openImport, go, onLeaf }: 
           <h2 className="scope-title" style={{ fontSize: 18, margin: 0 }}>Write</h2>
         </div>
         <div className="write-tree-actions">
-          <button onClick={() => { setAdding(true); setNewTitle(""); }}>+ Chapter</button>
-          <button onClick={() => addSegment(null)} title={`Add a top-level ${getLevelNames(worldId).container.toLowerCase()}`}>+ {getLevelNames(worldId).container}</button>
+          <button className={addMode === "chapter" ? "on" : ""} onClick={() => { setAddMode("chapter"); setNewTitle(""); }}>+ {getLevelNames(worldId).leaf}</button>
+          <button className={addMode === "book" ? "on" : ""} onClick={() => { setAddMode("book"); setNewTitle(""); }}
+            title={`Add a top-level ${getLevelNames(worldId).container.toLowerCase()}`}>+ {getLevelNames(worldId).container}</button>
           {chapters.length === 0 && (
             // Empty world: Import is the migrating writer's first action. Once
             // there are chapters, Import lives in the editor toolbar's ··· menu.
@@ -276,12 +281,14 @@ export function Manuscript({ worldId, focusChapterId, openImport, go, onLeaf }: 
               title="Bring in a manuscript — upload a .docx or paste">Import</button>
           )}
         </div>
-        {adding && (
+        {addMode && (
           <div className="write-add">
-            <input autoFocus value={newTitle} placeholder="Chapter title"
+            <input autoFocus value={newTitle}
+              placeholder={`${addMode === "book" ? getLevelNames(worldId).container : getLevelNames(worldId).leaf} name…`}
               onChange={(e) => setNewTitle(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter") create(); if (e.key === "Escape") setAdding(false); }} />
-            <button className="primary" onClick={create}>Add</button>
+              onKeyDown={(e) => { if (e.key === "Enter") submitAdd(); if (e.key === "Escape") { setAddMode(null); setNewTitle(""); } }}
+              onBlur={() => { if (!newTitle.trim()) setAddMode(null); }} />
+            <button className="primary" onClick={submitAdd}>Add</button>
           </div>
         )}
         <div className="write-tree-body"

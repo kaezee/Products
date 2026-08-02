@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import type { Entity, EntityType } from "../lib/types";
 import { scanMentions } from "../lib/mentions";
 import { getEntityTypes } from "../lib/api";
@@ -363,9 +364,10 @@ export function RichProse({ value, entities, onChange, onSelectText, onOpenEntit
     onSelectText(text);
     if (text.trim() && el) { const r = selectionOffsets(el); if (r && r.start !== r.end) lastRange.current = r; }
     if (text.trim() && s && s.rangeCount && wrap) {
+      // Viewport coordinates — the bar is portaled to <body> so it can't be
+      // clipped by the prose column's overflow near the page edges.
       const rect = s.getRangeAt(0).getBoundingClientRect();
-      const wr = wrap.getBoundingClientRect();
-      setSel({ x: rect.left - wr.left + rect.width / 2, y: rect.top - wr.top, len: text.trim().length, word: !/\s/.test(text.trim()) });
+      setSel({ x: rect.left + rect.width / 2, y: rect.top, len: text.trim().length, word: !/\s/.test(text.trim()) });
     } else {
       setSel(null);
     }
@@ -403,14 +405,14 @@ export function RichProse({ value, entities, onChange, onSelectText, onOpenEntit
         onMouseOver={(e) => { const m = (e.target as HTMLElement).closest?.(".ment") as HTMLElement | null; if (m) showCardFor(m); }}
         onMouseOut={(e) => { const m = (e.target as HTMLElement).closest?.(".ment"); if (m) scheduleHide(); }}
       />
-      {sel && (
+      {sel && createPortal(
         <div className="annot-bar"
           onMouseDown={(e) => e.preventDefault()}
           style={{
-            position: "absolute", zIndex: 7,
-            left: Math.max(84, Math.min(sel.x, (wrapRef.current?.clientWidth ?? 400) - 84)),
-            top: sel.y > 42 ? sel.y - 8 : sel.y + 24,
-            transform: sel.y > 42 ? "translate(-50%, -100%)" : "translate(-50%, 0)",
+            position: "fixed", zIndex: 300,
+            left: Math.max(180, Math.min(sel.x, window.innerWidth - 180)),
+            top: sel.y > 60 ? sel.y - 8 : sel.y + 24,
+            transform: sel.y > 60 ? "translate(-50%, -100%)" : "translate(-50%, 0)",
           }}>
           <button className="annot-fmt" onClick={() => applyWrap("**")} title="Bold (⌘B)"><b>B</b></button>
           <button className="annot-fmt" onClick={() => applyWrap("*")} title="Italic (⌘I)"><i>I</i></button>
@@ -436,7 +438,8 @@ export function RichProse({ value, entities, onChange, onSelectText, onOpenEntit
             );
             return sel.word ? [markEntity, markMoment] : [markMoment, markEntity];
           })()}
-        </div>
+        </div>,
+        document.body,
       )}
       {peek && (() => {
         const sw = swatchRef.current.get(peek.entity.type.toLowerCase());

@@ -262,10 +262,10 @@ function Workspace({ session }: { session: Session }) {
                 the chip opens the full Worlds gallery — Figma "Back to files". */}
             <div className="worldchip">
               <button className="world-switch" onClick={() => (worlds.length > 0 ? setWorldsScreenOpen(true) : makeWorld())}
-                title="All worlds" aria-haspopup="dialog">
+                title="All projects" aria-haspopup="dialog">
                 <span className="k">K</span>
                 <span className="world-switch-name">{worlds.find((w) => w.id === worldId)?.name ?? "Kronicler"}</span>
-                {worlds.length > 0 && <Icon name="chevron-down" size={ICON_SIZE.sm} />}
+                {worlds.length > 0 && <Icon name="grid" size={ICON_SIZE.sm} />}
               </button>
             </div>
             <div className="searchwrap">
@@ -394,10 +394,13 @@ function Workspace({ session }: { session: Session }) {
       {worldsScreenOpen && (
         <div className="worlds-screen fi">
           <div className="worlds-screen-head">
+            <button className="worlds-back" onClick={() => setWorldsScreenOpen(false)} title="Back (Esc)">
+              <Icon name="chevron-left" size={17} /> Back
+            </button>
+            <span className="worlds-head-sep" />
             <span className="k">K</span>
             <h2>Projects</h2>
             <span className="spacer" style={{ flex: 1 }} />
-            <button className="iconbtn" onClick={() => setWorldsScreenOpen(false)} title="Close (Esc)"><Icon name="close" size={18} /></button>
           </div>
           <div className="worlds-screen-body">
             <div className="worlds-grid">

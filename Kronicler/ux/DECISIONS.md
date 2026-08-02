@@ -7,6 +7,31 @@ accidentally undo it.
 
 ---
 
+## 2026-08-02 · Projects switcher: keep the full-screen gallery; fix its affordances
+
+**Decision:** The rail-header project switcher opens the **full-screen Projects
+gallery** (not a popover). This resolves the open B8 question in favour of the
+gallery — the writer has repeatedly treated it as a real screen and wants it.
+Its two affordances were wrong and are fixed:
+- The trigger showed a **chevron-down (⌄)** — the universal "opens a dropdown
+  menu below" signal — but it opens a whole screen. Replaced with a **grid icon**
+  (LayoutGrid, "view all projects"). A dropdown chevron on a control that
+  navigates to a screen is a lie about what the control does.
+- The gallery had only a small "✕" top-right. Added a labelled **‹ Back** button
+  top-left (Esc still works) — a screen you navigate *into* needs an obvious way
+  back, not just a close glyph.
+
+**Why not the B8 popover:** the writer wants the Docs-style "all projects" screen
+they originally asked for; a popover would delete it. B8's "no library/files
+screen" is therefore **not** adopted.
+
+**Audit note:** swept every `chevron-down` usage — the switcher was the only
+misuse. The other three (resolved-comments disclosure, structure-tree collapse,
+entity-page section toggle) are legitimate expand/collapse toggles and were left
+alone.
+
+---
+
 ## 2026-08-02 · Voice/IA spec (Parts A–C): what we adopted, and what we deliberately did NOT
 
 Context: a large naming/voice/IA specification ("Parts A–C") was written to unify

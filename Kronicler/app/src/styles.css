@@ -129,6 +129,10 @@ input, textarea, select { font-size: 13px; padding: 9px 11px; border: 1px solid 
 .worlds-screen-head { display: flex; align-items: center; gap: 12px; padding: 18px clamp(20px, 5vw, 56px); border-bottom: 1px solid var(--line); }
 .worlds-screen-head .k { font-family: var(--serif); font-style: italic; font-weight: 600; font-size: 22px; color: var(--bond); }
 .worlds-screen-head h2 { font-family: var(--serif); font-weight: 500; font-size: 22px; margin: 0; }
+.worlds-back { display: inline-flex; align-items: center; gap: 3px; padding: 6px 12px 6px 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); font-size: 13px; font-weight: 500; color: var(--ink); cursor: pointer; }
+.worlds-back:hover { background: var(--wash); border-color: var(--lineStrong); }
+.worlds-back svg { color: var(--muted); }
+.worlds-head-sep { width: 1px; align-self: stretch; margin: 2px 4px; background: var(--line); }
 .worlds-screen-body { flex: 1; min-height: 0; overflow-y: auto; padding: clamp(20px, 4vw, 44px) clamp(20px, 5vw, 56px) 20vh; }
 .worlds-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; max-width: 1100px; }
 .worldcard { position: relative; display: flex; flex-direction: column; gap: 4px; text-align: left; padding: 18px; min-height: 132px;

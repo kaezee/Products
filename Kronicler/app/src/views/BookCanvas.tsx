@@ -166,14 +166,6 @@ export function BookCanvas(props: {
   onToggleFocus: () => void;
 }) {
   const { worldId, chapters, openId, entities, bookIds, onOpenEntity, onNavigate, onChapterMetaChanged, onImport, focused, onToggleFocus } = props;
-  const [edMenuOpen, setEdMenuOpen] = useState(false);
-  const edMenuRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (!edMenuOpen) return;
-    const h = (e: MouseEvent) => { if (edMenuRef.current && !edMenuRef.current.contains(e.target as Node)) setEdMenuOpen(false); };
-    window.addEventListener("mousedown", h);
-    return () => window.removeEventListener("mousedown", h);
-  }, [edMenuOpen]);
   const chapterRefs = useMemo(() => chapters.map((c) => ({ id: c.id, manuscript_order: c.manuscript_order, title: c.title })), [chapters]);
 
   // Prev/next chapter by manuscript order (spans books — a continuous read).
@@ -362,16 +354,6 @@ export function BookCanvas(props: {
           knows how to find. Kronicler's marking verbs live in the selection
           popover, never here (IA handoff §3.2). */}
       <div className="ed-toolbar">
-        {onImport && (
-          <div className="ed-overflow" ref={edMenuRef}>
-            <button className="ed-fmt" title="More" aria-haspopup="menu" aria-expanded={edMenuOpen} onClick={() => setEdMenuOpen((v) => !v)}>···</button>
-            {edMenuOpen && (
-              <div className="write-overflow-menu" role="menu">
-                <button role="menuitem" onClick={() => { setEdMenuOpen(false); onImport(); }}><Icon name="arrow" size={13} /> Import a manuscript</button>
-              </div>
-            )}
-          </div>
-        )}
         <button className="ed-fmt" onMouseDown={(e) => e.preventDefault()} onClick={() => proseApis.current.get(openId)?.format("**")} title="Bold (⌘B)"><b>B</b></button>
         <button className="ed-fmt" onMouseDown={(e) => e.preventDefault()} onClick={() => proseApis.current.get(openId)?.format("*")} title="Italic (⌘I)"><i>I</i></button>
         <span className="ed-tbsep" />
@@ -400,6 +382,9 @@ export function BookCanvas(props: {
             title={focused ? "Exit fullscreen (Esc)" : "Fullscreen — write without the Kronicler chrome"}>
             <Icon name={focused ? "shrink" : "expand"} size={15} />
           </button>
+          {onImport && (
+            <button className="iconbtn" onClick={onImport} title="Import a manuscript"><Icon name="import" size={15} /></button>
+          )}
         </span>
       </div>
 

@@ -584,7 +584,10 @@ button.danger:hover:not(:disabled) { filter: brightness(0.93); background: var(-
 .rich .md-em.md-em { } /* structural hook; strong/em carry the weight/slant */
 .rich strong.md-em { font-weight: 650; }
 .rich em.md-em { font-style: italic; }
-.rich .md-mark { opacity: .32; font-weight: 400; font-style: normal; }
+/* The bold/italic markers stay in the plain-text value (so the caret math and
+   the stored body are unchanged) but render zero-width, so formatting reads
+   clean like a word processor with no visible asterisks. */
+.rich .md-mark { font-size: 0; }
 
 /* §5 notes-in-context: a chapter's pinned notes, in the Write inspector. */
 .cnotes { display: flex; flex-direction: column; gap: 8px; }

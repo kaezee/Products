@@ -14,18 +14,24 @@ const escapeHtml = (s: string) => s.replace(/[&<>]/g, (c) => (c === "&" ? "&amp;
 // plain, portable, and byte-for-byte the same as what the caret logic counts —
 // the emphasis is decoration only, exactly like a mention. One line at a time
 // (no newline inside a token), bold matched before italic, no overlaps.
-type Emph = { start: number; end: number; innerStart: number; innerEnd: number; tag: "strong" | "em" };
+type Emph = { start: number; end: number; innerStart: number; innerEnd: number; tag: "strong" | "em" | "both" };
 function scanEmphasis(text: string): Emph[] {
   const marks: Emph[] = [];
-  const bold = /\*\*(?=\S)([^\n]+?)(?<=\S)\*\*/g;
   let m: RegExpExecArray | null;
+  const both = /\*\*\*(?=\S)([^\n]+?)(?<=\S)\*\*\*/g;   // bold + italic
+  while ((m = both.exec(text))) {
+    marks.push({ start: m.index, end: m.index + m[0].length, innerStart: m.index + 3, innerEnd: m.index + m[0].length - 3, tag: "both" });
+  }
+  const bold = /\*\*(?=\S)([^\n]+?)(?<=\S)\*\*/g;
   while ((m = bold.exec(text))) {
-    marks.push({ start: m.index, end: m.index + m[0].length, innerStart: m.index + 2, innerEnd: m.index + m[0].length - 2, tag: "strong" });
+    const s = m.index, e = s + m[0].length;
+    if (marks.some((b) => s < b.end && e > b.start)) continue;
+    marks.push({ start: s, end: e, innerStart: s + 2, innerEnd: e - 2, tag: "strong" });
   }
   const italic = /(?<!\*)\*(?=\S)([^*\n]+?)(?<=\S)\*(?!\*)/g;
   while ((m = italic.exec(text))) {
     const s = m.index, e = s + m[0].length;
-    if (marks.some((b) => s < b.end && e > b.start)) continue; // inside a bold run
+    if (marks.some((b) => s < b.end && e > b.start)) continue; // inside a bold / bold-italic run
     marks.push({ start: s, end: e, innerStart: s + 1, innerEnd: e - 1, tag: "em" });
   }
   marks.sort((a, b) => a.start - b.start);
@@ -119,11 +125,13 @@ export function RichProse({ value, entities, onChange, onSelectText, onOpenEntit
     let out = "", i = 0;
     for (const tok of emph) {
       out += renderRun(text, i, tok.start, mentions, typeById);
-      out += `<${tok.tag} class="md-em">`;
+      const open = tok.tag === "both" ? `<strong class="md-em"><em class="md-em">` : `<${tok.tag} class="md-em">`;
+      const close = tok.tag === "both" ? `</em></strong>` : `</${tok.tag}>`;
+      out += open;
       out += `<span class="md-mark">${escapeHtml(text.slice(tok.start, tok.innerStart))}</span>`;
       out += renderRun(text, tok.innerStart, tok.innerEnd, mentions, typeById);
       out += `<span class="md-mark">${escapeHtml(text.slice(tok.innerEnd, tok.end))}</span>`;
-      out += `</${tok.tag}>`;
+      out += close;
       i = tok.end;
     }
     out += renderRun(text, i, text.length, mentions, typeById);

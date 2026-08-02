@@ -388,7 +388,7 @@ export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) =
   }
 
   async function submitAdd() {
-    if (!fName.trim()) { setErr("Name the segment."); return; }
+    if (!fName.trim()) { setErr("Give it a name."); return; }
     try {
       const sibs = segments.filter((s) => (s.parent_id ?? "") === fParent);
       const created = await createSegment(worldId, { parent_id: fParent || null, kind: fKind.trim() || "segment", name: fName.trim(),
@@ -402,7 +402,7 @@ export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) =
     try { await updateSegment(id, { color }); } catch (x) { setErr(String(x)); }
   }
   async function delSeg(s: Segment) {
-    if (!(await confirmDialog({ title: "Delete segment", message: `Delete "${s.name}" and everything in it? Chapters return to the sidebar. Recoverable.`, confirmLabel: "Delete", tone: "danger" }))) return;
+    if (!(await confirmDialog({ title: "Delete section", message: `Delete "${s.name}" and everything in it? Chapters return to the sidebar. Recoverable.`, confirmLabel: "Delete", tone: "danger" }))) return;
     try { await softDeleteSegment(s.id); pushUndo(() => restoreSegment(s.id)); await reload(); } catch (x) { setErr(String(x)); }
   }
   async function addSelectedTo(segId: string) {
@@ -544,7 +544,7 @@ export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) =
           <button className="primary" onClick={() => setAddMenu((v) => !v)} style={{ display: "inline-flex", alignItems: "center", gap: 5 }}><Icon name="plus" size={14} /> Add</button>
           {addMenu && (
             <div className="wt2-addmenu" onMouseLeave={() => setAddMenu(false)}>
-              <button onClick={() => { setAddMenu(false); const yr = dayToYear(dayOf(nowW / 2)); setFName(""); setFKind("series"); setFParent(""); setFStart(String(yr)); setFEnd(String(yr + 50)); setAdding(true); }}><Icon name="plus" size={13} /> Segment</button>
+              <button onClick={() => { setAddMenu(false); const yr = dayToYear(dayOf(nowW / 2)); setFName(""); setFKind("series"); setFParent(""); setFStart(String(yr)); setFEnd(String(yr + 50)); setAdding(true); }}><Icon name="plus" size={13} /> Section</button>
               <button onClick={() => { setAddMenu(false); setNoteText(""); setNoteYear(String(dayToYear(dayOf(nowW / 2)))); setNoteOpen(true); }}><Icon name="edit" size={13} /> Note</button>
             </div>
           )}
@@ -556,7 +556,7 @@ export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) =
           <div style={{ fontWeight: 600, marginBottom: 6, display: "flex", alignItems: "center", gap: 6 }}><Icon name="alert" size={15} style={{ color: "var(--obligation)" }} /> {warn.segs.length + warn.chs.length} thing{warn.segs.length + warn.chs.length === 1 ? "" : "s"} fall outside {warn.want[0]}–{warn.want[1]}</div>
           {warn.segs.map((s) => (
             <div key={s.id} className="row" style={{ borderBottom: "none", padding: "3px 0", gap: 8, fontSize: 12.5 }}>
-              <span className="wt2-kind" style={{ color: "var(--obligation)" }}>segment</span>
+              <span className="wt2-kind" style={{ color: "var(--obligation)" }}>section</span>
               <b>{s.name}</b><span className="faint">{s.lo}–{s.hi}</span>
               <span className="spacer" />
               <span className="wt2-open" title="Show it" onClick={() => { const seg = segments.find((z) => z.id === s.id); const sp = seg && spanOf(seg); if (sp) frameRange(sp[0], sp[1]); }}>jump <Icon name="jump" size={12} /></span>
@@ -565,7 +565,7 @@ export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) =
           {warn.chs.map((c) => (
             <div key={c.id} className="row" style={{ borderBottom: "none", padding: "3px 0", gap: 8, fontSize: 12.5 }}>
               <span className="wt2-kind" style={{ color: "var(--obligation)" }}>chapter</span>
-              <b>{trunc(c.title, 26)}</b><span className="faint">{c.year} · outside, but its segment isn't (a flashback?)</span>
+              <b>{trunc(c.title, 26)}</b><span className="faint">{c.year} · outside, but its section isn't (a flashback?)</span>
               <span className="spacer" />
               <span className="wt2-open" onClick={() => go({ scope: "manuscript", chapterId: c.id })}>open <Icon name="jump" size={12} /></span>
             </div>
@@ -648,7 +648,7 @@ export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) =
             )}
 
             {segments.length === 0 && markers.length === 0 && (
-              <div className="wt2-empty-hint">Add a segment (a series, book, or season), then date chapters or bulk-add them from the sidebar. Dated chapters appear here; the ruler is bounded by your world's known time.</div>
+              <div className="wt2-empty-hint">Add a section (a series, book, or season), then date chapters or bulk-add them from the sidebar. Dated chapters appear here; the ruler is bounded by your world's known time.</div>
             )}
 
             {rows.list.map(({ seg, depth, y }) => {
@@ -663,7 +663,7 @@ export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) =
               return (
                 <div key={seg.id}>
                   <span className="wt2-seglab" style={{ left: x1 + depth * 16, top: y, color, cursor: sp0 ? "zoom-in" : "default" }}
-                    title={sp0 ? "Double-click to frame this segment" : undefined}
+                    title={sp0 ? "Double-click to frame this section" : undefined}
                     onDoubleClick={() => { if (sp0) frameRange(sp[0], sp[1]); }}>
                     <span className="wt2-kind">{seg.kind}</span>{seg.name}
                     <span className="faint" style={{ fontSize: 10.5, marginLeft: 6 }}>
@@ -739,10 +739,10 @@ export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) =
 
           {/* Structure — jump to any segment; add a top-level one. */}
           <Disclosure label="Structure" count={segments.length}>
-            {segments.length === 0 && <div className="wt2-sidesub" style={{ marginTop: 0 }}>No segments yet — use + Add · Segment.</div>}
+            {segments.length === 0 && <div className="wt2-sidesub" style={{ marginTop: 0 }}>No sections yet — use + Add · Section.</div>}
             {rows.list.map(({ seg, depth }) => (
               <div key={seg.id} className="wt2-outline" style={{ paddingLeft: 4 + depth * 12 }}>
-                <SwatchPicker value={swatchOf(seg)} onPick={(c) => setSegColor(seg.id, c)} title="Segment colour — pick or Auto" />
+                <SwatchPicker value={swatchOf(seg)} onPick={(c) => setSegColor(seg.id, c)} title="Section colour — pick or Auto" />
                 <span className="wt2-outline-name" title={`${seg.kind} · ${seg.name}`}
                   onClick={() => { const sp = spanOf(seg); if (sp) frameRange(sp[0], sp[1]); }}>{trunc(seg.name, 18)}</span>
                 <span className="wt2-open" title="Delete" onClick={() => delSeg(seg)}><Icon name="close" size={13} /></span>

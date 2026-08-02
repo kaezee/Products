@@ -126,14 +126,14 @@ export function Settings({ worldId, worldName, userEmail, onDeleteWorld, onWorld
           </div>
           <div style={{ display: "flex", gap: 8, flex: "0 0 auto" }}>
             <label style={{ display: "flex", flexDirection: "column", gap: 3, fontSize: 11, color: "var(--muted)" }}>
-              Container
+              The bigger unit
               <input value={levels.container} placeholder="Book" style={{ width: 120 }}
                 onChange={(e) => setLevels((v) => ({ ...v, container: e.target.value }))}
                 onBlur={() => commitLevels(levels)}
                 onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }} />
             </label>
             <label style={{ display: "flex", flexDirection: "column", gap: 3, fontSize: 11, color: "var(--muted)" }}>
-              Leaf
+              What you write in
               <input value={levels.leaf} placeholder="Chapter" style={{ width: 120 }}
                 onChange={(e) => setLevels((v) => ({ ...v, leaf: e.target.value }))}
                 onBlur={() => commitLevels(levels)}

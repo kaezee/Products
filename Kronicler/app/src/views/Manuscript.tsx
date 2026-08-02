@@ -161,11 +161,12 @@ export function Manuscript({ worldId, focusChapterId, openImport, go, onLeaf }: 
     try { await updateSegment(s.id, { name }); } catch (x) { setErr(String(x)); }
   }
   async function removeSegment(s: Segment) {
+    const container = getLevelNames(worldId).container;
     const kids = segments.filter((z) => z.parent_id === s.id);
     const msg = kids.length
-      ? `Delete “${s.name}” and un-nest its ${kids.length} sub-segment(s)? Chapters stay in the manuscript.`
+      ? `Delete “${s.name}” and un-nest the ${kids.length} inside it? Chapters stay in the manuscript.`
       : `Delete “${s.name}”? Its chapters stay in the manuscript, just unfiled — nothing is lost.`;
-    if (!(await confirmDialog({ title: "Delete segment", message: msg, confirmLabel: "Delete", tone: "danger" }))) return;
+    if (!(await confirmDialog({ title: `Delete ${container.toLowerCase()}`, message: msg, confirmLabel: "Delete", tone: "danger" }))) return;
     try {
       await softDeleteSegment(s.id);
       setSegments((p) => p.filter((z) => z.id !== s.id));
@@ -326,7 +327,7 @@ export function Manuscript({ worldId, focusChapterId, openImport, go, onLeaf }: 
         ) : (
           <div className="write-placeholder">
             <Icon name="feather" size={26} />
-            <p>Pick a chapter from the tree to start writing — or add a new one.</p>
+            <p>Pick a chapter from the list to start writing — or add a new one.</p>
           </div>
         )}
       </div>

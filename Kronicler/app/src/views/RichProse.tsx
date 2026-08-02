@@ -2,45 +2,20 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { Entity, EntityType } from "../lib/types";
 import { scanMentions } from "../lib/mentions";
+import { scanEmphasis, toggleMarker } from "../lib/emphasis";
 import { getEntityTypes } from "../lib/api";
 import { buildTypeSwatches } from "../lib/entityTypes";
 import { VALENCE_COLOR } from "../lib/valence";
 import type { MentionState } from "../lib/mentionState";
 import { Icon } from "../components/icons";
 
-const escapeHtml = (s: string) => s.replace(/[&<>]/g, (c) => (c === "&" ? "&amp;" : c === "<" ? "&lt;" : "&gt;"));
-
-// Lightweight markdown emphasis over the plain-text value: **bold** and *italic*.
-// We keep the markers in the text (dimmed on screen) so the stored body stays
-// plain, portable, and byte-for-byte the same as what the caret logic counts —
-// the emphasis is decoration only, exactly like a mention. One line at a time
-// (no newline inside a token), bold matched before italic, no overlaps.
-type Emph = { start: number; end: number; innerStart: number; innerEnd: number; tag: "strong" | "em" | "both" };
-function scanEmphasis(text: string): Emph[] {
-  const marks: Emph[] = [];
-  let m: RegExpExecArray | null;
-  const both = /\*\*\*(?=\S)([^\n]+?)(?<=\S)\*\*\*/g;   // bold + italic
-  while ((m = both.exec(text))) {
-    marks.push({ start: m.index, end: m.index + m[0].length, innerStart: m.index + 3, innerEnd: m.index + m[0].length - 3, tag: "both" });
-  }
-  const bold = /\*\*(?=\S)([^\n]+?)(?<=\S)\*\*/g;
-  while ((m = bold.exec(text))) {
-    const s = m.index, e = s + m[0].length;
-    if (marks.some((b) => s < b.end && e > b.start)) continue;
-    marks.push({ start: s, end: e, innerStart: s + 2, innerEnd: e - 2, tag: "strong" });
-  }
-  const italic = /(?<!\*)\*(?=\S)([^*\n]+?)(?<=\S)\*(?!\*)/g;
-  while ((m = italic.exec(text))) {
-    const s = m.index, e = s + m[0].length;
-    if (marks.some((b) => s < b.end && e > b.start)) continue; // inside a bold / bold-italic run
-    marks.push({ start: s, end: e, innerStart: s + 1, innerEnd: e - 1, tag: "em" });
-  }
-  marks.sort((a, b) => a.start - b.start);
-  const res: Emph[] = [];
-  let last = -1;
-  for (const k of marks) if (k.start >= last) { res.push(k); last = k.end; }
-  return res;
-}
+// Escape for injection into innerHTML. Quotes are escaped too because the same
+// helper feeds attribute values (data-type, data-id) below — a user-authored
+// custom type name with a stray quote must not be able to break out of the
+// attribute and inject markup. Text content only strictly needs &<>, but
+// over-escaping quotes there is harmless.
+const escapeHtml = (s: string) =>
+  s.replace(/[&<>"']/g, (c) => (c === "&" ? "&amp;" : c === "<" ? "&lt;" : c === ">" ? "&gt;" : c === '"' ? "&quot;" : "&#39;"));
 
 const SUPPORTS_PO = (() => {
   try {
@@ -111,7 +86,7 @@ export function RichProse({ value, entities, onChange, onSelectText, onOpenEntit
         : "";
       const typeAttr = t ? ` data-type="${escapeHtml(t.toLowerCase())}"` : "";
       out += escapeHtml(text.slice(i, s.start));
-      out += `<span class="ment" data-id="${s.entityId}"${typeAttr}${style}>${escapeHtml(text.slice(s.start, s.end))}</span>`;
+      out += `<span class="ment" data-id="${escapeHtml(s.entityId)}"${typeAttr}${style}>${escapeHtml(text.slice(s.start, s.end))}</span>`;
       i = s.end;
     }
     out += escapeHtml(text.slice(i, to));
@@ -233,16 +208,8 @@ export function RichProse({ value, entities, onChange, onSelectText, onOpenEntit
     let range = selectionOffsets(el);
     if (!range || range.start === range.end) range = lastRange.current;   // toolbar/shortcut lost the live selection
     if (!range || range.start === range.end) return;
-    const { start: a, end: b } = range;
     const text = el.textContent ?? "";
-    const inner = text.slice(a, b);
-    const M = marker.length;
-    const outside = text.slice(a - M, a) === marker && text.slice(b, b + M) === marker;
-    const insideWrapped = inner.length > 2 * M && inner.startsWith(marker) && inner.endsWith(marker);
-    let next: string, na: number, nb: number;
-    if (outside) { next = text.slice(0, a - M) + inner + text.slice(b + M); na = a - M; nb = b - M; }
-    else if (insideWrapped) { const st = inner.slice(M, inner.length - M); next = text.slice(0, a) + st + text.slice(b); na = a; nb = b - 2 * M; }
-    else { next = text.slice(0, a) + marker + inner + marker + text.slice(b); na = a + M; nb = b + M; }
+    const { next, start: na, end: nb } = toggleMarker(text, range.start, range.end, marker);
     el.textContent = next;
     onChange(next);
     decorate();

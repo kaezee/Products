@@ -34,6 +34,7 @@ const SUPPORTS_PO = (() => {
 export interface ProseApi {
   selectRange: (start: number, end: number, quote: string) => boolean;
   format: (marker: "**" | "*") => void;
+  block: (kind: "h" | "quote" | "ul" | "ol" | "hr") => void;
 }
 
 export function RichProse({ value, entities, onChange, onSelectText, onOpenEntity, stateOf, onMarkEntity, onMarkMoment, onComment, apiRef, placeholder }: {
@@ -93,24 +94,51 @@ export function RichProse({ value, entities, onChange, onSelectText, onOpenEntit
     return out;
   }
 
+  // Inline emphasis + mentions over a single [from,to) slice (one line's content).
+  function renderInline(text: string, from: number, to: number, mentions: ReturnType<typeof scanMentions>, typeById: Map<string, string>): string {
+    const emph = scanEmphasis(text.slice(from, to));
+    let out = "", i = from;
+    for (const t of emph) {
+      const s = t.start + from, e = t.end + from, is = t.innerStart + from, ie = t.innerEnd + from;
+      out += renderRun(text, i, s, mentions, typeById);
+      const open = t.tag === "both" ? `<strong class="md-em"><em class="md-em">` : `<${t.tag} class="md-em">`;
+      const close = t.tag === "both" ? `</em></strong>` : `</${t.tag}>`;
+      out += open + `<span class="md-mark">${escapeHtml(text.slice(s, is))}</span>`;
+      out += renderRun(text, is, ie, mentions, typeById);
+      out += `<span class="md-mark">${escapeHtml(text.slice(ie, e))}</span>` + close;
+      i = e;
+    }
+    out += renderRun(text, i, to, mentions, typeById);
+    return out;
+  }
+
+  // Block-level line prefixes. Like emphasis, the marker chars stay in the plain
+  // text but render invisibly (md-mark), so the stored body is portable markdown
+  // and the caret math (pure text length) is untouched. Everything is INLINE —
+  // the surrounding \n's do the line breaks — which is what keeps the editor safe.
+  function renderLine(text: string, line: string, lineStart: number, mentions: ReturnType<typeof scanMentions>, typeById: Map<string, string>): string {
+    const end = lineStart + line.length;
+    if (/^(\* \* \*|\*\*\*)\s*$/.test(line)) return `<span class="md-block md-hr">${escapeHtml(line)}</span>`;
+    let m = line.match(/^(#{1,3}) /);
+    if (m) { const k = m[1].length; return `<span class="md-mark">${escapeHtml(line.slice(0, k + 1))}</span><span class="md-block md-h md-h${k}">${renderInline(text, lineStart + k + 1, end, mentions, typeById)}</span>`; }
+    if (line.startsWith("> ")) return `<span class="md-mark">${escapeHtml(line.slice(0, 2))}</span><span class="md-block md-quote">${renderInline(text, lineStart + 2, end, mentions, typeById)}</span>`;
+    if (line.startsWith("- ")) return `<span class="md-mark">${escapeHtml(line.slice(0, 2))}</span><span class="md-block md-li">${renderInline(text, lineStart + 2, end, mentions, typeById)}</span>`;
+    m = line.match(/^(\d+)\. /);
+    if (m) { const mk = m[1].length + 2; return `<span class="md-mark">${escapeHtml(line.slice(0, mk))}</span><span class="md-block md-oli" data-n="${escapeHtml(m[1])}">${renderInline(text, lineStart + mk, end, mentions, typeById)}</span>`; }
+    return renderInline(text, lineStart, end, mentions, typeById);
+  }
+
   function decorateHtml(text: string): string {
     const ents = entRef.current;
     const mentions = scanMentions(text, ents);
     const typeById = new Map(ents.map((e) => [e.id, e.type]));
-    const emph = scanEmphasis(text);
-    let out = "", i = 0;
-    for (const tok of emph) {
-      out += renderRun(text, i, tok.start, mentions, typeById);
-      const open = tok.tag === "both" ? `<strong class="md-em"><em class="md-em">` : `<${tok.tag} class="md-em">`;
-      const close = tok.tag === "both" ? `</em></strong>` : `</${tok.tag}>`;
-      out += open;
-      out += `<span class="md-mark">${escapeHtml(text.slice(tok.start, tok.innerStart))}</span>`;
-      out += renderRun(text, tok.innerStart, tok.innerEnd, mentions, typeById);
-      out += `<span class="md-mark">${escapeHtml(text.slice(tok.innerEnd, tok.end))}</span>`;
-      out += close;
-      i = tok.end;
+    const lines = text.split("\n");
+    let out = "", pos = 0;
+    for (let idx = 0; idx < lines.length; idx++) {
+      if (idx > 0) { out += "\n"; pos += 1; }        // the newline stays a real char
+      out += renderLine(text, lines[idx], pos, mentions, typeById);
+      pos += lines[idx].length;
     }
-    out += renderRun(text, i, text.length, mentions, typeById);
     return out;
   }
 
@@ -194,7 +222,7 @@ export function RichProse({ value, entities, onChange, onSelectText, onOpenEntit
     return true;
   }
   useEffect(() => {
-    apiRef?.({ selectRange, format: applyWrap });
+    apiRef?.({ selectRange, format: applyWrap, block: applyBlock });
     return () => apiRef?.(null);
     // eslint-disable-next-line
   }, [apiRef]);
@@ -217,6 +245,39 @@ export function RichProse({ value, entities, onChange, onSelectText, onOpenEntit
     setSelectionOffsets(el, na, nb);
     lastRange.current = { start: na, end: nb };
     reportSelection();
+  }
+
+  // Toggle a block prefix on the caret's line (heading / quote / bullet / number),
+  // or drop in a scene break. Plain-text edits; the caret is restored by offset.
+  function applyBlock(kind: "h" | "quote" | "ul" | "ol" | "hr") {
+    const el = edRef.current;
+    if (!el) return;
+    const off = caretOffset(el) ?? lastRange.current?.start ?? null;
+    if (off == null) return;
+    const text = el.textContent ?? "";
+    let next: string, caret: number;
+    if (kind === "hr") {
+      let le = text.indexOf("\n", off); if (le < 0) le = text.length;
+      const ins = (le > 0 && text[le - 1] !== "\n" ? "\n" : "") + "* * *\n";
+      next = text.slice(0, le) + ins + text.slice(le);
+      caret = le + ins.length;
+    } else {
+      const prefix: Record<string, string> = { h: "# ", quote: "> ", ul: "- ", ol: "1. " };
+      const ls = text.lastIndexOf("\n", off - 1) + 1;
+      let le = text.indexOf("\n", off); if (le < 0) le = text.length;
+      const line = text.slice(ls, le);
+      const bare = line.replace(/^(#{1,3} |> |- |\d+\. )/, "");
+      const has = kind === "ol" ? /^\d+\. /.test(line) : kind === "h" ? /^#{1,3} /.test(line) : line.startsWith(prefix[kind]);
+      const nl = has ? bare : prefix[kind] + bare;
+      next = text.slice(0, ls) + nl + text.slice(le);
+      caret = Math.max(ls, off + (nl.length - line.length));
+    }
+    el.textContent = next;
+    onChange(next);
+    decorate();
+    el.focus();
+    setCaret(el, caret);
+    lastRange.current = { start: caret, end: caret };
   }
 
   function decorate() {

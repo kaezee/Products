@@ -118,12 +118,12 @@ function ChapterBlock({
             Click the date to edit in place — a numeric control, no calendar. */}
         <div className="ed-kicker">
           <span>{getLevelNames(worldId).leaf} {chapter.manuscript_order}</span>
-          <span className="ed-dot">·</span>
-          <button className={"ed-prop" + (editingDate ? " on" : "")} onClick={() => setEditingDate((v) => !v)}
-            title="Set the in-world date — sets this chapter's place on the Timeline">
-            {dateLabel || <span className="muted">add date</span>}
-          </button>
           <span className="ed-dot">·</span><span>{words.toLocaleString()} {words === 1 ? "word" : "words"}</span>
+          <span className="ed-dot">·</span>
+          <button className={"ed-status ed-datepill" + (editingDate ? " on" : "")} onClick={() => setEditingDate((v) => !v)}
+            title="Set the in-world date — places this chapter on the Timeline">
+            {dateLabel || "Add date"}
+          </button>
           <span className="ed-dot">·</span>
           <div className="ed-status-wrap" ref={statusWrap}>
             <button className={"ed-status" + (statusMenu ? " on" : "")} onClick={() => setStatusMenu((v) => !v)} title="Chapter status">

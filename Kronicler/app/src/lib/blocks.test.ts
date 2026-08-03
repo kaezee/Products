@@ -1,0 +1,80 @@
+import { describe, it, expect } from "vitest";
+import { toggleBlock, insertSceneBreak, activeFormats } from "./blocks";
+
+describe("toggleBlock — single line", () => {
+  it("adds a heading prefix to the caret's line", () => {
+    const r = toggleBlock("hello world", 3, 3, "h");
+    expect(r.next).toBe("# hello world");
+  });
+  it("removes it when it's already there (toggle off)", () => {
+    const r = toggleBlock("# hello world", 4, 4, "h");
+    expect(r.next).toBe("hello world");
+  });
+  it("replaces a different block prefix rather than stacking", () => {
+    const r = toggleBlock("> a quote", 4, 4, "ul");
+    expect(r.next).toBe("- a quote");
+  });
+  it("only touches the caret's line, not the whole document", () => {
+    const text = "first para\nsecond para\nthird para";
+    const r = toggleBlock(text, 14, 14, "h"); // caret in "second para"
+    expect(r.next).toBe("first para\n# second para\nthird para");
+  });
+});
+
+describe("toggleBlock — multi-line selection", () => {
+  const list = "milk\neggs\nbread";
+  it("bullets every selected line", () => {
+    const r = toggleBlock(list, 0, list.length, "ul");
+    expect(r.next).toBe("- milk\n- eggs\n- bread");
+  });
+  it("numbers every selected line, renumbering from 1", () => {
+    const r = toggleBlock(list, 0, list.length, "ol");
+    expect(r.next).toBe("1. milk\n2. eggs\n3. bread");
+  });
+  it("toggles off only when every line already has it", () => {
+    const bulleted = "- milk\n- eggs\n- bread";
+    expect(toggleBlock(bulleted, 0, bulleted.length, "ul").next).toBe("milk\neggs\nbread");
+  });
+  it("applies (not removes) when only some lines have it", () => {
+    const mixed = "- milk\neggs";
+    expect(toggleBlock(mixed, 0, mixed.length, "ul").next).toBe("- milk\n- eggs");
+  });
+  it("does not drag in the next line when the selection ends at a line start", () => {
+    const text = "one\ntwo\nthree";
+    const r = toggleBlock(text, 0, 4, "h"); // selects "one\n", ends at start of "two"
+    expect(r.next).toBe("# one\ntwo\nthree");
+  });
+  it("leaves blank lines alone", () => {
+    const text = "a\n\nb";
+    expect(toggleBlock(text, 0, text.length, "ul").next).toBe("- a\n\n- b");
+  });
+});
+
+describe("insertSceneBreak", () => {
+  it("drops a break line after the caret's line", () => {
+    const r = insertSceneBreak("end of scene", 5);
+    expect(r.next).toBe("end of scene\n* * *\n");
+    expect(r.start).toBe(r.next.length); // caret past the break
+  });
+});
+
+describe("activeFormats", () => {
+  it("reports bold when the caret sits inside a bold run", () => {
+    const text = "a **bold** word";
+    expect(activeFormats(text, 5, 5).bold).toBe(true);   // inside "bold"
+    expect(activeFormats(text, 0, 0).bold).toBe(false);  // outside
+  });
+  it("reports italic inside an italic run", () => {
+    const text = "a *slanted* word";
+    expect(activeFormats(text, 4, 4).italic).toBe(true);
+  });
+  it("reports the block format of the caret's line", () => {
+    expect(activeFormats("# Title", 3, 3).heading).toBe(true);
+    expect(activeFormats("> quoted", 3, 3).quote).toBe(true);
+    expect(activeFormats("- item", 3, 3).ul).toBe(true);
+    expect(activeFormats("2. step", 3, 3).ol).toBe(true);
+  });
+  it("reports nothing on plain text", () => {
+    expect(activeFormats("just words", 4, 4)).toMatchObject({ bold: false, italic: false, heading: false, quote: false, ul: false, ol: false });
+  });
+});

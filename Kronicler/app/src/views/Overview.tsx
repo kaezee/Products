@@ -124,18 +124,20 @@ export function Overview({ worldId, go }: { worldId: string; go: (n: Nav) => voi
   const shapeBits: string[] = [];
   if (stats.cast) shapeBits.push(`${stats.cast} character${stats.cast === 1 ? "" : "s"}`);
   if (stats.places) shapeBits.push(`${stats.places} place${stats.places === 1 ? "" : "s"}`);
-  if (stats.total) shapeBits.push(`${stats.written} of ${stats.total} chapters written`);
+  if (stats.written) shapeBits.push(`${stats.written} chapter${stats.written === 1 ? "" : "s"}`);
   if (stats.words) shapeBits.push(`${fmt(stats.words)} words`);
   const shape = shapeBits.length ? shapeBits.join(" · ") : "A new world — nothing in it yet. Start below.";
 
-  const tiles: { key: string; icon: IconName; label: string; value: string; sub: string; nav: Nav }[] = [
-    { key: "cast", icon: "cast", label: "Characters", value: fmt(stats.cast), sub: `${fmt(stats.entities)} entities`, nav: { scope: "library" } },
-    { key: "places", icon: "place", label: "Places", value: fmt(stats.places), sub: "in the library", nav: { scope: "library" } },
-    { key: "chapters", icon: "manuscript", label: "Chapters", value: fmt(stats.written), sub: stats.planned ? `+ ${stats.planned} planned` : `of ${stats.total}`, nav: { scope: "manuscript" } },
-    { key: "words", icon: "words", label: "Words", value: fmt(stats.words), sub: "in the manuscript", nav: { scope: "manuscript" } },
-    { key: "rel", icon: "relationships", label: "Relationships", value: fmt(stats.relCount), sub: `${fmt(stream.length)} states`, nav: { scope: "relationships" } },
-    { key: "dated", icon: "timeline", label: "Dated", value: `${fmt(stats.dated)}/${fmt(stats.total)}`, sub: "on the timeline", nav: { scope: "timeline" } },
-  ];
+  // §5 cards: exactly four, each appearing only when it has something to report
+  // (never a zero, never a denominator). A new project earns them one at a time.
+  type Tile = { key: string; icon: IconName; label: string; value: string; sub?: string; nav: Nav };
+  const worldCount = stats.cast + stats.places;
+  const tiles: Tile[] = ([
+    stats.words   && { key: "words", icon: "words", label: "Words", value: fmt(stats.words), nav: { scope: "manuscript" } },
+    stats.written && { key: "chapters", icon: "manuscript", label: "Chapters", value: fmt(stats.written), sub: "written", nav: { scope: "manuscript" } },
+    stream.length && { key: "moments", icon: "asterisk", label: "Moments", value: fmt(stream.length), sub: "recorded", nav: { scope: "relationships" } },
+    worldCount    && { key: "world", icon: "cast", label: "Your world", value: fmt(worldCount), sub: "people and places", nav: { scope: "library" } },
+  ] as (Tile | 0 | "")[]).filter(Boolean) as Tile[];
 
   // Getting-started checklist — the dashboard's "taking shape" state. Each step
   // checks off from real data; the card retires itself once all four are done.
@@ -205,16 +207,16 @@ export function Overview({ worldId, go }: { worldId: string; go: (n: Nav) => voi
       )}
 
       {hasContent && <>
-      {/* World at a glance */}
-      <div className="dash-stats">
+      {/* World at a glance — cards appear only when earned (§5) */}
+      {tiles.length > 0 && <div className="dash-stats">
         {tiles.map((t) => (
           <button key={t.key} className="stat" onClick={() => go(t.nav)}>
             <span className="stat-top"><Icon name={t.icon} size={13} /><span className="stat-lab">{t.label}</span></span>
             <span className="stat-num">{t.value}</span>
-            <span className="stat-sub">{t.sub}</span>
+            {t.sub && <span className="stat-sub">{t.sub}</span>}
           </button>
         ))}
-      </div>
+      </div>}
 
       {/* Continue writing / launchpad */}
       <div className="dash-continue">

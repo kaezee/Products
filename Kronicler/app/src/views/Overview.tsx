@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { getStream, getEntities, getRelationshipTypes, getChapters, softDeleteEntity, getNotes, getWorldComments } from "../lib/api";
+import { getStream, getEntities, getRelationshipTypes, getChapters, getNotes, getWorldComments } from "../lib/api";
 import type { StreamRow, Entity, RelationshipType, Chapter, Note, Comment } from "../lib/types";
 import { isBelief } from "../lib/knowledge";
 import { findIssues } from "../lib/continuity";
@@ -7,7 +7,6 @@ import { findDuplicates } from "../lib/dedupe";
 import type { Nav } from "../App";
 import { VALENCE_COLOR } from "../lib/valence";
 import { Icon, type IconName } from "../components/icons";
-import { confirmDialog } from "../components/confirm";
 import { Skeleton } from "../components/Skeleton";
 
 const DORMANT_GAP = 5;
@@ -26,10 +25,7 @@ export function Overview({ worldId, go }: { worldId: string; go: (n: Nav) => voi
   const [notes, setNotes] = useState<Note[]>([]);
   const [comments, setComments] = useState<Comment[]>([]);
   const [err, setErr] = useState<string | null>(null);
-  const [allOrphans, setAllOrphans] = useState(false);
   const [checklistOff, setChecklistOff] = useState(() => localStorage.getItem(`k.checklist.${worldId}`) === "1");
-
-  const ORPHAN_CAP = 8;
 
   useEffect(() => {
     let alive = true;
@@ -45,13 +41,6 @@ export function Overview({ worldId, go }: { worldId: string; go: (n: Nav) => voi
     () => [...(stream ?? [])].sort((a, b) => (b.created_at > a.created_at ? 1 : -1)).slice(0, 6),
     [stream],
   );
-
-  const orphans = useMemo(() => {
-    if (!stream) return [];
-    const seen = new Set<string>();
-    stream.forEach((s) => s.participants.forEach((p) => seen.add(p.entity_id)));
-    return entities.filter((e) => !seen.has(e.id));
-  }, [stream, entities]);
 
   const dormant = useMemo(() => {
     if (!stream) return [];
@@ -105,20 +94,33 @@ export function Overview({ worldId, go }: { worldId: string; go: (n: Nav) => voi
   const chById = useMemo(() => new Map(chapters.map((c) => [c.id, c])), [chapters]);
   const recentNotes = useMemo(() => [...notes].reverse().slice(0, 4), [notes]);
 
-  async function delOrphan(e: Entity, ev: React.MouseEvent) {
-    ev.stopPropagation();
-    if (!(await confirmDialog({ title: "Delete entity", message: `Delete "${e.title}"? It's soft-deleted — recoverable, nothing is truly lost.`, confirmLabel: "Delete", tone: "danger" }))) return;
-    try {
-      await softDeleteEntity(e.id);
-      setEntities((prev) => prev.filter((x) => x.id !== e.id));
-    } catch (x) { setErr(String(x)); }
+  // "Keep both" on a duplicate question is permanent for that pair — the writer
+  // with twin brothers named Holmes must never see it again (§9 ruling).
+  const [dupKept, setDupKept] = useState<Set<string>>(() => {
+    try { return new Set<string>(JSON.parse(localStorage.getItem(`k.dup.${worldId}`) || "[]")); } catch { return new Set<string>(); }
+  });
+  function keepBoth(key: string) {
+    setDupKept((prev) => {
+      const n = new Set(prev); n.add(key);
+      localStorage.setItem(`k.dup.${worldId}`, JSON.stringify([...n]));
+      return n;
+    });
   }
 
   if (err) return <p className="err">{err}</p>;
   if (!stream) return <OverviewSkeleton />;
 
   const who = (s: StreamRow) => s.participants.map((p) => p.title).join(" · ");
-  const attentionCount = duplicates.length + contradictions.length + orphaned.length + dormant.length + orphans.length + ironies.length;
+
+  // Worth a look (§9 rulings): honest duplicate questions, dramatic irony, and
+  // dormant threads. Reopened moves to Recently; lost anchors become one quiet
+  // aggregate line; unconnected entities are not flagged pre-composer at all.
+  const dupList = duplicates.filter((d) => !dupKept.has(d.key));
+  const typeWord = (e: Entity, n: number) => { const t = (e.type || "thing").toLowerCase(); return n === 1 ? t : `${t}s`; };
+  const lookItems = dupList.length + ironies.length + dormant.length;
+  const LOOK_CAP = 3;
+  let lookShown = 0;
+  const nextLook = () => (lookShown < LOOK_CAP ? (lookShown++, true) : false);
 
   // shape sentence
   const shapeBits: string[] = [];
@@ -247,11 +249,10 @@ export function Overview({ worldId, go }: { worldId: string; go: (n: Nav) => voi
       {/* Writer's trail (§2): unresolved comments + recent notes, deep-linked. */}
       {(openComments.length > 0 || recentNotes.length > 0) && (
         <div style={{ marginBottom: 18 }}>
-          <div className="label" style={{ marginTop: 0 }}>Writer's trail</div>
+          <div className="label" style={{ marginTop: 0 }}>What you left yourself</div>
           <div className="card">
             {openComments.length > 0 && (
               <div className="row click" onClick={() => go({ scope: "manuscript", chapterId: openComments[0].chapter_id })}>
-                <span className="chip">comments</span>
                 <span style={{ fontSize: 12.5 }}>
                   <b>{openComments.length}</b> unresolved comment{openComments.length === 1 ? "" : "s"} across {commentChapters.size} chapter{commentChapters.size === 1 ? "" : "s"}
                 </span>
@@ -266,7 +267,6 @@ export function Overview({ worldId, go }: { worldId: string; go: (n: Nav) => voi
               const nav: Nav = ch ? { scope: "manuscript", chapterId: ch.id } : ent ? { scope: "library", entityId: ent.id } : { scope: "overview" };
               return (
                 <div className="row click" key={n.id} onClick={() => go(nav)}>
-                  <span className="chip warn">note</span>
                   <span style={{ fontSize: 12.5, flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                     {n.body.trim().slice(0, 70) || <span className="muted">(empty note)</span>}
                   </span>
@@ -278,90 +278,70 @@ export function Overview({ worldId, go }: { worldId: string; go: (n: Nav) => voi
         </div>
       )}
 
-      <div className="dash-cols">
-        <div>
-          <div className="label" style={{ marginTop: 0 }}>Recent activity</div>
+      {/* Worth a look (§4.3) — honest questions and observations, no chips, no count */}
+      {lookItems > 0 && (
+        <div style={{ marginBottom: 18 }}>
+          <div className="label" style={{ marginTop: 0 }}>Worth a look</div>
           <div className="card">
-            {recent.length === 0 && <div className="row"><span className="muted">No moments yet — select a line in a chapter and record what changes.</span></div>}
-            {recent.map((s) => (
-              <div className="row click" key={s.state_id} onClick={() => go({ scope: "relationships" })}>
-                <span className="dot" style={{ background: VALENCE_COLOR[s.valence] }} />
-                <span style={{ fontWeight: 500 }}>
-                  {who(s)} <span style={{ color: VALENCE_COLOR[s.valence], fontWeight: 600 }}>{s.type_label}</span>
-                </span>
-                <span className="spacer" />
-                <span className="muted">{s.manuscript_order != null ? `ch. ${s.manuscript_order}` : "—"}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div>
-          <div className="label" style={{ marginTop: 0, display: "flex", alignItems: "center", gap: 8 }}>
-            Needs attention {attentionCount > 0 && <span className="dash-count">{attentionCount}</span>}
-          </div>
-          <div className="card">
-            {attentionCount === 0 && (
-              <div className="row"><span className="muted" style={{ display: "inline-flex", alignItems: "center", gap: 6 }}><Icon name="done" size={14} style={{ color: "var(--bond)" }} /> Nothing flagged — every thread is live and every entity connected.</span></div>
-            )}
-            {duplicates.map((d) => (
-              <div className="row click" key={"dup" + d.key} onClick={() => go({ scope: "library", entityId: d.entities[0].id })}>
-                <span className="chip warn">duplicate?</span>
-                <span style={{ fontSize: 12.5 }}>
+            {dupList.map((d) => nextLook() && (
+              <div className="row" key={"dup" + d.key}>
+                <span style={{ fontSize: 12.5, flex: 1, minWidth: 0 }}>
                   {d.reason === "same-name"
-                    ? <><b>{d.entities.length}</b> entities named “{d.entities[0].title}” — likely the same thing, twice.</>
-                    : <>“{d.entities[0].title}” is already an alias of <b>{d.entities[1].title}</b> — likely a duplicate.</>}
+                    ? <>{d.entities.length === 2 ? "Two" : d.entities.length} {typeWord(d.entities[0], d.entities.length)} are called <b>{d.entities[0].title}</b>. Same {typeWord(d.entities[0], 1)}, or {d.entities.length === 2 ? "two" : "separate"}?</>
+                    : <><b>{d.entities[0].title}</b> is a {typeWord(d.entities[0], 1)} of its own, and also an alias of <b>{d.entities[1].title}</b>. Same thing, or two?</>}
                 </span>
+                <button className="ghost" style={{ fontSize: 11.5, padding: "3px 8px" }} onClick={() => go({ scope: "library", entityId: d.entities[0].id })}>Merge</button>
+                <button className="ghost" style={{ fontSize: 11.5, padding: "3px 8px" }} onClick={() => keepBoth(d.key)}>Keep both</button>
               </div>
             ))}
-            {contradictions.map((c) => (
-              <div className="row click" key={"c" + c.relId} onClick={() => c.entityId && go({ scope: "library", entityId: c.entityId })}>
-                <span className="chip" style={{ borderColor: "var(--hostileLine)", background: "transparent", color: "var(--hostile)" }}>reopened</span>
-                <span style={{ fontSize: 12.5 }}>
-                  <b>{c.who}</b> — “{c.termLabel}” (ended) in ch. {c.termCh}, but “{c.laterLabel}” in ch. {c.laterCh}
-                </span>
-              </div>
-            ))}
-            {orphaned.map((c) => (
-              <div className="row click" key={"o" + c.relId} onClick={() => go({ scope: "relationships" })}>
-                <span className="chip warn">lost chapter</span>
-                <span style={{ fontSize: 12.5 }}>
-                  <b>{c.who}</b> · {c.label} — marked in a chapter that's since been deleted, so it shows as “standing”. Re-mark it{c.note ? <> (“{c.note.slice(0, 40)}{c.note.length > 40 ? "…" : ""}”)</> : null}.
-                </span>
-              </div>
-            ))}
-            {ironies.map((c) => (
+            {ironies.map((c) => nextLook() && (
               <div className="row click" key={"i" + c.relId} onClick={() => go({ scope: "relationships" })}>
-                <span className="chip" style={{ borderColor: "var(--obligationLine)", background: "transparent", color: "var(--obligation)", display: "inline-flex", alignItems: "center", gap: 4 }}><Icon name="drama" size={11} /> irony</span>
                 <span style={{ fontSize: 12.5 }}>
                   <b>{c.believers}</b> believe{c.believers.includes(",") ? "" : "s"} it's <span style={{ color: "var(--obligation)", fontWeight: 600 }}>{c.belief}</span> — the reader knows it's <span style={{ color: "var(--hostile)", fontWeight: 600 }}>{c.truth}</span>.
                 </span>
               </div>
             ))}
-            {dormant.map((s) => (
+            {dormant.map((s) => nextLook() && (
               <div className="row click" key={"d" + s.state_id} onClick={() => go({ scope: "relationships" })}>
-                <span className="chip warn">dormant</span>
-                <span style={{ fontSize: 12.5 }}>{who(s)} · {s.type_label}</span>
+                <span style={{ fontSize: 12.5 }}><b>{who(s)}</b> · {s.type_label} — untouched for a while.</span>
               </div>
             ))}
-            {(allOrphans ? orphans : orphans.slice(0, ORPHAN_CAP)).map((e) => (
-              <div className="row click" key={e.id} onClick={() => go({ scope: "library", entityId: e.id })}>
-                <span className="chip warn">unconnected</span>
-                <span style={{ fontSize: 12.5 }}>{e.title}</span>
-                <span className="spacer" />
-                <span className="muted">no relationships yet</span>
-                <span title={`Delete ${e.title}`} onClick={(ev) => delOrphan(e, ev)}
-                  style={{ color: "var(--faint)", cursor: "pointer", padding: "0 4px", display: "inline-flex" }}><Icon name="close" size={14} /></span>
-              </div>
-            ))}
-            {orphans.length > ORPHAN_CAP && (
-              <div className="row click" onClick={() => setAllOrphans((v) => !v)}>
-                <span className="muted" style={{ fontSize: 12 }}>
-                  {allOrphans ? "Show fewer" : `+${orphans.length - ORPHAN_CAP} more unconnected — show all`}
-                </span>
-              </div>
+            {lookItems > LOOK_CAP && (
+              <div className="row"><span className="muted" style={{ fontSize: 12 }}>{lookItems - LOOK_CAP} more</span></div>
+            )}
+            {/* Lost anchors are a broken pointer, not a story observation — one quiet line (§9) */}
+            {orphaned.length > 0 && (
+              <div className="row"><span className="muted" style={{ fontSize: 12 }}>
+                {orphaned.length} moment{orphaned.length === 1 ? "" : "s"} no longer point at any text — fix from the chapter's Continuity panel.
+              </span></div>
             )}
           </div>
+        </div>
+      )}
+
+      {/* Recently — moments in reverse order; reopened threads read as chronicle here (§9) */}
+      <div style={{ marginBottom: 18 }}>
+        <div className="label" style={{ marginTop: 0 }}>Recently</div>
+        <div className="card">
+          {recent.length === 0 && contradictions.length === 0 && <div className="row"><span className="muted">No moments yet — select a line in a chapter and record what changes.</span></div>}
+          {contradictions.map((c) => (
+            <div className="row click" key={"re" + c.relId} onClick={() => c.entityId && go({ scope: "library", entityId: c.entityId })}>
+              <span className="dot" style={{ background: "var(--hostile)" }} />
+              <span style={{ fontWeight: 500 }}>
+                <b>{c.who}</b> are <span style={{ color: "var(--hostile)", fontWeight: 600 }}>{c.laterLabel}</span> again — they were {c.termLabel} in ch. {c.termCh}.
+              </span>
+            </div>
+          ))}
+          {recent.map((s) => (
+            <div className="row click" key={s.state_id} onClick={() => go({ scope: "relationships" })}>
+              <span className="dot" style={{ background: VALENCE_COLOR[s.valence] }} />
+              <span style={{ fontWeight: 500 }}>
+                {who(s)} <span style={{ color: VALENCE_COLOR[s.valence], fontWeight: 600 }}>{s.type_label}</span>
+              </span>
+              <span className="spacer" />
+              <span className="muted">{s.manuscript_order != null ? `ch. ${s.manuscript_order}` : "—"}</span>
+            </div>
+          ))}
         </div>
       </div>
       </>}

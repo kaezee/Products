@@ -4,6 +4,7 @@ import type { Entity, EntityType } from "../lib/types";
 import { scanMentions } from "../lib/mentions";
 import { scanEmphasis, toggleMarker } from "../lib/emphasis";
 import { MARK_MOMENT } from "../lib/shortcuts";
+import { makeAnchor, type Anchor } from "../lib/anchor";
 import { toggleBlock, insertSceneBreak, enterEdit, activeFormats, type BlockKind, type ActiveFormats } from "../lib/blocks";
 import { getEntityTypes } from "../lib/api";
 import { buildTypeSwatches } from "../lib/entityTypes";
@@ -48,7 +49,7 @@ export function RichProse({ value, entities, onChange, onSelectText, onActive, o
   onOpenEntity?: (id: string) => void;
   stateOf?: (entityId: string) => MentionState[];
   onMarkEntity?: () => void;
-  onMarkMoment?: () => void;
+  onMarkMoment?: (anchor: Anchor) => void;
   onComment?: (range: { start: number; end: number; quote: string }) => void;
   apiRef?: (api: ProseApi | null) => void;
   placeholder?: string;
@@ -246,6 +247,17 @@ export function RichProse({ value, entities, onChange, onSelectText, onActive, o
 
   // Block formats: act on every line the selection covers (or the caret's line),
   // or drop a scene break. All via the tested pure transforms in lib/blocks.
+  // Mark a moment over the current (or last) selection, capturing a prose anchor
+  // so the moment can be shown in the margin and survive later edits.
+  function fireMarkMoment() {
+    const el = edRef.current;
+    const range = (el && selectionOffsets(el)) || lastRange.current;
+    if (onMarkMoment && el && range && range.end - range.start >= 3) {
+      onMarkMoment(makeAnchor(el.textContent ?? "", range.start, range.end));
+    }
+    setSel(null);
+  }
+
   function applyBlock(kind: BlockKind | "hr") {
     const el = edRef.current;
     if (!el) return;
@@ -341,9 +353,7 @@ export function RichProse({ value, entities, onChange, onSelectText, onActive, o
     // selection (≥3 chars), same gate as the popover verb.
     if (MARK_MOMENT.matches(e)) {
       e.preventDefault();
-      const el = edRef.current;
-      const range = el ? selectionOffsets(el) : null;
-      if (onMarkMoment && range && range.end - range.start >= 3) onMarkMoment();
+      fireMarkMoment();
       return;
     }
     // Own Enter (and Shift+Enter) for every browser. Native insertion drops the
@@ -460,7 +470,7 @@ export function RichProse({ value, entities, onChange, onSelectText, onActive, o
               <button key="me" onClick={() => { onMarkEntity(); setSel(null); }} title="Tag the selection as a character, place, item…">✦ Mark entity</button>
             );
             const markMoment = onMarkMoment && (
-              <button key="mm" disabled={sel.len < 3} onClick={() => { onMarkMoment(); setSel(null); }} title="Record what happens between characters in the selection">✳ Mark a moment <span className="annot-kbd">{MARK_MOMENT.label}</span></button>
+              <button key="mm" disabled={sel.len < 3} onClick={() => fireMarkMoment()} title="Record what happens between characters in the selection">✳ Mark a moment <span className="annot-kbd">{MARK_MOMENT.label}</span></button>
             );
             return sel.word ? [markEntity, markMoment] : [markMoment, markEntity];
           })()}

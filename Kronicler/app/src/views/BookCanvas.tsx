@@ -13,6 +13,7 @@ import { statesAsOf } from "../lib/mentionState";
 import { CANONICAL_ENTITY_TYPES, CUSTOM_TYPE } from "../lib/entityTypes";
 import { getLevelNames } from "../lib/levelNames";
 import { Composer } from "./Composer";
+import type { Anchor } from "../lib/anchor";
 import { BriefPanel } from "./BriefPanel";
 import { RichProse, type ProseApi } from "./RichProse";
 import { ChapterDate } from "./ChapterDate";
@@ -42,7 +43,7 @@ function ChapterBlock({
   onSelect: (chapterId: string, text: string) => void;
   onMentions: (chapterId: string, ids: string[]) => void;
   onMarkEntity: (chapterId: string) => void;
-  onMarkMoment: (chapterId: string) => void;
+  onMarkMoment: (chapterId: string, anchor: Anchor) => void;
   onComment: (chapterId: string, range: { start: number; end: number; quote: string }) => void;
   registerApi: (chapterId: string, api: ProseApi | null) => void;
   onSaveState: (s: SaveState) => void;
@@ -178,7 +179,7 @@ function ChapterBlock({
         onOpenEntity={onOpenEntity}
         stateOf={stOf}
         onMarkEntity={() => onMarkEntity(chapter.id)}
-        onMarkMoment={() => onMarkMoment(chapter.id)}
+        onMarkMoment={(anchor) => onMarkMoment(chapter.id, anchor)}
         onComment={(range) => onComment(chapter.id, range)}
         apiRef={setApi}
         placeholder="Write the chapter here. Known names light up as you type — hover one to peek. Select a sentence to record a moment."
@@ -244,6 +245,7 @@ export function BookCanvas(props: {
   }, []);
 
   const [composerOpen, setComposerOpen] = useState(false);
+  const [pendingAnchor, setPendingAnchor] = useState<Anchor | null>(null);
   const [dismissed, setDismissed] = useState<Set<string>>(new Set());
   const [noteCount, setNoteCount] = useState(0);
   const [commentCount, setCommentCount] = useState(0);
@@ -487,7 +489,7 @@ export function BookCanvas(props: {
               onOpenEntity={onOpenEntity} onSelect={onSelect}
               onMentions={onMentions}
               onMarkEntity={(id) => openMarkEntity(id)}
-              onMarkMoment={(id) => { setEntChId(id); setComposerOpen(true); }}
+              onMarkMoment={(id, anchor) => { setEntChId(id); setPendingAnchor(anchor); setComposerOpen(true); }}
               onComment={onComment} registerApi={registerApi} onSaveState={setChSaveState}
               onActive={setActive}
               onDateChanged={() => onChapterMetaChanged?.()} />
@@ -591,7 +593,8 @@ export function BookCanvas(props: {
             types={types}
             castIds={castIds}
             note={selText.trim()}
-            onClose={() => setComposerOpen(false)}
+            anchor={pendingAnchor}
+            onClose={() => { setComposerOpen(false); setPendingAnchor(null); }}
             onAppended={() => reloadActiveSide(activeId)}
             onTypesChanged={() => getRelationshipTypes(worldId).then(setTypes).catch(() => {})}
           />

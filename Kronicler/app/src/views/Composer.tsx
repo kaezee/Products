@@ -1,5 +1,6 @@
 import { useMemo, useRef, useState } from "react";
-import { appendPairwiseState, createRelationshipType, setStateKnownBy } from "../lib/api";
+import { appendPairwiseState, createRelationshipType, setStateKnownBy, setStateAnchor } from "../lib/api";
+import type { Anchor } from "../lib/anchor";
 import type { Entity, RelationshipType, Valence } from "../lib/types";
 import { VALENCE_COLOR } from "../lib/valence";
 import { Icon } from "../components/icons";
@@ -19,11 +20,12 @@ export function Composer(props: {
   types: RelationshipType[];
   castIds: string[];
   note: string;
+  anchor: Anchor | null;
   onClose: () => void;
   onAppended: () => void;
   onTypesChanged: () => void;
 }) {
-  const { worldId, chapterId, chapterOrder, chapterTitle, entities, types, castIds, note, onClose, onAppended, onTypesChanged } = props;
+  const { worldId, chapterId, chapterOrder, chapterTitle, entities, types, castIds, note, anchor, onClose, onAppended, onTypesChanged } = props;
 
   const ordered = useMemo(() => {
     // cast first, then everyone else — you usually mark the people on the page
@@ -74,6 +76,9 @@ export function Composer(props: {
         concealedFrom: intent === "truth" ? concealed : [],
       });
       if (intent === "belief") await setStateKnownBy(stateId, { believed_by: believers });
+      // §(b): anchor the moment to the marked prose (all beats in this session
+      // share the one selection). Best-effort — a failed anchor never blocks the moment.
+      if (anchor) { try { await setStateAnchor(stateId, anchor); } catch { /* leaves anchor null; still a valid moment */ } }
       onAppended();
       // rapid entry: keep the composer open for the next beat in this scene
       setAdded((n) => n + 1);

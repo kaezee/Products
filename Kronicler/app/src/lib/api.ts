@@ -638,6 +638,20 @@ export async function appendGroupState(args: {
 // Attribute a state as a belief (or set any known_by shape). A belief carries
 // { believed_by: [ids] } — what those characters think is true, which the lens
 // substitutes over the truth. Passing null clears it back to objective truth.
+// Attach (or repair) a prose anchor on a state. status defaults to 'ok'; the
+// resolver passes 'stale' when a quote can no longer be found.
+export async function setStateAnchor(
+  stateId: string,
+  a: { quote: string; prefix: string; suffix: string; start: number; end: number },
+  status: "ok" | "stale" = "ok",
+): Promise<void> {
+  const { error } = await supabase.from("relationship_states").update({
+    anchor_quote: a.quote, anchor_prefix: a.prefix, anchor_suffix: a.suffix,
+    anchor_start: a.start, anchor_end: a.end, anchor_status: status,
+  }).eq("id", stateId);
+  if (error) throw error;
+}
+
 export async function setStateKnownBy(
   stateId: string,
   knownBy: { concealed_from?: string[]; believed_by?: string[] } | null,

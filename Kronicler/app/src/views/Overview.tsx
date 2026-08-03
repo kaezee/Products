@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
-import { getStream, getEntities, getRelationshipTypes, getChapters, getNotes, getWorldComments } from "../lib/api";
+import { getStream, getEntities, getRelationshipTypes, getChapters, getNotes, getWorldComments, getWorld } from "../lib/api";
 import type { StreamRow, Entity, RelationshipType, Chapter, Note, Comment } from "../lib/types";
+import { detectMentions } from "../lib/mentions";
 import { isBelief } from "../lib/knowledge";
 import { findIssues } from "../lib/continuity";
 import { findDuplicates } from "../lib/dedupe";
@@ -25,12 +26,21 @@ export function Overview({ worldId, go }: { worldId: string; go: (n: Nav) => voi
   const [notes, setNotes] = useState<Note[]>([]);
   const [comments, setComments] = useState<Comment[]>([]);
   const [err, setErr] = useState<string | null>(null);
-  const [checklistOff, setChecklistOff] = useState(() => localStorage.getItem(`k.checklist.${worldId}`) === "1");
+  const [worldName, setWorldName] = useState("");
+
+  // §4.1 time away, measured writer-side (there is no per-chapter timestamp): the
+  // gap since this world was last opened in THIS browser. Read the prior mark
+  // before the effect overwrites it, so a returning writer sees the recap once.
+  const [awayMs] = useState(() => {
+    const prev = Number(localStorage.getItem(`k.seen.${worldId}`) || 0);
+    return prev ? Date.now() - prev : 0;
+  });
+  useEffect(() => { localStorage.setItem(`k.seen.${worldId}`, String(Date.now())); }, [worldId]);
 
   useEffect(() => {
     let alive = true;
-    Promise.all([getStream(worldId), getEntities(worldId), getRelationshipTypes(worldId), getChapters(worldId), getNotes(worldId), getWorldComments(worldId)])
-      .then(([s, e, t, c, n, cm]) => { if (!alive) return; setStream(s); setEntities(e); setTypes(t); setChapters(c); setNotes(n); setComments(cm); })
+    Promise.all([getStream(worldId), getEntities(worldId), getRelationshipTypes(worldId), getChapters(worldId), getNotes(worldId), getWorldComments(worldId), getWorld(worldId)])
+      .then(([s, e, t, c, n, cm, w]) => { if (!alive) return; setStream(s); setEntities(e); setTypes(t); setChapters(c); setNotes(n); setComments(cm); setWorldName(w.name); })
       .catch((x) => alive && setErr(String(x)));
     return () => { alive = false; };
   }, [worldId]);
@@ -56,6 +66,44 @@ export function Overview({ worldId, go }: { worldId: string; go: (n: Nav) => voi
       if (t?.is_ambient || t?.is_terminal) return false;
       return s.manuscript_order != null && now - s.manuscript_order >= DORMANT_GAP;
     });
+  }, [stream, typesById]);
+
+  // §3.1 derived from mention detection: who's on the page lately, and who has
+  // slipped out of the story. Scans each written chapter's prose for known names.
+  const mentions = useMemo(() => {
+    const written = chapters.filter((c) => !c.planned && (c.body || "").trim())
+      .sort((a, b) => a.manuscript_order - b.manuscript_order);
+    const perCh = new Map<string, Set<string>>();
+    const lastSeen = new Map<string, number>();
+    for (const c of written) {
+      const ids = new Set(detectMentions(c.body, entities).map((e) => e.id));
+      perCh.set(c.id, ids);
+      ids.forEach((id) => lastSeen.set(id, Math.max(lastSeen.get(id) ?? 0, c.manuscript_order)));
+    }
+    const maxOrder = written.length ? written[written.length - 1].manuscript_order : 0;
+    const inPlayIds = new Set<string>();
+    written.slice(-2).forEach((c) => perCh.get(c.id)?.forEach((id) => inPlayIds.add(id)));
+    const whoInPlay = entities.filter((e) => inPlayIds.has(e.id)).slice(0, 5);
+    const GAP = 3; // chapters absent before it's worth noting
+    const absent = entities
+      .filter((e) => lastSeen.has(e.id) && maxOrder - lastSeen.get(e.id)! >= GAP)
+      .map((e) => ({ e, since: lastSeen.get(e.id)! }))
+      .sort((a, b) => a.since - b.since);
+    return { whoInPlay, absent };
+  }, [chapters, entities]);
+
+  // §4.4 "What's true right now" — the latest truth state of each live thread.
+  const truths = useMemo(() => {
+    const m = new Map<string, StreamRow>();
+    for (const s of stream ?? []) {
+      if (isBelief(s) || s.is_correction) continue;
+      const cur = m.get(s.relationship_id);
+      if (!cur || (s.manuscript_order ?? -1) > (cur.manuscript_order ?? -1)) m.set(s.relationship_id, s);
+    }
+    return [...m.values()]
+      .filter((s) => !typesById.get(s.type_id)?.is_ambient)
+      .sort((a, b) => (b.manuscript_order ?? 0) - (a.manuscript_order ?? 0))
+      .slice(0, 4);
   }, [stream, typesById]);
 
   // Continuity checks (lib/continuity, node-tested): reopened threads, states
@@ -117,7 +165,7 @@ export function Overview({ worldId, go }: { worldId: string; go: (n: Nav) => voi
   // aggregate line; unconnected entities are not flagged pre-composer at all.
   const dupList = duplicates.filter((d) => !dupKept.has(d.key));
   const typeWord = (e: Entity, n: number) => { const t = (e.type || "thing").toLowerCase(); return n === 1 ? t : `${t}s`; };
-  const lookItems = dupList.length + ironies.length + dormant.length;
+  const lookItems = dupList.length + ironies.length + dormant.length + mentions.absent.length;
   const LOOK_CAP = 3;
   let lookShown = 0;
   const nextLook = () => (lookShown < LOOK_CAP ? (lookShown++, true) : false);
@@ -141,22 +189,6 @@ export function Overview({ worldId, go }: { worldId: string; go: (n: Nav) => voi
     worldCount    && { key: "world", icon: "cast", label: "Your world", value: fmt(worldCount), sub: "people and places", nav: { scope: "library" } },
   ] as (Tile | 0 | "")[]).filter(Boolean) as Tile[];
 
-  // Getting-started checklist — the dashboard's "taking shape" state. Each step
-  // checks off from real data; the card retires itself once all four are done.
-  // Some steps have a prerequisite: you can't mark a moment or date a chapter
-  // until prose exists to do it in. Those stay locked (dimmed, non-actionable)
-  // with a hint, so the checklist never sends the writer somewhere that can't
-  // yet do the thing it's asking for.
-  const hasProse = chapters.some((c) => !c.planned && (c.body || "").trim().length > 0);
-  const steps: { done: boolean; label: string; desc: string; nav: Nav; locked?: boolean; lockHint?: string }[] = [
-    { done: stats.total > 0, label: "Write your first chapter", desc: "Just start typing — even a title is enough to begin.", nav: { scope: "manuscript" } },
-    { done: stats.entities > 0, label: "Add someone, somewhere, or something", desc: "A character, a place, a faction — anyone in your story.", nav: { scope: "library" } },
-    { done: stats.relCount > 0, label: "Mark a moment", desc: "In a chapter, select a line and record what happens between two characters.", nav: { scope: "manuscript" }, locked: !hasProse, lockHint: "Write a chapter first" },
-    { done: stats.dated > 0, label: "Place it in time", desc: "Give a chapter a date and it lands on your timeline.", nav: { scope: "timeline" }, locked: stats.total === 0, lockHint: "Write a chapter first" },
-  ];
-  const doneCount = steps.filter((s) => s.done).length;
-  const showChecklist = !checklistOff && doneCount < steps.length;
-  function dismissChecklist() { localStorage.setItem(`k.checklist.${worldId}`, "1"); setChecklistOff(true); }
 
   // A brand-new world has nothing to orient, continue, or flag — so the stats,
   // the launchpad, and the activity columns are all empty shells. Until there's
@@ -165,50 +197,116 @@ export function Overview({ worldId, go }: { worldId: string; go: (n: Nav) => voi
   // appears the moment the writer has a chapter, a cast member, or a moment.
   const hasContent = stats.total > 0 || stats.entities > 0 || stats.relCount > 0;
 
+  // §4.1 thresholds (one place, made to be tuned): how long away flips Overview
+  // from a resume line, to an orientation sentence, to a full recap.
+  const WEEK = 7 * 24 * 60 * 60 * 1000;
+  const away = awayMs > 3 * WEEK ? "recap" : awayMs > WEEK ? "orient" : "here";
+
+  // A chapter's gist: its first sentence(s), cut at a boundary — never mid-line.
+  const summaryOf = (ch: Chapter | null) => {
+    const body = (ch?.body || "").trim();
+    if (!body) return "";
+    const head = body.split("\n").slice(0, 3).join(" ").trim();
+    const m = head.match(/^[\s\S]*?[.!?]["']?(?=\s|$)/);
+    return (m ? m[0] : head).slice(0, 240).trim();
+  };
+  const planned = chapters.filter((c) => c.planned).length;
+
+  // ── §4.4 Returning after a long absence: the recap owns the screen ──────────
+  if (hasContent && away === "recap") {
+    const note = recentNotes[0];
+    return (
+      <div className="fi recap">
+        <h2 className="scope-title">{worldName || "Your project"}</h2>
+
+        {continueCh && (
+          <section className="recap-sec">
+            <div className="recap-lab">Where you stopped</div>
+            <div className="recap-lead">Chapter {continueCh.manuscript_order} · {continueCh.title}</div>
+            {summaryOf(continueCh) && <p className="recap-body">{summaryOf(continueCh)}</p>}
+          </section>
+        )}
+
+        {note && (
+          <section className="recap-sec">
+            <div className="recap-lab">You left yourself this</div>
+            <p className="recap-body">{note.body.trim().slice(0, 200) || "(an empty note)"}</p>
+          </section>
+        )}
+
+        {mentions.whoInPlay.length > 0 && (
+          <section className="recap-sec">
+            <div className="recap-lab">Who's in play</div>
+            <p className="recap-body">
+              {mentions.whoInPlay.map((e, i) => (
+                <span key={e.id}>
+                  {i > 0 && " · "}
+                  <button className="linklike" onClick={() => go({ scope: "library", entityId: e.id })}>{e.title}</button>
+                </span>
+              ))}
+            </p>
+          </section>
+        )}
+
+        {truths.length > 0 && (
+          <section className="recap-sec">
+            <div className="recap-lab">What's true right now</div>
+            <ul className="recap-list">
+              {truths.map((s) => (
+                <li key={s.state_id}>{who(s)} <span style={{ color: VALENCE_COLOR[s.valence], fontWeight: 600 }}>{s.type_label}</span>.</li>
+              ))}
+            </ul>
+          </section>
+        )}
+
+        <div className="recap-actions">
+          {continueCh && <button className="primary" onClick={() => go({ scope: "manuscript", chapterId: continueCh.id })}>Re-read where you stopped</button>}
+          <button className="ghost" onClick={() => go({ scope: "manuscript", chapterId: continueCh?.id })}>Keep writing</button>
+        </div>
+
+        {(dupList.length > 0 || dormant.length > 0 || ironies.length > 0) && (
+          <p className="recap-backlog muted">Some things to look at when you're ready.</p>
+        )}
+      </div>
+    );
+  }
+
+  // ── §4.2 New project — nothing written: the only job is to get into prose ───
+  if (!hasContent) {
+    return (
+      <div className="fi">
+        <h2 className="scope-title">Overview</h2>
+        <p className="scope-sub">Nothing here yet — start below.</p>
+
+        <div className="np-start">
+          <div className="np-head">Write your first chapter</div>
+          <div className="np-desc">Even a title is enough. Known names light up as you write, and this page fills itself in.</div>
+          <div className="np-actions">
+            <button className="primary" onClick={() => go({ scope: "manuscript" })}>Start writing</button>
+            <button className="ghost" onClick={() => go({ scope: "manuscript", openImport: true })}>Bring in a manuscript</button>
+          </div>
+        </div>
+
+        <ul className="np-seq">
+          <li>Add someone, somewhere, or something</li>
+          <li>Select a line and record what changes</li>
+          <li>Give a chapter a date</li>
+        </ul>
+      </div>
+    );
+  }
+
   return (
     <div className="fi">
       <h2 className="scope-title">Overview</h2>
       <p className="scope-sub">{shape}</p>
 
-      {stats.total === 0 && (
-        <button className="migrate-cta" onClick={() => go({ scope: "manuscript", openImport: true })}>
-          <span className="migrate-icon"><Icon name="feather" size={18} /></span>
-          <span className="migrate-copy">
-            <span className="migrate-title">Already writing in Google Docs or Word?</span>
-            <span className="migrate-desc">Bring your manuscript over — upload a .docx or paste it in. We’ll split it into chapters and surface the characters we spot in the prose.</span>
-          </span>
-          <span className="migrate-action">Import <Icon name="arrow" size={15} /></span>
-        </button>
+      {/* §4.1 one orientation sentence after 1–3 weeks away */}
+      {away === "orient" && continueCh && (
+        <p className="dash-orient">You were last in <b>{continueCh.title}</b>{mentions.whoInPlay.length ? <> — {mentions.whoInPlay.slice(0, 3).map((e) => e.title).join(", ")} were in play.</> : "."}</p>
       )}
 
-      {showChecklist && (
-        <div className="checklist">
-          <div className="checklist-head">
-            <span className="checklist-title">Getting started</span>
-            <span className="checklist-count">{doneCount} of {steps.length}</span>
-            <span className="spacer" style={{ flex: 1 }} />
-            <span className="checklist-dismiss" title="Dismiss" onClick={dismissChecklist}><Icon name="close" size={14} /></span>
-          </div>
-          {steps.map((s, i) => {
-            const locked = !s.done && !!s.locked;
-            return (
-              <div className={"checklist-step" + (s.done ? " done" : "") + (locked ? " locked" : "")} key={i}
-                onClick={() => !s.done && !locked && go(s.nav)}>
-                <span className="checklist-mark">{s.done ? <Icon name="done" size={16} /> : locked ? <Icon name="lock" size={13} /> : <span className="checklist-circle" />}</span>
-                <span style={{ minWidth: 0 }}>
-                  <span className="checklist-label">{s.label}</span>
-                  <span className="checklist-desc">{s.desc}</span>
-                </span>
-                <span className="spacer" style={{ flex: 1 }} />
-                {locked && <span className="checklist-lock-hint">{s.lockHint}</span>}
-                {!s.done && !locked && <Icon name="arrow" size={14} style={{ color: "var(--faint)", flex: "0 0 auto" }} />}
-              </div>
-            );
-          })}
-        </div>
-      )}
-
-      {hasContent && <>
+      {<>
       {/* World at a glance — cards appear only when earned (§5) */}
       {tiles.length > 0 && <div className="dash-stats">
         {tiles.map((t) => (
@@ -279,7 +377,7 @@ export function Overview({ worldId, go }: { worldId: string; go: (n: Nav) => voi
       )}
 
       {/* Worth a look (§4.3) — honest questions and observations, no chips, no count */}
-      {lookItems > 0 && (
+      {(lookItems > 0 || planned > 0 || orphaned.length > 0) && (
         <div style={{ marginBottom: 18 }}>
           <div className="label" style={{ marginTop: 0 }}>Worth a look</div>
           <div className="card">
@@ -306,8 +404,19 @@ export function Overview({ worldId, go }: { worldId: string; go: (n: Nav) => voi
                 <span style={{ fontSize: 12.5 }}><b>{who(s)}</b> · {s.type_label} — untouched for a while.</span>
               </div>
             ))}
+            {mentions.absent.map(({ e, since }) => nextLook() && (
+              <div className="row click" key={"ab" + e.id} onClick={() => go({ scope: "library", entityId: e.id })}>
+                <span style={{ fontSize: 12.5 }}><b>{e.title}</b> hasn't appeared since chapter {since}.</span>
+              </div>
+            ))}
             {lookItems > LOOK_CAP && (
               <div className="row"><span className="muted" style={{ fontSize: 12 }}>{lookItems - LOOK_CAP} more</span></div>
+            )}
+            {/* §3.1 derived: a single quiet line, never a per-chapter nag */}
+            {planned > 0 && (
+              <div className="row click" onClick={() => go({ scope: "manuscript" })}>
+                <span className="muted" style={{ fontSize: 12 }}>{planned} chapter{planned === 1 ? " is" : "s are"} planned but unwritten.</span>
+              </div>
             )}
             {/* Lost anchors are a broken pointer, not a story observation — one quiet line (§9) */}
             {orphaned.length > 0 && (

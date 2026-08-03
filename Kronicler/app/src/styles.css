@@ -1015,3 +1015,29 @@ button.danger:hover:not(:disabled) { filter: brightness(0.93); background: var(-
 .palette-search { position: relative; }
 .palette-search .palette-ic { position: absolute; left: 18px; top: 50%; transform: translateY(-50%); color: var(--muted); display: inline-flex; pointer-events: none; }
 .palette input { padding-left: 46px; }
+
+/* ── Overview: new-project, orientation, recap (chronicle handoff §4) ───────── */
+.linklike { display: inline; padding: 0; border: 0; background: none; color: var(--ink); font: inherit; font-weight: 600; cursor: pointer; }
+.linklike:hover { color: var(--bond); text-decoration: underline; }
+button.ghost { background: transparent; border: 1px solid var(--line); color: var(--ink); }
+button.ghost:hover:not(:disabled) { background: var(--wash); border-color: var(--lineStrong); }
+
+.np-start { margin: 22px 0 6px; padding: 20px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); }
+.np-head { font-size: 16px; font-weight: 650; color: var(--ink); }
+.np-desc { font-size: 13px; color: var(--muted); margin-top: 4px; max-width: 48ch; }
+.np-actions { display: flex; gap: 10px; margin-top: 14px; flex-wrap: wrap; }
+.np-seq { list-style: none; padding: 0; margin: 16px 0 0; display: flex; flex-direction: column; gap: 8px; }
+.np-seq li { font-size: 13px; color: var(--sub); padding-left: 18px; position: relative; }
+.np-seq li::before { content: ""; position: absolute; left: 2px; top: 8px; width: 5px; height: 5px; border-radius: 50%; background: var(--faint); }
+
+.dash-orient { font-size: 13px; color: var(--sub); margin: 2px 0 14px; }
+
+.recap { max-width: 640px; }
+.recap-sec { margin-bottom: 20px; }
+.recap-lab { font-size: 10.5px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin-bottom: 6px; }
+.recap-lead { font-size: 15px; font-weight: 650; color: var(--ink); }
+.recap-body { font-size: 13.5px; line-height: 1.55; color: var(--sub); margin: 4px 0 0; }
+.recap-list { margin: 4px 0 0; padding-left: 18px; display: flex; flex-direction: column; gap: 4px; }
+.recap-list li { font-size: 13.5px; color: var(--sub); }
+.recap-actions { display: flex; gap: 10px; margin: 24px 0 8px; flex-wrap: wrap; }
+.recap-backlog { font-size: 12.5px; margin-top: 10px; }

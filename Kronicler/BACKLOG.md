@@ -9,6 +9,60 @@ _Last updated: 2026-08-03._
 
 ---
 
+## Effort ranking (token usage / build cost, max → low)
+
+A rough ordering to plan a session's spend. Size ≈ tokens: how much code gets
+read + generated + iterated (and how much back-and-forth QA the risk implies).
+
+**XL — biggest spend**
+1. **Rich-text editor rebuild → TipTap** — touches editor, mentions, comments,
+   storage, version history; iterative preview QA.
+2. **Mobile version of the web app** — responsive overhaul across every view
+   (rail, panels, editor, timeline, relationships graph); lots of layout + CSS.
+
+**L**
+3. **Composer (marking flow)** — new interaction to design and build.
+4. **Admin panel — remove accounts** — auth/role gating, RLS, destructive flows.
+
+**M**
+5. **`moments` table + migration (§2.1) + knowledge derivation (§2.2)** — coupled.
+6. **IA §2/§7 — Overview orientation + project switcher + landing rule.**
+7. **Real entity Merge** — backend fold logic + confirm flow.
+8. **Notes anchors + comments (§5/§6, B7)** — additive migration + anchor UI.
+9. **Co-occurrence sentence** — mention-pair analysis + noise control.
+10. **B5 panels polish** — scope control, virtualization, ordering, count caps.
+11. **Discovery lifecycle** — dismiss/snooze/ranking (parked until marking density).
+12. **IA §1 rail finish** — world-name header; remove Notes after §5.
+13. **A7 — creation templates + "Rename levels" overflow.**
+14. **B3 — Write ⋯ overflow + inline chapter-metadata edit.**
+
+**S — lowest spend**
+15. **Test-account time-away dev toggle** — rewind the `k.seen` mark to fake "away".
+16. **`chapters.updated_at` migration** — makes recap data-accurate/cross-device.
+17. **Lost-anchor repair UI + `orphaned_anchor` rename.**
+18. **`unconnected` inverse-framing sentence** (post-composer only).
+19. **Marked sentence-family wiring** — inert scaffolding.
+20. **B9 — three-field date control.**
+21. **Timeline day-vs-month precision** — decision + small change.
+22. **Exit capture** — parked, undecided.
+23. **CSS build warning fix.**
+24. **Overview visual QA** — new recap / new-project screens.
+
+_Caveat: these are estimates. Admin panel and Merge carry destructive-action risk,
+so their real cost can rise with the care (and QA rounds) they need._
+
+---
+
+## Platform
+
+- **Mobile version of the web app.** A responsive/mobile build of Kronicler — not
+  just narrow-screen CSS but rethinking the rail, summoned panels, the editor, the
+  timeline, and the relationships graph for touch and small viewports. Likely the
+  second-largest effort after the editor rebuild; best done view-by-view.
+  _Size: XL. Risk: med (broad surface, lots of layout)._
+
+---
+
 ## Admin & testing (new)
 
 - **Admin panel — remove accounts.** A gated admin surface to delete user

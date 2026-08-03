@@ -6,6 +6,7 @@ import {
 } from "../lib/api";
 import type { Chapter, ChapterStatus, Entity, RelationshipType, ChapterVersion, ChapterEntity, StreamRow, Comment } from "../lib/types";
 import { CHAPTER_STATUSES, statusMeta } from "../lib/chapterStatus";
+import type { ActiveFormats } from "../lib/blocks";
 import { detectMentions } from "../lib/mentions";
 import { computeBrief } from "../lib/brief";
 import { statesAsOf } from "../lib/mentionState";
@@ -31,7 +32,7 @@ type SaveState = "saved" | "saving" | "dirty";
 // inspector act on whichever chapter is active.
 function ChapterBlock({
   worldId, chapter, entities, stateOf, onOpenEntity, onSelect, onMentions,
-  onMarkEntity, onMarkMoment, onComment, registerApi, onSaveState, onDateChanged,
+  onMarkEntity, onMarkMoment, onComment, registerApi, onSaveState, onActive, onDateChanged,
 }: {
   worldId: string;
   chapter: Chapter;
@@ -45,6 +46,7 @@ function ChapterBlock({
   onComment: (chapterId: string, range: { start: number; end: number; quote: string }) => void;
   registerApi: (chapterId: string, api: ProseApi | null) => void;
   onSaveState: (s: SaveState) => void;
+  onActive: (a: ActiveFormats) => void;
   onDateChanged: () => void;
 }) {
   const [body, setBody] = useState(chapter.body);
@@ -172,6 +174,7 @@ function ChapterBlock({
         entities={entities}
         onChange={(v) => { setBody(v); scheduleSave(v); }}
         onSelectText={(t) => onSelect(chapter.id, t)}
+        onActive={onActive}
         onOpenEntity={onOpenEntity}
         stateOf={stOf}
         onMarkEntity={() => onMarkEntity(chapter.id)}
@@ -253,6 +256,7 @@ export function BookCanvas(props: {
   const [pendingComment, setPendingComment] = useState<{ chapterId: string; start: number; end: number; quote: string } | null>(null);
   // Each chapter block registers a small handle so a comment can jump to its range.
   const proseApis = useRef(new Map<string, ProseApi | null>());
+  const [active, setActive] = useState<ActiveFormats | null>(null);
   const registerApi = useCallback((chapterId: string, api: ProseApi | null) => {
     if (api) proseApis.current.set(chapterId, api); else proseApis.current.delete(chapterId);
   }, []);
@@ -390,8 +394,14 @@ export function BookCanvas(props: {
           knows how to find. Kronicler's marking verbs live in the selection
           popover, never here (IA handoff §3.2). */}
       <div className="ed-toolbar">
-        <button className="ed-fmt" onMouseDown={(e) => e.preventDefault()} onClick={() => proseApis.current.get(openId)?.format("**")} title="Bold (⌘B)"><b>B</b></button>
-        <button className="ed-fmt" onMouseDown={(e) => e.preventDefault()} onClick={() => proseApis.current.get(openId)?.format("*")} title="Italic (⌘I)"><i>I</i></button>
+        <button className={"ed-fmt" + (active?.bold ? " on" : "")} onMouseDown={(e) => e.preventDefault()} onClick={() => proseApis.current.get(openId)?.format("**")} title="Bold (⌘B)"><b>B</b></button>
+        <button className={"ed-fmt" + (active?.italic ? " on" : "")} onMouseDown={(e) => e.preventDefault()} onClick={() => proseApis.current.get(openId)?.format("*")} title="Italic (⌘I)"><i>I</i></button>
+        <span className="ed-tbsep" />
+        <button className={"ed-fmt" + (active?.heading ? " on" : "")} onMouseDown={(e) => e.preventDefault()} onClick={() => proseApis.current.get(openId)?.block("h")} title="Heading"><Icon name="heading" size={15} /></button>
+        <button className={"ed-fmt" + (active?.ul ? " on" : "")} onMouseDown={(e) => e.preventDefault()} onClick={() => proseApis.current.get(openId)?.block("ul")} title="Bulleted list"><Icon name="list" size={15} /></button>
+        <button className={"ed-fmt" + (active?.ol ? " on" : "")} onMouseDown={(e) => e.preventDefault()} onClick={() => proseApis.current.get(openId)?.block("ol")} title="Numbered list"><Icon name="list-ordered" size={15} /></button>
+        <button className={"ed-fmt" + (active?.quote ? " on" : "")} onMouseDown={(e) => e.preventDefault()} onClick={() => proseApis.current.get(openId)?.block("quote")} title="Quote"><Icon name="quote" size={15} /></button>
+        <button className="ed-fmt" onMouseDown={(e) => e.preventDefault()} onClick={() => proseApis.current.get(openId)?.block("hr")} title="Scene break"><Icon name="scene-break" size={15} /></button>
         <span className="ed-tbsep" />
         <select className="sel ed-face" value={readFace} title="Font the chapter is set in"
           onChange={(e) => changeFace(e.target.value as ReadFace)}>
@@ -469,6 +479,7 @@ export function BookCanvas(props: {
               onMarkEntity={(id) => openMarkEntity(id)}
               onMarkMoment={(id) => { setEntChId(id); setComposerOpen(true); }}
               onComment={onComment} registerApi={registerApi} onSaveState={setChSaveState}
+              onActive={setActive}
               onDateChanged={() => onChapterMetaChanged?.()} />
           )}
         </div>

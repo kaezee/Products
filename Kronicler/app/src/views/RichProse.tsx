@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import type { Entity, EntityType } from "../lib/types";
 import { scanMentions } from "../lib/mentions";
 import { scanEmphasis, toggleMarker } from "../lib/emphasis";
+import { toggleBlock, insertSceneBreak, activeFormats, type BlockKind, type ActiveFormats } from "../lib/blocks";
 import { getEntityTypes } from "../lib/api";
 import { buildTypeSwatches } from "../lib/entityTypes";
 import { VALENCE_COLOR } from "../lib/valence";
@@ -34,13 +35,15 @@ const SUPPORTS_PO = (() => {
 export interface ProseApi {
   selectRange: (start: number, end: number, quote: string) => boolean;
   format: (marker: "**" | "*") => void;
+  block: (kind: BlockKind | "hr") => void;
 }
 
-export function RichProse({ value, entities, onChange, onSelectText, onOpenEntity, stateOf, onMarkEntity, onMarkMoment, onComment, apiRef, placeholder }: {
+export function RichProse({ value, entities, onChange, onSelectText, onActive, onOpenEntity, stateOf, onMarkEntity, onMarkMoment, onComment, apiRef, placeholder }: {
   value: string;
   entities: Entity[];
   onChange: (v: string) => void;
   onSelectText: (t: string) => void;
+  onActive?: (a: ActiveFormats) => void;
   onOpenEntity?: (id: string) => void;
   stateOf?: (entityId: string) => MentionState[];
   onMarkEntity?: () => void;
@@ -93,24 +96,45 @@ export function RichProse({ value, entities, onChange, onSelectText, onOpenEntit
     return out;
   }
 
+  // Inline emphasis + mentions over one line's content [from,to). Same proven
+  // interleave the whole-text renderer used; just bounded to a line.
+  function renderInline(text: string, from: number, to: number, mentions: ReturnType<typeof scanMentions>, typeById: Map<string, string>): string {
+    let out = "", i = from;
+    for (const tok of scanEmphasis(text.slice(from, to))) {
+      const s = tok.start + from, e = tok.end + from, is = tok.innerStart + from, ie = tok.innerEnd + from;
+      out += renderRun(text, i, s, mentions, typeById);
+      const open = tok.tag === "both" ? `<strong class="md-em"><em class="md-em">` : `<${tok.tag} class="md-em">`;
+      const close = tok.tag === "both" ? `</em></strong>` : `</${tok.tag}>`;
+      out += open + `<span class="md-mark">${escapeHtml(text.slice(s, is))}</span>`;
+      out += renderRun(text, is, ie, mentions, typeById);
+      out += `<span class="md-mark">${escapeHtml(text.slice(ie, e))}</span>` + close;
+      i = e;
+    }
+    out += renderRun(text, i, to, mentions, typeById);
+    return out;
+  }
+
+  // Line-aware: block prefixes render as invisible markers + a styled run; the
+  // \n's stay real chars so the caret math (flat text length) is unchanged.
   function decorateHtml(text: string): string {
     const ents = entRef.current;
     const mentions = scanMentions(text, ents);
     const typeById = new Map(ents.map((e) => [e.id, e.type]));
-    const emph = scanEmphasis(text);
-    let out = "", i = 0;
-    for (const tok of emph) {
-      out += renderRun(text, i, tok.start, mentions, typeById);
-      const open = tok.tag === "both" ? `<strong class="md-em"><em class="md-em">` : `<${tok.tag} class="md-em">`;
-      const close = tok.tag === "both" ? `</em></strong>` : `</${tok.tag}>`;
-      out += open;
-      out += `<span class="md-mark">${escapeHtml(text.slice(tok.start, tok.innerStart))}</span>`;
-      out += renderRun(text, tok.innerStart, tok.innerEnd, mentions, typeById);
-      out += `<span class="md-mark">${escapeHtml(text.slice(tok.innerEnd, tok.end))}</span>`;
-      out += close;
-      i = tok.end;
+    const lines = text.split("\n");
+    let out = "", pos = 0;
+    for (let li = 0; li < lines.length; li++) {
+      if (li > 0) { out += "\n"; pos += 1; }
+      const line = lines[li], end = pos + line.length;
+      const mark = (n: number) => `<span class="md-mark">${escapeHtml(line.slice(0, n))}</span>`;
+      let m: RegExpMatchArray | null;
+      if (/^(\* \* \*|\*\*\*)\s*$/.test(line)) out += `<span class="md-hr">${escapeHtml(line)}</span>`;
+      else if ((m = line.match(/^(#{1,3}) /))) out += mark(m[1].length + 1) + `<span class="md-block md-h md-h${m[1].length}">${renderInline(text, pos + m[1].length + 1, end, mentions, typeById)}</span>`;
+      else if (line.startsWith("> ")) out += mark(2) + `<span class="md-block md-quote">${renderInline(text, pos + 2, end, mentions, typeById)}</span>`;
+      else if (line.startsWith("- ")) out += mark(2) + `<span class="md-block md-li">${renderInline(text, pos + 2, end, mentions, typeById)}</span>`;
+      else if ((m = line.match(/^(\d+)\. /))) out += mark(m[1].length + 2) + `<span class="md-block md-oli" data-n="${escapeHtml(m[1])}">${renderInline(text, pos + m[1].length + 2, end, mentions, typeById)}</span>`;
+      else out += renderInline(text, pos, end, mentions, typeById);
+      pos = end;
     }
-    out += renderRun(text, i, text.length, mentions, typeById);
     return out;
   }
 
@@ -194,7 +218,7 @@ export function RichProse({ value, entities, onChange, onSelectText, onOpenEntit
     return true;
   }
   useEffect(() => {
-    apiRef?.({ selectRange, format: applyWrap });
+    apiRef?.({ selectRange, format: applyWrap, block: applyBlock });
     return () => apiRef?.(null);
     // eslint-disable-next-line
   }, [apiRef]);
@@ -216,6 +240,24 @@ export function RichProse({ value, entities, onChange, onSelectText, onOpenEntit
     el.focus();
     setSelectionOffsets(el, na, nb);
     lastRange.current = { start: na, end: nb };
+    reportSelection();
+  }
+
+  // Block formats: act on every line the selection covers (or the caret's line),
+  // or drop a scene break. All via the tested pure transforms in lib/blocks.
+  function applyBlock(kind: BlockKind | "hr") {
+    const el = edRef.current;
+    if (!el) return;
+    const range = selectionOffsets(el) ?? lastRange.current;
+    if (!range) return;
+    const text = el.textContent ?? "";
+    const r = kind === "hr" ? insertSceneBreak(text, range.start) : toggleBlock(text, range.start, range.end, kind);
+    el.textContent = r.next;
+    onChange(r.next);
+    decorate();
+    el.focus();
+    if (r.start === r.end) setCaret(el, r.start); else setSelectionOffsets(el, r.start, r.end);
+    lastRange.current = { start: r.start, end: r.end };
     reportSelection();
   }
 
@@ -329,6 +371,7 @@ export function RichProse({ value, entities, onChange, onSelectText, onOpenEntit
     const wrap = wrapRef.current;
     const text = s && el && el.contains(s.anchorNode) ? s.toString() : "";
     onSelectText(text);
+    if (onActive && el) { const r = selectionOffsets(el); if (r) onActive(activeFormats(el.textContent ?? "", r.start, r.end)); }
     if (text.trim() && el) { const r = selectionOffsets(el); if (r && r.start !== r.end) lastRange.current = r; }
     if (text.trim() && s && s.rangeCount && wrap) {
       // Viewport coordinates — the bar is portaled to <body> so it can't be

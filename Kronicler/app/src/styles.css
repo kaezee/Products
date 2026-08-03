@@ -630,6 +630,17 @@ button.danger:hover:not(:disabled) { filter: brightness(0.93); background: var(-
    the stored body are unchanged) but render zero-width, so formatting reads
    clean like a word processor with no visible asterisks. */
 .rich .md-mark { font-size: 0; }
+/* Block formats — inline runs (the \n's break lines), so the caret model stays a
+   flat text model and the markers add zero width. */
+.rich .md-h { font-weight: 700; line-height: 1.3; }
+.rich .md-h1 { font-size: 1.5em; }
+.rich .md-h2 { font-size: 1.28em; }
+.rich .md-h3 { font-size: 1.12em; }
+.rich .md-quote { font-style: italic; color: var(--sub); }
+.rich .md-li::before { content: "\2022"; color: var(--muted); margin-right: 0.5em; }
+.rich .md-oli::before { content: attr(data-n) "."; color: var(--muted); margin-right: 0.4em; }
+.rich .md-hr { color: var(--faint); letter-spacing: 0.45em; }
+.ed-fmt.on { background: var(--bond); border-color: var(--bond); color: #fff; }
 
 /* §5 notes-in-context: a chapter's pinned notes, in the Write inspector. */
 .cnotes { display: flex; flex-direction: column; gap: 8px; }

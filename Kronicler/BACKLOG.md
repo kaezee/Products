@@ -18,11 +18,14 @@ Current priority, ahead of the backlog below. Build order from the handoff §10:
      segment-kinds + genre types; Library offers registry types in the dropdown.
 2. **§2.6 decay + §2.7 guest conversion.**
    - ✅ Decay: first-project-only explanatory copy.
-   - ☐ Guest conversion: "Add an email to keep it" → routes into the creation screen.
-3. ☐ **§3 checklist rework** — remove locks; after-states via the sentence renderer
-     (step 3 = the payoff string: engine speaks a sentence from the writer's prose).
+   - ☐ Guest conversion (deferred): "Add an email to keep it" → into the creation
+     screen. Entangled with the async email-confirmation auth round-trip; small
+     follow-up, not worth half-building the auth path now.
+3. ✅ **§3 checklist rework** — demonstration ladder on the active Overview; real-data
+     after-states; step 3 speaks a live moment sentence; no locks; retires at 4/4.
 4. ☐ **§6.3 margin indicator** — a moment marks the prose margin (not inline). Ship
-     early; makes moments visible in the example project.
+     early; makes moments visible in the example project. _Editor-integration piece:
+     needs moment↔prose anchoring + the BookCanvas/RichProse gutter._
 5. ☐ **§4.1 shortcut in popover** + **§4.4 panel empty state.**
 6. ☐ **§4.2 engine offers** — one per chapter, retire after 3 marks (per account).
 7. ☐ **§5 Help page** — rail footer; First steps / Shortcuts / What things are called.

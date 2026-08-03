@@ -2,8 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { Entity, EntityType } from "../lib/types";
 import { scanMentions } from "../lib/mentions";
-import { scanEmphasis, toggleMarker, caretOutsideEmphasis } from "../lib/emphasis";
-import { toggleBlock, insertSceneBreak, splitAtEnter, activeFormats, type BlockKind, type ActiveFormats } from "../lib/blocks";
+import { scanEmphasis, toggleMarker } from "../lib/emphasis";
+import { toggleBlock, insertSceneBreak, enterEdit, activeFormats, type BlockKind, type ActiveFormats } from "../lib/blocks";
 import { getEntityTypes } from "../lib/api";
 import { buildTypeSwatches } from "../lib/entityTypes";
 import { VALENCE_COLOR } from "../lib/valence";
@@ -336,20 +336,17 @@ export function RichProse({ value, entities, onChange, onSelectText, onActive, o
       if (k === "b") { e.preventDefault(); applyWrap("**"); return; }
       if (k === "i") { e.preventDefault(); applyWrap("*"); return; }
     }
-    // Own Enter (and Shift+Enter) for every browser. The native insert drops the
+    // Own Enter (and Shift+Enter) for every browser. Native insertion drops the
     // "\n" between the caret and a zero-width closing marker, splitting `*word*`
-    // across two lines into orphaned literals — so snap the break outside any
-    // emphasis token, then let splitAtEnter continue lists/quotes like Docs.
+    // into orphaned literals. enterEdit does it safely: mid-run splits keep both
+    // halves formatted, blocks continue, and no stray markers are ever left.
     if (e.key === "Enter") {
       e.preventDefault();
       const el = edRef.current;
       const range = el ? selectionOffsets(el) : null;
       if (!el || !range) return;
       const text = el.textContent ?? "";
-      const a = caretOutsideEmphasis(text, range.start);
-      const b = range.end === range.start ? a : caretOutsideEmphasis(text, range.end);
-      const base = a === b ? text : text.slice(0, a) + text.slice(b);
-      const { next, caret } = splitAtEnter(base, a);
+      const { next, caret } = enterEdit(text, range.start, range.end);
       el.textContent = next;
       onChange(next);
       decorate();

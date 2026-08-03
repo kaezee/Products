@@ -1,4 +1,4 @@
-import { scanEmphasis } from "./emphasis";
+import { scanEmphasis, caretOutsideEmphasis } from "./emphasis";
 
 // Block-level line formats for the editor. Pure text transforms (no DOM) so the
 // tricky part — which lines a selection touches, toggling on/off, renumbering —
@@ -60,27 +60,55 @@ export function insertSceneBreak(text: string, caret: number): BlockResult {
   return { next, start: caretTo, end: caretTo };
 }
 
-// Enter, the way Docs/Word handle it: inside a list or quote, the new line
-// continues the block (numbered lists step up); a heading drops to plain body;
-// and Enter on an *empty* list/quote item exits the block instead of nesting a
-// blank one. Pure text in → text + caret out; the editor just applies it.
-export function splitAtEnter(text: string, caret: number): { next: string; caret: number } {
-  const ls = text.lastIndexOf("\n", caret - 1) + 1;
-  let le = text.indexOf("\n", caret);
+// The prefix a *continued* line inherits (numbered lists step up; headings and
+// plain text inherit nothing), plus where the line's content begins and whether
+// the item is empty — the signal that Enter should exit the block.
+function lineInfo(text: string, pos: number) {
+  const ls = text.lastIndexOf("\n", pos - 1) + 1;
+  let le = text.indexOf("\n", pos);
   if (le < 0) le = text.length;
   const line = text.slice(ls, le);
   const olm = line.match(/^(\d+)\. /);
   const ul = line.startsWith("- ");
   const quote = line.startsWith("> ");
   const contentStart = ul || quote ? ls + 2 : olm ? ls + olm[0].length : ls;
-
-  // Empty continuable item + Enter → strip the prefix, exit the block.
-  if ((ul || quote || olm) && text.slice(contentStart, le).trim() === "") {
-    return { next: text.slice(0, ls) + text.slice(le), caret: ls };
-  }
   const prefix = ul ? "- " : quote ? "> " : olm ? `${parseInt(olm[1], 10) + 1}. ` : "";
+  const empty = (ul || quote || !!olm) && text.slice(contentStart, le).trim() === "";
+  return { ls, le, prefix, empty };
+}
+
+// Enter, the way Docs/Word handle it: inside a list or quote, the new line
+// continues the block (numbered lists step up); a heading drops to plain body;
+// and Enter on an *empty* list/quote item exits the block instead of nesting a
+// blank one. Pure text in → text + caret out; the editor just applies it.
+export function splitAtEnter(text: string, caret: number): { next: string; caret: number } {
+  const { ls, le, prefix, empty } = lineInfo(text, caret);
+  if (empty) return { next: text.slice(0, ls) + text.slice(le), caret: ls };
   const next = text.slice(0, caret) + "\n" + prefix + text.slice(caret);
   return { next, caret: caret + 1 + prefix.length };
+}
+
+const MARKER = { em: "*", strong: "**", both: "***" } as const;
+
+// The full Enter behavior for the editor, as one tested transform. Splitting in
+// the *middle* of a bold/italic run closes it on the current line and reopens it
+// on the next — so the formatting continues, exactly like a quote's prefix does.
+// At a run's edge (or in plain text) it falls back to a clean block-aware split,
+// never leaving an orphaned marker.
+export function enterEdit(text: string, a: number, b: number): { next: string; caret: number } {
+  if (a !== b) {
+    const a2 = caretOutsideEmphasis(text, a);
+    const base = text.slice(0, a2) + text.slice(caretOutsideEmphasis(text, b));
+    return splitAtEnter(base, a2);
+  }
+  const tok = scanEmphasis(text).find((t) => a > t.innerStart && a < t.innerEnd);
+  if (tok) {
+    const m = MARKER[tok.tag];
+    const { prefix } = lineInfo(text, a);
+    const next = text.slice(0, a) + m + "\n" + prefix + m + text.slice(a);
+    return { next, caret: a + m.length + 1 + prefix.length + m.length };
+  }
+  return splitAtEnter(text, caretOutsideEmphasis(text, a));
 }
 
 export interface ActiveFormats { bold: boolean; italic: boolean; heading: boolean; quote: boolean; ul: boolean; ol: boolean }

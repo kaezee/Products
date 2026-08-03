@@ -1,5 +1,31 @@
 import { describe, it, expect } from "vitest";
-import { toggleBlock, insertSceneBreak, splitAtEnter, activeFormats } from "./blocks";
+import { toggleBlock, insertSceneBreak, splitAtEnter, enterEdit, activeFormats } from "./blocks";
+
+describe("enterEdit — emphasis continues like a block", () => {
+  it("splits a bold run in the middle, keeping both halves bold", () => {
+    // "**bold text**", caret before "text" (offset 7)
+    expect(enterEdit("**bold text**", 7, 7)).toEqual({ next: "**bold **\n**text**", caret: 12 });
+  });
+
+  it("splits an italic run in the middle, keeping both halves italic", () => {
+    // "*hello world*", caret before "world" (offset 7)
+    expect(enterEdit("*hello world*", 7, 7)).toEqual({ next: "*hello *\n*world*", caret: 10 });
+  });
+
+  it("ends the emphasis when Enter lands at the run's edge", () => {
+    // "*word*", caret at the visual end (offset 5) — new line is plain
+    expect(enterEdit("*word*", 5, 5)).toEqual({ next: "*word*\n", caret: 7 });
+  });
+
+  it("carries both the quote prefix and the reopened bold", () => {
+    // "> **bold**", caret inside the bold (offset 6)
+    expect(enterEdit("> **bold**", 6, 6)).toEqual({ next: "> **bo**\n> **ld**", caret: 13 });
+  });
+
+  it("plain text just gets a newline", () => {
+    expect(enterEdit("hello", 5, 5)).toEqual({ next: "hello\n", caret: 6 });
+  });
+});
 
 describe("splitAtEnter", () => {
   it("continues a bullet list on Enter", () => {

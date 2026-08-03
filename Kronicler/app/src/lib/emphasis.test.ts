@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { scanEmphasis, toggleMarker } from "./emphasis";
+import { scanEmphasis, toggleMarker, caretOutsideEmphasis } from "./emphasis";
 
 // The emphasis layer is the piece most likely to silently corrupt prose (a
 // stray offset shifts every mention after it), so it gets the closest tests.
@@ -78,5 +78,35 @@ describe("toggleMarker", () => {
     // wrapping already-bold text in italic nests rather than unwrapping
     const r = toggleMarker("**hi**", 0, 6, "*");
     expect(r.next).not.toBe("hi"); // it did NOT treat the ** as its own italic pair
+  });
+});
+
+describe("caretOutsideEmphasis", () => {
+  // "*word*": caret at the visual end (offset 5, before the hidden closing *)
+  // must snap past it to 6 so Enter breaks after the whole token, not inside it.
+  it("snaps the end-of-word caret past the closing marker", () => {
+    expect(caretOutsideEmphasis("*word*", 5)).toBe(6);
+  });
+
+  it("snaps the start-of-word caret before the opening marker", () => {
+    // offset 1 sits just inside the opening * — pull back to 0
+    expect(caretOutsideEmphasis("*word*", 1)).toBe(0);
+  });
+
+  it("leaves a caret already outside the token untouched", () => {
+    expect(caretOutsideEmphasis("*word*", 0)).toBe(0);
+    expect(caretOutsideEmphasis("*word*", 6)).toBe(6);
+    expect(caretOutsideEmphasis("a *word* b", 9)).toBe(9);
+  });
+
+  it("leaves plain text untouched", () => {
+    expect(caretOutsideEmphasis("no stars here", 5)).toBe(5);
+  });
+
+  it("snaps a mid-word caret to the nearer edge so the token stays intact", () => {
+    // "**bold**": offset 3 (just after first inner char) is nearer the start
+    expect(caretOutsideEmphasis("**bold**", 3)).toBe(0);
+    // offset 5 is nearer the end
+    expect(caretOutsideEmphasis("**bold**", 5)).toBe(8);
   });
 });

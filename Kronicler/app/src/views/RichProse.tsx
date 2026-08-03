@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { Entity, EntityType } from "../lib/types";
 import { scanMentions } from "../lib/mentions";
-import { scanEmphasis, toggleMarker } from "../lib/emphasis";
+import { scanEmphasis, toggleMarker, caretOutsideEmphasis } from "../lib/emphasis";
 import { toggleBlock, insertSceneBreak, activeFormats, type BlockKind, type ActiveFormats } from "../lib/blocks";
 import { getEntityTypes } from "../lib/api";
 import { buildTypeSwatches } from "../lib/entityTypes";
@@ -336,18 +336,25 @@ export function RichProse({ value, entities, onChange, onSelectText, onActive, o
       if (k === "b") { e.preventDefault(); applyWrap("**"); return; }
       if (k === "i") { e.preventDefault(); applyWrap("*"); return; }
     }
-    if (SUPPORTS_PO) return;
-    if (e.key === "Enter") {
+    // Own Enter for every browser: the native insert drops the "\n" between the
+    // caret and a zero-width closing marker, splitting `*word*` across two lines
+    // into orphaned literals. Snap the break outside any emphasis token instead.
+    if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
-      const sel = window.getSelection();
-      if (!sel || sel.rangeCount === 0) return;
-      const r = sel.getRangeAt(0);
-      r.deleteContents();
-      const tn = document.createTextNode("\n");
-      r.insertNode(tn);
-      r.setStartAfter(tn); r.collapse(true);
-      sel.removeAllRanges(); sel.addRange(r);
-      onInput();
+      const el = edRef.current;
+      const range = el ? selectionOffsets(el) : null;
+      if (!el || !range) return;
+      const text = el.textContent ?? "";
+      const a = caretOutsideEmphasis(text, range.start);
+      const b = range.end === range.start ? a : caretOutsideEmphasis(text, range.end);
+      const next = text.slice(0, a) + "\n" + text.slice(b);
+      el.textContent = next;
+      onChange(next);
+      decorate();
+      el.focus();
+      setCaret(el, a + 1);
+      lastRange.current = { start: a + 1, end: a + 1 };
+      reportSelection();
     }
   }
   function onPaste(e: React.ClipboardEvent) {

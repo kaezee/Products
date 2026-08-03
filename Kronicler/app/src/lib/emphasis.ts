@@ -43,6 +43,17 @@ export function scanEmphasis(text: string): Emph[] {
   return res;
 }
 
+// A newline must never fall *inside* an emphasis token — scanEmphasis works one
+// line at a time, so a split `*word*` becomes two orphaned literal markers. Given
+// a caret offset, push it to the nearest outer edge of any token it sits within
+// (leaving edges and bare text untouched) so Enter always breaks cleanly.
+export function caretOutsideEmphasis(text: string, off: number): number {
+  for (const t of scanEmphasis(text)) {
+    if (off > t.start && off < t.end) return off - t.start <= t.end - off ? t.start : t.end;
+  }
+  return off;
+}
+
 export interface WrapResult { next: string; start: number; end: number }
 
 // Toggle a markdown marker around the selection [a,b) in `text`. Purely a

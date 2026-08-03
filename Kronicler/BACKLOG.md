@@ -13,11 +13,12 @@ _Last updated: 2026-08-03._
 
 Current priority, ahead of the backlog below. Build order from the handoff §10:
 
-1. **Creation screen (§2.2–2.4)** — name + form + genre + entry choice, seeded types.
-   - ✅ Data foundation: `lib/onboarding.ts` (form→structure, genre→types) + tests.
-   - ☐ The creation-screen UI (replaces the single-name modal in `App.tsx`) + wiring
-     seeded segment-kinds/types on submit.
-2. ☐ **§2.6 decay** (1st/2nd/3rd-project copy) + **§2.7 guest conversion** into the screen.
+1. ✅ **Creation screen (§2.2–2.4)** — name + form + genre + entry choice, seeded types.
+   - `lib/onboarding.ts` tables + tests; `seedProjectShape` seeds container
+     segment-kinds + genre types; Library offers registry types in the dropdown.
+2. **§2.6 decay + §2.7 guest conversion.**
+   - ✅ Decay: first-project-only explanatory copy.
+   - ☐ Guest conversion: "Add an email to keep it" → routes into the creation screen.
 3. ☐ **§3 checklist rework** — remove locks; after-states via the sentence renderer
      (step 3 = the payoff string: engine speaks a sentence from the writer's prose).
 4. ☐ **§6.3 margin indicator** — a moment marks the prose margin (not inline). Ship

@@ -9,6 +9,28 @@ _Last updated: 2026-08-03._
 
 ---
 
+## ▶ ACTIVE: Onboarding & teaching the gesture (handoff)
+
+Current priority, ahead of the backlog below. Build order from the handoff §10:
+
+1. **Creation screen (§2.2–2.4)** — name + form + genre + entry choice, seeded types.
+   - ✅ Data foundation: `lib/onboarding.ts` (form→structure, genre→types) + tests.
+   - ☐ The creation-screen UI (replaces the single-name modal in `App.tsx`) + wiring
+     seeded segment-kinds/types on submit.
+2. ☐ **§2.6 decay** (1st/2nd/3rd-project copy) + **§2.7 guest conversion** into the screen.
+3. ☐ **§3 checklist rework** — remove locks; after-states via the sentence renderer
+     (step 3 = the payoff string: engine speaks a sentence from the writer's prose).
+4. ☐ **§6.3 margin indicator** — a moment marks the prose margin (not inline). Ship
+     early; makes moments visible in the example project.
+5. ☐ **§4.1 shortcut in popover** + **§4.4 panel empty state.**
+6. ☐ **§4.2 engine offers** — one per chapter, retire after 3 marks (per account).
+7. ☐ **§5 Help page** — rail footer; First steps / Shortcuts / What things are called.
+
+**OPEN (§9):** `Mark a moment` shortcut — proposed **⌘/Ctrl+M** (fallback ⌘/Ctrl+Shift+M);
+awaiting confirm before wiring (needed at step 5).
+
+---
+
 ## Effort ranking (token usage / build cost, max → low)
 
 A rough ordering to plan a session's spend. Size ≈ tokens: how much code gets

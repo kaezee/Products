@@ -393,12 +393,6 @@ export function BookCanvas(props: {
         <button className="ed-fmt" onMouseDown={(e) => e.preventDefault()} onClick={() => proseApis.current.get(openId)?.format("**")} title="Bold (⌘B)"><b>B</b></button>
         <button className="ed-fmt" onMouseDown={(e) => e.preventDefault()} onClick={() => proseApis.current.get(openId)?.format("*")} title="Italic (⌘I)"><i>I</i></button>
         <span className="ed-tbsep" />
-        <button className="ed-fmt" onMouseDown={(e) => e.preventDefault()} onClick={() => proseApis.current.get(openId)?.block("h")} title="Heading"><Icon name="heading" size={15} /></button>
-        <button className="ed-fmt" onMouseDown={(e) => e.preventDefault()} onClick={() => proseApis.current.get(openId)?.block("ul")} title="Bulleted list"><Icon name="list" size={15} /></button>
-        <button className="ed-fmt" onMouseDown={(e) => e.preventDefault()} onClick={() => proseApis.current.get(openId)?.block("ol")} title="Numbered list"><Icon name="list-ordered" size={15} /></button>
-        <button className="ed-fmt" onMouseDown={(e) => e.preventDefault()} onClick={() => proseApis.current.get(openId)?.block("quote")} title="Quote"><Icon name="quote" size={15} /></button>
-        <button className="ed-fmt" onMouseDown={(e) => e.preventDefault()} onClick={() => proseApis.current.get(openId)?.block("hr")} title="Scene break"><Icon name="scene-break" size={15} /></button>
-        <span className="ed-tbsep" />
         <select className="sel ed-face" value={readFace} title="Font the chapter is set in"
           onChange={(e) => changeFace(e.target.value as ReadFace)}>
           {READ_FACES.map((f) => <option key={f.key} value={f.key}>{f.label}</option>)}

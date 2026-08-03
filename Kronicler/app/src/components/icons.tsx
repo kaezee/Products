@@ -53,11 +53,6 @@ import {
   History,
   FileInput,
   LayoutGrid,
-  Heading,
-  List,
-  ListOrdered,
-  Quote,
-  Minus,
   type LucideIcon,
 } from "lucide-react";
 
@@ -123,12 +118,7 @@ const REGISTRY = {
   asterisk: Asterisk,     // continuity (cast detected + moments)
   history: History,       // version history takeover
   import: FileInput,
-  grid: LayoutGrid,
-  heading: Heading,
-  list: List,
-  "list-ordered": ListOrdered,
-  quote: Quote,
-  "scene-break": Minus,      // bring in a manuscript
+  grid: LayoutGrid,      // bring in a manuscript
 } satisfies Record<string, LucideIcon>;
 
 export type IconName = keyof typeof REGISTRY;

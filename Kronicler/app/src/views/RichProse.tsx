@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import type { Entity, EntityType } from "../lib/types";
 import { scanMentions } from "../lib/mentions";
 import { scanEmphasis, toggleMarker } from "../lib/emphasis";
+import { MARK_MOMENT } from "../lib/shortcuts";
 import { toggleBlock, insertSceneBreak, enterEdit, activeFormats, type BlockKind, type ActiveFormats } from "../lib/blocks";
 import { getEntityTypes } from "../lib/api";
 import { buildTypeSwatches } from "../lib/entityTypes";
@@ -17,10 +18,6 @@ import { Icon } from "../components/icons";
 // over-escaping quotes there is harmless.
 const escapeHtml = (s: string) =>
   s.replace(/[&<>"']/g, (c) => (c === "&" ? "&amp;" : c === "<" ? "&lt;" : c === ">" ? "&gt;" : c === '"' ? "&quot;" : "&#39;"));
-
-// Mark-a-moment shortcut label, platform-aware (⇧⌘M on Mac, Ctrl+Shift+M else).
-const IS_MAC = typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform);
-export const MARK_MOMENT_KEYS = IS_MAC ? "⇧⌘M" : "Ctrl+Shift+M";
 
 const SUPPORTS_PO = (() => {
   try {
@@ -342,7 +339,7 @@ export function RichProse({ value, entities, onChange, onSelectText, onActive, o
     }
     // §4.1 Mark a moment shortcut — the gesture's habit-former. Needs a real
     // selection (≥3 chars), same gate as the popover verb.
-    if ((e.metaKey || e.ctrlKey) && e.shiftKey && !e.altKey && e.key.toLowerCase() === "m") {
+    if (MARK_MOMENT.matches(e)) {
       e.preventDefault();
       const el = edRef.current;
       const range = el ? selectionOffsets(el) : null;
@@ -463,7 +460,7 @@ export function RichProse({ value, entities, onChange, onSelectText, onActive, o
               <button key="me" onClick={() => { onMarkEntity(); setSel(null); }} title="Tag the selection as a character, place, item…">✦ Mark entity</button>
             );
             const markMoment = onMarkMoment && (
-              <button key="mm" disabled={sel.len < 3} onClick={() => { onMarkMoment(); setSel(null); }} title="Record what happens between characters in the selection">✳ Mark a moment <span className="annot-kbd">{MARK_MOMENT_KEYS}</span></button>
+              <button key="mm" disabled={sel.len < 3} onClick={() => { onMarkMoment(); setSel(null); }} title="Record what happens between characters in the selection">✳ Mark a moment <span className="annot-kbd">{MARK_MOMENT.label}</span></button>
             );
             return sel.word ? [markEntity, markMoment] : [markMoment, markEntity];
           })()}

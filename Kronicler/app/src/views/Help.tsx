@@ -1,4 +1,4 @@
-import { MARK_MOMENT_KEYS } from "./RichProse";
+import { MARK_MOMENT } from "../lib/shortcuts";
 
 // Help (onboarding §5): one page, three sections, nothing more. The first-steps
 // content is the checklist's, permanently re-readable after it retires; the last
@@ -24,7 +24,7 @@ export function Help() {
       <div className="card">
         <div className="help-kbd"><span>Bold</span><kbd className="kbd">{MOD}B</kbd></div>
         <div className="help-kbd"><span>Italic</span><kbd className="kbd">{MOD}I</kbd></div>
-        <div className="help-kbd"><span>Mark a moment</span><kbd className="kbd">{MARK_MOMENT_KEYS}</kbd></div>
+        <div className="help-kbd"><span>Mark a moment</span><kbd className="kbd">{MARK_MOMENT.label}</kbd></div>
       </div>
 
       <div className="label">What things are called</div>

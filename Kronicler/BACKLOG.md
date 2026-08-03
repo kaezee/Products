@@ -23,15 +23,26 @@ Current priority, ahead of the backlog below. Build order from the handoff §10:
      follow-up, not worth half-building the auth path now.
 3. ✅ **§3 checklist rework** — demonstration ladder on the active Overview; real-data
      after-states; step 3 speaks a live moment sentence; no locks; retires at 4/4.
-4. ☐ **§6.3 margin indicator** — a moment marks the prose margin (not inline). Ship
-     early; makes moments visible in the example project. _Editor-integration piece:
-     needs moment↔prose anchoring + the BookCanvas/RichProse gutter._
-5. ☐ **§4.1 shortcut in popover** + **§4.4 panel empty state.**
-6. ☐ **§4.2 engine offers** — one per chapter, retire after 3 marks (per account).
-7. ☐ **§5 Help page** — rail footer; First steps / Shortcuts / What things are called.
+5. ✅ **§4.1 shortcut in popover** + **§4.4 panel net** — shortcut shown + wired
+     (Ctrl/Cmd+Shift+M); dismissible teaching line atop the Continuity panel.
+7. ✅ **§5 Help page** — rail footer; First steps / Shortcuts / What things are called.
 
-**OPEN (§9):** `Mark a moment` shortcut — proposed **⌘/Ctrl+M** (fallback ⌘/Ctrl+Shift+M);
-awaiting confirm before wiring (needed at step 5).
+### ▸ Dependency pass — do these together, last (the flagged items)
+
+All blocked on the same thing: **a moment has no prose text-anchor yet** (the
+deferred §2.1 moments model). Needs a small additive column on the moment/state
+(anchor_start/anchor_end) + write-path wiring, then:
+
+- ☐ **§6.3 margin indicator** — a moment marks the prose margin (not inline), click
+    opens it in the Continuity panel. Also seed it in the example project.
+- ☐ **§6.2 Continuity panel moment count** — per-chapter count, no zero badge.
+- ☐ **§4.2 engine offers** — offer the mark when two linked entities co-occur in an
+    unmarked sentence; ≤1/chapter; retire after 3 marks (per account); never re-arm.
+- ☐ **§2.7 guest conversion** — route "Add an email to keep it" into the creation
+    screen (entangled with the async email-confirmation auth round-trip).
+
+**OPEN (§9):** `Mark a moment` binding — wired as **Ctrl/Cmd+Shift+M** (avoids macOS
+⌘M minimize). Confirm or rebind in the dependency pass; it's a one-line change.
 
 ---
 

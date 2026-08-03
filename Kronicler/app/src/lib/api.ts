@@ -2,6 +2,7 @@ import { supabase } from "./supabase";
 import type {
   World, Entity, Chapter, ChapterStatus, Band, RelationshipType, StreamRow, ChapterVersion, ChapterEntity, Note, Comment, TimelineMarker, Segment, SegmentKind, EntityType,
 } from "./types";
+import { ENTITY_SWATCHES, BUILTIN_SWATCH } from "./entityTypes";
 
 const ET_COLS = "id, world_id, name, mark, swatch, line_style, is_builtin, sort_order";
 
@@ -190,6 +191,22 @@ export async function createWorld(name: string): Promise<World> {
     .single();
   if (error) throw error;
   return data;
+}
+
+// Onboarding §2.3/§2.4: seed a fresh project's shape — container level names as
+// segment_kinds, and the genre's entity types as registry rows (styled, so they
+// carry a swatch/mark the moment the writer uses them). All ordinary, renameable.
+export async function seedProjectShape(worldId: string, containers: string[], typeNames: string[]): Promise<void> {
+  const swatch = (i: number) => ENTITY_SWATCHES[i % ENTITY_SWATCHES.length];
+  await Promise.all([
+    ...containers.map((name, i) => createSegmentKind(worldId, { name, swatch: swatch(i), sort_order: (i + 1) * 10 })),
+    ...typeNames.map((name, i) => createEntityType(worldId, {
+      name,
+      mark: name.slice(0, 1).toUpperCase(),
+      swatch: BUILTIN_SWATCH[name.toLowerCase()] ?? swatch(i + containers.length),
+      sort_order: (i + 1) * 10,
+    })),
+  ]);
 }
 
 export async function getEntities(worldId: string): Promise<Entity[]> {

@@ -132,7 +132,10 @@ export function Library({ worldId, focusEntityId, onLeaf }: { worldId: string; f
   }
 
   const customInUse = [...new Set(entities.map((e) => e.type))].filter((t) => !isCanon(t));
-  const typeOptions = [...CANONICAL_ENTITY_TYPES, ...customInUse];
+  // Seeded (registry) types are offered even before any entity uses them, so the
+  // genre picked at creation actually pays off in the add-entity dropdown (§2.4).
+  const registryExtra = entityTypes.map((r) => r.name).filter((n) => !isCanon(n) && !customInUse.includes(n));
+  const typeOptions = [...CANONICAL_ENTITY_TYPES, ...registryExtra, ...customInUse];
 
   const q = query.trim().toLowerCase();
   const results = q

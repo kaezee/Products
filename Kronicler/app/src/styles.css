@@ -1041,3 +1041,14 @@ button.ghost:hover:not(:disabled) { background: var(--wash); border-color: var(-
 .recap-list li { font-size: 13.5px; color: var(--sub); }
 .recap-actions { display: flex; gap: 10px; margin: 24px 0 8px; flex-wrap: wrap; }
 .recap-backlog { font-size: 12.5px; margin-top: 10px; }
+
+/* ── New-project creation screen (onboarding §2.2) ──────────────────────────── */
+.np-modal { display: flex; flex-direction: column; gap: 12px; }
+.np-field { display: flex; flex-direction: column; gap: 6px; }
+.np-flabel { font-size: 11px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted); }
+.np-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.np-chip { font-size: 12.5px; font-weight: 550; padding: 5px 11px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); color: var(--sub); }
+.np-chip:hover:not(:disabled) { border-color: var(--lineStrong); background: var(--wash); }
+.np-chip.on { border-color: var(--bond); background: var(--bond); color: #fff; }
+.np-help { font-size: 12px; margin: 2px 0 0; }
+.np-entry { display: flex; gap: 8px; margin-top: 6px; flex-wrap: wrap; }

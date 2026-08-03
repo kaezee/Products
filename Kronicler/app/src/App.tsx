@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { supabase } from "./lib/supabase";
-import { getMyWorlds, createWorld, softDeleteWorld, renameWorld, seedSampleWorld, getChapters, getEntities, getNotes } from "./lib/api";
+import { getMyWorlds, createWorld, softDeleteWorld, renameWorld, seedSampleWorld, seedProjectShape, getChapters, getEntities, getNotes } from "./lib/api";
 import type { World } from "./lib/types";
+import { FORM_KEYS, GENRE_KEYS, FORM_STRUCTURES, GENRE_TYPES, structureFor, type FormKey, type GenreKey } from "./lib/onboarding";
+import { CANONICAL_ENTITY_TYPES } from "./lib/entityTypes";
 import { AuthGate } from "./auth/AuthGate";
 import { Library } from "./views/Library";
 import { Relationships } from "./views/Relationships";
@@ -81,6 +83,8 @@ function Workspace({ session }: { session: Session }) {
   const [worldsScreenOpen, setWorldsScreenOpen] = useState(false); // full "all worlds" gallery
   const [newWorldOpen, setNewWorldOpen] = useState(false); // new-world dialog
   const [newWorldDraft, setNewWorldDraft] = useState("");
+  const [newForm, setNewForm] = useState<FormKey>("novel");   // §2.3 structure
+  const [newGenre, setNewGenre] = useState<GenreKey>("fantasy"); // §2.4 seeded types
   const [railCollapsed, setRailCollapsed] = useState(() => localStorage.getItem("k.rail") === "1");
   const [theme, setThemeState] = useState<Theme>(getStoredTheme());
   const [appearanceOpen, setAppearanceOpen] = useState(false);
@@ -155,17 +159,25 @@ function Workspace({ session }: { session: Session }) {
 
   // New world now opens an in-app dialog (no native prompt). Reused by the
   // worlds popover, the empty-state hero, and the command palette.
-  function makeWorld() { setNewWorldDraft(""); setWorldsScreenOpen(false); setNewWorldOpen(true); }
-  async function commitNewWorld() {
+  function makeWorld() { setNewWorldDraft(""); setNewForm("novel"); setNewGenre("fantasy"); setWorldsScreenOpen(false); setNewWorldOpen(true); }
+  // §2.2 one-screen creation: name + form + genre + entry choice. "Example" hands
+  // off to the seeded sample; the other two create the project, seed its shape
+  // (§2.3 container levels + §2.4 genre types), then open prose or the importer.
+  async function commitNewWorld(entry: "blank" | "example" | "import") {
+    if (entry === "example") { setNewWorldOpen(false); void loadExample(); return; }
     const name = newWorldDraft.trim();
     if (!name) return;
     setNewWorldOpen(false);
     try {
       const w = await createWorld(name);
       localStorage.setItem("k.onboarded", "1");
+      const { containers } = structureFor(newForm);
+      // Canonical types are always offered; only the genre's extras need seeding.
+      const extras = GENRE_TYPES[newGenre].types.filter((t) => !CANONICAL_ENTITY_TYPES.includes(t as never));
+      await seedProjectShape(w.id, containers, extras);
       setWorlds((prev) => [...(prev ?? []), w]);
       setWorldId(w.id);
-      go({ scope: "overview" });
+      go(entry === "import" ? { scope: "manuscript", openImport: true } : { scope: "overview" });
     } catch (x) { setErr(String(x)); }
   }
 
@@ -438,26 +450,60 @@ function Workspace({ session }: { session: Session }) {
         </div>
       )}
 
-      {newWorldOpen && (
+      {newWorldOpen && (() => {
+        // §2.6 decay: 1st project gets full copy, 2nd drops it, 3rd+ is bare pickers.
+        const projectCount = worlds?.length ?? 0;
+        return (
         <div className="overlay" onClick={() => setNewWorldOpen(false)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ width: 420 }}>
+          <div className="modal np-modal" onClick={(e) => e.stopPropagation()} style={{ width: 460 }}>
             <div className="row" style={{ borderBottom: "none", padding: 0, marginBottom: 4 }}>
               <h3 style={{ fontFamily: "var(--serif)", fontWeight: 500, margin: 0, fontSize: 19 }}>New project</h3>
               <span className="spacer" />
               <span onClick={() => setNewWorldOpen(false)} style={{ cursor: "pointer", color: "var(--muted)", display: "inline-flex" }}><Icon name="close" size={16} /></span>
             </div>
-            <p className="muted" style={{ marginTop: 0 }}>A project holds one story’s world — its people, chapters, timeline, and the web of who-knows-what. Give it a name — you can rename it any time.</p>
-            <input autoFocus value={newWorldDraft} placeholder="e.g. The Vurnan Chronicles"
-              onChange={(e) => setNewWorldDraft(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter") void commitNewWorld(); if (e.key === "Escape") setNewWorldOpen(false); }}
-              style={{ width: "100%", fontFamily: "var(--serif)", fontSize: 15 }} />
-            <div className="row" style={{ borderBottom: "none", padding: 0, marginTop: 14, gap: 10 }}>
-              <button className="primary" disabled={!newWorldDraft.trim()} onClick={() => void commitNewWorld()}>Create project</button>
-              <button onClick={() => setNewWorldOpen(false)}>Cancel</button>
+            {projectCount === 0 && (
+              <p className="muted" style={{ marginTop: 0 }}>A project holds one story’s world — its people, chapters, timeline, and the web of who-knows-what. Nothing here is permanent; rename any of it later.</p>
+            )}
+
+            <label className="np-field">
+              <span className="np-flabel">Project name</span>
+              <input autoFocus value={newWorldDraft} placeholder="e.g. The Vurnan Chronicles"
+                onChange={(e) => setNewWorldDraft(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter" && newWorldDraft.trim()) void commitNewWorld("blank"); if (e.key === "Escape") setNewWorldOpen(false); }}
+                style={{ width: "100%", fontFamily: "var(--serif)", fontSize: 15 }} />
+            </label>
+
+            <div className="np-field">
+              <span className="np-flabel">What are you making?</span>
+              <div className="np-chips">
+                {FORM_KEYS.map((k) => (
+                  <button key={k} className={"np-chip" + (newForm === k ? " on" : "")} onClick={() => setNewForm(k)}>{FORM_STRUCTURES[k].label}</button>
+                ))}
+              </div>
+            </div>
+
+            <div className="np-field">
+              <span className="np-flabel">What kind of story?</span>
+              <div className="np-chips">
+                {GENRE_KEYS.map((k) => (
+                  <button key={k} className={"np-chip" + (newGenre === k ? " on" : "")} onClick={() => setNewGenre(k)}>{GENRE_TYPES[k].label}</button>
+                ))}
+              </div>
+            </div>
+
+            {projectCount === 0 && (
+              <p className="np-help muted">Both are just starting points — rename or change them any time in Settings.</p>
+            )}
+
+            <div className="np-entry">
+              <button className="primary" disabled={!newWorldDraft.trim()} onClick={() => void commitNewWorld("blank")}>Blank</button>
+              <button className="ghost" onClick={() => void commitNewWorld("example")}>Start from the example</button>
+              <button className="ghost" disabled={!newWorldDraft.trim()} onClick={() => void commitNewWorld("import")}>Bring in a manuscript</button>
             </div>
           </div>
         </div>
-      )}
+        );
+      })()}
     </div>
   );
 }

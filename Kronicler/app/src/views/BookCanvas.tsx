@@ -318,6 +318,13 @@ export function BookCanvas(props: {
     [stream, castIds, activeChapter, typesById],
   );
 
+  // §6.2 per-chapter moment count — everything recorded here (anchored or not),
+  // corrections excluded (they amend a moment, they aren't new ones). No zero badge.
+  const momentCount = useMemo(
+    () => (stream && activeChapter ? stream.filter((s) => s.manuscript_ref === activeChapter.id && !s.is_correction).length : 0),
+    [stream, activeChapter],
+  );
+
   const scroller = useRef<HTMLDivElement | null>(null);
   // Editing one chapter → scroll the page back to the top when it changes.
   useEffect(() => { scroller.current?.scrollTo({ top: 0 }); }, [openId]);
@@ -539,6 +546,9 @@ export function BookCanvas(props: {
                         </div>
                       );
                     })}
+                    {momentCount > 0 && (
+                      <div className="ed-panel-lab" style={{ marginTop: 14 }}>Recorded here <span className="ed-panel-count">{momentCount}</span></div>
+                    )}
                     <div className="ed-panel-lab" style={{ marginTop: 14 }}>The story so far</div>
                     {!brief ? <span className="muted">Computing…</span>
                       : <BriefPanel brief={brief} chapterOrder={activeChapter.manuscript_order} nameOf={nameOf} onOpenEntity={onOpenEntity} compact />}

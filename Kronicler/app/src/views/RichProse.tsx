@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import type { Entity, EntityType } from "../lib/types";
 import { scanMentions } from "../lib/mentions";
 import { scanEmphasis, toggleMarker, caretOutsideEmphasis } from "../lib/emphasis";
-import { toggleBlock, insertSceneBreak, activeFormats, type BlockKind, type ActiveFormats } from "../lib/blocks";
+import { toggleBlock, insertSceneBreak, splitAtEnter, activeFormats, type BlockKind, type ActiveFormats } from "../lib/blocks";
 import { getEntityTypes } from "../lib/api";
 import { buildTypeSwatches } from "../lib/entityTypes";
 import { VALENCE_COLOR } from "../lib/valence";
@@ -336,10 +336,11 @@ export function RichProse({ value, entities, onChange, onSelectText, onActive, o
       if (k === "b") { e.preventDefault(); applyWrap("**"); return; }
       if (k === "i") { e.preventDefault(); applyWrap("*"); return; }
     }
-    // Own Enter for every browser: the native insert drops the "\n" between the
-    // caret and a zero-width closing marker, splitting `*word*` across two lines
-    // into orphaned literals. Snap the break outside any emphasis token instead.
-    if (e.key === "Enter" && !e.shiftKey) {
+    // Own Enter (and Shift+Enter) for every browser. The native insert drops the
+    // "\n" between the caret and a zero-width closing marker, splitting `*word*`
+    // across two lines into orphaned literals — so snap the break outside any
+    // emphasis token, then let splitAtEnter continue lists/quotes like Docs.
+    if (e.key === "Enter") {
       e.preventDefault();
       const el = edRef.current;
       const range = el ? selectionOffsets(el) : null;
@@ -347,13 +348,14 @@ export function RichProse({ value, entities, onChange, onSelectText, onActive, o
       const text = el.textContent ?? "";
       const a = caretOutsideEmphasis(text, range.start);
       const b = range.end === range.start ? a : caretOutsideEmphasis(text, range.end);
-      const next = text.slice(0, a) + "\n" + text.slice(b);
+      const base = a === b ? text : text.slice(0, a) + text.slice(b);
+      const { next, caret } = splitAtEnter(base, a);
       el.textContent = next;
       onChange(next);
       decorate();
       el.focus();
-      setCaret(el, a + 1);
-      lastRange.current = { start: a + 1, end: a + 1 };
+      setCaret(el, caret);
+      lastRange.current = { start: caret, end: caret };
       reportSelection();
     }
   }

@@ -639,10 +639,10 @@ button.danger:hover:not(:disabled) { filter: brightness(0.93); background: var(-
 .rich .md-quote { font-style: italic; color: var(--sub); }
 .rich .md-li::before { content: "\2022"; color: var(--muted); margin-right: 0.5em; }
 .rich .md-oli::before { content: attr(data-n) "."; color: var(--muted); margin-right: 0.4em; }
-/* Scene break: hide the raw "* * *" glyphs and render a centred ornament, so it
-   reads as a deliberate divider rather than stray asterisks. */
-.rich .md-hr { display: block; text-align: center; margin: 0.9em 0; font-size: 0; user-select: none; }
-.rich .md-hr::after { content: "* * *"; font-size: 1rem; letter-spacing: 0.55em; color: var(--faint); }
+/* Scene break: hide the raw "* * *" glyphs and draw an actual centred rule, so it
+   reads as a divider line rather than stray asterisks. */
+.rich .md-hr { display: block; text-align: center; margin: 1.2em 0; font-size: 0; line-height: 0; user-select: none; }
+.rich .md-hr::after { content: ""; display: inline-block; width: 42%; border-top: 1px solid var(--lineStrong); vertical-align: middle; }
 .ed-fmt.on { background: var(--bond); border-color: var(--bond); color: #fff; }
 
 /* §5 notes-in-context: a chapter's pinned notes, in the Write inspector. */

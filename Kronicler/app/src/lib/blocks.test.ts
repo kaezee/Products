@@ -1,5 +1,38 @@
 import { describe, it, expect } from "vitest";
-import { toggleBlock, insertSceneBreak, activeFormats } from "./blocks";
+import { toggleBlock, insertSceneBreak, splitAtEnter, activeFormats } from "./blocks";
+
+describe("splitAtEnter", () => {
+  it("continues a bullet list on Enter", () => {
+    // caret at end of "- one" (offset 5)
+    expect(splitAtEnter("- one", 5)).toEqual({ next: "- one\n- ", caret: 8 });
+  });
+
+  it("steps the number up in an ordered list", () => {
+    expect(splitAtEnter("1. first", 8)).toEqual({ next: "1. first\n2. ", caret: 12 });
+  });
+
+  it("continues a quote", () => {
+    expect(splitAtEnter("> said", 6)).toEqual({ next: "> said\n> ", caret: 9 });
+  });
+
+  it("exits the list when the item is empty", () => {
+    // "- one\n- " with caret at the end (offset 8) — Enter on the empty item
+    expect(splitAtEnter("- one\n- ", 8)).toEqual({ next: "- one\n", caret: 6 });
+  });
+
+  it("drops a heading to plain body", () => {
+    expect(splitAtEnter("# Title", 7)).toEqual({ next: "# Title\n", caret: 8 });
+  });
+
+  it("plain paragraph just gets a newline", () => {
+    expect(splitAtEnter("hello", 5)).toEqual({ next: "hello\n", caret: 6 });
+  });
+
+  it("splits mid-line, carrying the list prefix to the remainder", () => {
+    // "- one two", caret after "one" (offset 5)
+    expect(splitAtEnter("- one two", 5)).toEqual({ next: "- one\n-  two", caret: 8 });
+  });
+});
 
 describe("toggleBlock — single line", () => {
   it("adds a heading prefix to the caret's line", () => {

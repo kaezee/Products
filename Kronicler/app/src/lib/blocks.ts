@@ -60,6 +60,29 @@ export function insertSceneBreak(text: string, caret: number): BlockResult {
   return { next, start: caretTo, end: caretTo };
 }
 
+// Enter, the way Docs/Word handle it: inside a list or quote, the new line
+// continues the block (numbered lists step up); a heading drops to plain body;
+// and Enter on an *empty* list/quote item exits the block instead of nesting a
+// blank one. Pure text in → text + caret out; the editor just applies it.
+export function splitAtEnter(text: string, caret: number): { next: string; caret: number } {
+  const ls = text.lastIndexOf("\n", caret - 1) + 1;
+  let le = text.indexOf("\n", caret);
+  if (le < 0) le = text.length;
+  const line = text.slice(ls, le);
+  const olm = line.match(/^(\d+)\. /);
+  const ul = line.startsWith("- ");
+  const quote = line.startsWith("> ");
+  const contentStart = ul || quote ? ls + 2 : olm ? ls + olm[0].length : ls;
+
+  // Empty continuable item + Enter → strip the prefix, exit the block.
+  if ((ul || quote || olm) && text.slice(contentStart, le).trim() === "") {
+    return { next: text.slice(0, ls) + text.slice(le), caret: ls };
+  }
+  const prefix = ul ? "- " : quote ? "> " : olm ? `${parseInt(olm[1], 10) + 1}. ` : "";
+  const next = text.slice(0, caret) + "\n" + prefix + text.slice(caret);
+  return { next, caret: caret + 1 + prefix.length };
+}
+
 export interface ActiveFormats { bold: boolean; italic: boolean; heading: boolean; quote: boolean; ul: boolean; ol: boolean }
 
 // Which formats are "on" at the current selection — drives the toolbar's active

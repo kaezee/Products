@@ -251,6 +251,9 @@ export function BookCanvas(props: {
   // Summoned right-margin panels (one at a time) and full-surface takeovers.
   const [panel, setPanel] = useState<null | "comments" | "notes" | "continuity">(null);
   const [takeover, setTakeover] = useState<null | "history">(null);
+  // §4.4 the net: a one-line teach for the gesture, dismissible once per project.
+  const [momentNetOff, setMomentNetOff] = useState(() => localStorage.getItem(`k.momentnet.${worldId}`) === "1");
+  const dismissMomentNet = () => { localStorage.setItem(`k.momentnet.${worldId}`, "1"); setMomentNetOff(true); };
   const summon = (p: "comments" | "notes" | "continuity") => { setTakeover(null); setPanel((cur) => (cur === p ? null : p)); };
   const summonTakeover = (t: "history") => { setPanel(null); setTakeover((cur) => (cur === t ? null : t)); };
   const [pendingComment, setPendingComment] = useState<{ chapterId: string; start: number; end: number; quote: string } | null>(null);
@@ -511,6 +514,12 @@ export function BookCanvas(props: {
                 const unlinked = visible.filter((e) => !castIds.includes(e.id));
                 return (
                   <div className="ed-panel-sect">
+                    {!momentNetOff && (
+                      <div className="moment-net">
+                        <span>Select a line where something shifts — who trusts who, what changed, who found out — and Kronicler will remember it.</span>
+                        <button className="iconbtn" title="Got it" onClick={dismissMomentNet}><Icon name="close" size={13} /></button>
+                      </div>
+                    )}
                     <div className="ed-panel-lab">In this chapter {visible.length > 0 && <span className="ed-panel-count">{visible.length}</span>}</div>
                     {unlinked.length > 1 && (
                       <button style={{ padding: "3px 9px", fontSize: 11, marginBottom: 8 }} onClick={() => linkAll(unlinked.map((e) => e.id))}

@@ -1052,3 +1052,18 @@ button.ghost:hover:not(:disabled) { background: var(--wash); border-color: var(-
 .np-chip.on { border-color: var(--bond); background: var(--bond); color: #fff; }
 .np-help { font-size: 12px; margin: 2px 0 0; }
 .np-entry { display: flex; gap: 8px; margin-top: 6px; flex-wrap: wrap; }
+
+/* Keyboard-shortcut hint inside the selection popover (onboarding §4.1). */
+.annot-kbd { margin-left: 6px; font-size: 10px; opacity: 0.6; font-family: var(--k-font-mono, monospace); letter-spacing: 0.02em; }
+
+/* The gesture "net" line in the Continuity panel (onboarding §4.4). */
+.moment-net { display: flex; gap: 8px; align-items: flex-start; font-size: 12px; line-height: 1.5; color: var(--sub); background: var(--inset); border: 1px solid var(--line); border-radius: 9px; padding: 9px 10px; margin-bottom: 12px; }
+.moment-net button { flex: 0 0 auto; }
+
+/* Help page (onboarding §5). */
+.help { max-width: 640px; }
+.help-step { font-size: 13px; line-height: 1.55; color: var(--sub); padding: 9px 0; border-bottom: 1px solid var(--line); }
+.help-step:last-child { border-bottom: none; }
+.help-step b { color: var(--ink); font-weight: 600; }
+.help-kbd { display: flex; align-items: center; justify-content: space-between; font-size: 13px; color: var(--sub); padding: 8px 0; border-bottom: 1px solid var(--line); }
+.help-kbd:last-child { border-bottom: none; }

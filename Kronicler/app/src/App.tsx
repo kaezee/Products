@@ -12,6 +12,7 @@ import { Manuscript } from "./views/Manuscript";
 import { WorldTimeline } from "./views/WorldTimeline";
 import { Overview } from "./views/Overview";
 import { Settings } from "./views/Settings";
+import { Help } from "./views/Help";
 import { SearchResults } from "./views/SearchResults";
 import { Palette } from "./views/Palette";
 import { getStoredTheme, setTheme, type Theme } from "./lib/theme";
@@ -34,7 +35,7 @@ export function App() {
   );
 }
 
-type Scope = "overview" | "library" | "manuscript" | "timeline" | "relationships" | "notes" | "settings";
+type Scope = "overview" | "library" | "manuscript" | "timeline" | "relationships" | "notes" | "settings" | "help";
 export interface Nav { scope: Scope; entityId?: string; chapterId?: string; openImport?: boolean }
 
 // The rail is split write-first: the everyday writing tools up top, the
@@ -64,6 +65,7 @@ const SCOPE_META: Record<Scope, { label: string; icon: IconName }> = {
   relationships: { label: "Relationships", icon: "relationships" },
   notes: { label: "Notes", icon: "notes" },
   settings: { label: "Settings", icon: "settings" },
+  help: { label: "Help", icon: "help" },
 };
 
 // A leaf a view opens inside itself (a chapter, an entity) — reported up so the
@@ -331,6 +333,10 @@ function Workspace({ session }: { session: Session }) {
               ))}
               <div className="spacer" />
               <div className="railfoot">
+                <div className={"railitem" + (!searching && nav.scope === "help" ? " on" : "")}
+                  onClick={() => go({ scope: "help" })} title={railCollapsed ? "Help" : undefined}>
+                  <span className="g"><Icon name="help" size={ICON_SIZE.lg} /></span>{!railCollapsed && "Help"}
+                </div>
                 <div className={"railitem" + (!searching && nav.scope === "settings" ? " on" : "")}
                   onClick={() => go({ scope: "settings" })} title={railCollapsed ? "Settings" : undefined}>
                   <span className="g"><Icon name="settings" size={ICON_SIZE.lg} /></span>{!railCollapsed && "Settings"}
@@ -389,6 +395,8 @@ function Workspace({ session }: { session: Session }) {
                   onDeleteWorld={() => deleteWorld(worldId)}
                   onWorldsChanged={reloadWorlds}
                 />
+              ) : nav.scope === "help" ? (
+                <Help />
               ) : (
                 <Relationships worldId={worldId} go={go} />
               )}

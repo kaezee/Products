@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { getStream, getEntities, getRelationshipTypes, getChapters, getNotes, getWorldComments, getWorld } from "../lib/api";
 import type { StreamRow, Entity, RelationshipType, Chapter, Note, Comment } from "../lib/types";
 import { detectMentions } from "../lib/mentions";
@@ -27,6 +27,8 @@ export function Overview({ worldId, go }: { worldId: string; go: (n: Nav) => voi
   const [comments, setComments] = useState<Comment[]>([]);
   const [err, setErr] = useState<string | null>(null);
   const [worldName, setWorldName] = useState("");
+  // §3 demonstration checklist: retires permanently at 4/4 and never returns.
+  const [ckRetired] = useState(() => localStorage.getItem(`k.checklist.${worldId}`) === "1");
 
   // §4.1 time away, measured writer-side (there is no per-chapter timestamp): the
   // gap since this world was last opened in THIS browser. Read the prior mark
@@ -105,6 +107,16 @@ export function Overview({ worldId, go }: { worldId: string; go: (n: Nav) => voi
       .sort((a, b) => (b.manuscript_order ?? 0) - (a.manuscript_order ?? 0))
       .slice(0, 4);
   }, [stream, typesById]);
+
+  // §3 checklist progress — each step checks off from real data, no locks.
+  const ckDone = useMemo(() => [
+    chapters.some((c) => !c.planned && (c.body || "").trim().length > 0), // wrote a chapter
+    entities.length > 0,                                                  // added someone/thing
+    (stream?.length ?? 0) > 0,                                            // recorded a moment
+    chapters.some((c) => c.time_year != null || c.day_num_start != null), // dated a chapter
+  ], [chapters, entities, stream]);
+  const ckCount = ckDone.filter(Boolean).length;
+  useEffect(() => { if (ckCount === 4) localStorage.setItem(`k.checklist.${worldId}`, "1"); }, [ckCount, worldId]);
 
   // Continuity checks (lib/continuity, node-tested): reopened threads, states
   // concealed from someone who's in them, and beliefs that clash with the truth.
@@ -212,6 +224,26 @@ export function Overview({ worldId, go }: { worldId: string; go: (n: Nav) => voi
   };
   const planned = chapters.filter((c) => c.planned).length;
 
+  // §3 checklist steps — after-states speak in the chronicle voice from real data;
+  // step 3 is the payoff, the engine saying a sentence built from the writer's prose.
+  const ckFirstCh = [...chapters].filter((c) => !c.planned && (c.body || "").trim()).sort((a, b) => a.manuscript_order - b.manuscript_order)[0];
+  const ckEnt = entities[0];
+  const ckMoment = recent[0];
+  const ckDated = chapters.find((c) => c.time_year != null || c.day_num_start != null);
+  const ckDateLabel = ckDated?.story_time_label || (ckDated?.time_year != null ? String(ckDated.time_year) : "your timeline");
+  const ckSteps: { done: boolean; title: string; body: ReactNode; nav: Nav }[] = [
+    { done: ckDone[0], title: "Write your first chapter", nav: { scope: "manuscript" },
+      body: ckDone[0] && ckFirstCh ? `Chapter ${ckFirstCh.manuscript_order} · ${fmt(wordsOf(ckFirstCh.body))} words. Names you add light up in this prose.` : "Even a title is enough." },
+    { done: ckDone[1], title: "Add someone, somewhere, or something", nav: { scope: "library" },
+      body: ckDone[1] && ckEnt ? `${ckEnt.title} now lights up wherever you write the name. Hover to peek.` : "A character, a place, a faction — anyone in your story." },
+    { done: ckDone[2], title: "Record what changes", nav: { scope: "manuscript" },
+      body: ckDone[2] && ckMoment
+        ? <>Kronicler can now say: <b>{who(ckMoment)}</b> <span style={{ color: VALENCE_COLOR[ckMoment.valence], fontWeight: 600 }}>{ckMoment.type_label}</span>{ckMoment.manuscript_order != null ? ` — ch. ${ckMoment.manuscript_order}` : ""}</>
+        : "Select a line where something shifts between two people." },
+    { done: ckDone[3], title: "Give a chapter a date", nav: { scope: "timeline" },
+      body: ckDone[3] && ckDated ? `Chapter ${ckDated.manuscript_order} sits on your timeline at ${ckDateLabel}.` : "Give a chapter a date and it lands on your timeline." },
+  ];
+
   // ── §4.4 Returning after a long absence: the recap owns the screen ──────────
   if (hasContent && away === "recap") {
     const note = recentNotes[0];
@@ -304,6 +336,27 @@ export function Overview({ worldId, go }: { worldId: string; go: (n: Nav) => voi
       {/* §4.1 one orientation sentence after 1–3 weeks away */}
       {away === "orient" && continueCh && (
         <p className="dash-orient">You were last in <b>{continueCh.title}</b>{mentions.whoInPlay.length ? <> — {mentions.whoInPlay.slice(0, 3).map((e) => e.title).join(", ")} were in play.</> : "."}</p>
+      )}
+
+      {/* §3 demonstration checklist — each done step reports what it bought, in
+          real data. No locks. Retires at 4/4 and never returns. */}
+      {!ckRetired && (
+        <div className="checklist">
+          <div className="checklist-head">
+            <span className="checklist-title">Getting started</span>
+            <span className="checklist-count">{ckCount} of 4</span>
+          </div>
+          {ckSteps.map((s, i) => (
+            <div className={"checklist-step" + (s.done ? " done" : "")} key={i} onClick={() => !s.done && go(s.nav)}>
+              <span className="checklist-mark">{s.done ? <Icon name="done" size={16} /> : <span className="checklist-circle" />}</span>
+              <span style={{ minWidth: 0 }}>
+                <span className="checklist-label">{s.title}</span>
+                <span className="checklist-desc">{s.body}</span>
+              </span>
+              {!s.done && <><span className="spacer" style={{ flex: 1 }} /><Icon name="arrow" size={14} style={{ color: "var(--faint)", flex: "0 0 auto" }} /></>}
+            </div>
+          ))}
+        </div>
       )}
 
       {<>

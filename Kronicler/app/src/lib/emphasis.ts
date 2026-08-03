@@ -20,17 +20,20 @@ export type Emph = {
 export function scanEmphasis(text: string): Emph[] {
   const marks: Emph[] = [];
   let m: RegExpExecArray | null;
-  const both = /\*\*\*(?=\S)([^\n]+?)(?<=\S)\*\*\*/g; // bold + italic
+  // The opening marker must hug a non-space (so `a * b` isn't emphasis), but the
+  // closing side is lax — a trailing space typed at a word's edge lands *inside*
+  // the markers and must stay invisible, not pop the raw `*` back into view.
+  const both = /\*\*\*(?=\S)([^\n]+?)\*\*\*/g; // bold + italic
   while ((m = both.exec(text))) {
     marks.push({ start: m.index, end: m.index + m[0].length, innerStart: m.index + 3, innerEnd: m.index + m[0].length - 3, tag: "both" });
   }
-  const bold = /\*\*(?=\S)([^\n]+?)(?<=\S)\*\*/g;
+  const bold = /\*\*(?=\S)([^\n]+?)\*\*/g;
   while ((m = bold.exec(text))) {
     const s = m.index, e = s + m[0].length;
     if (marks.some((b) => s < b.end && e > b.start)) continue;
     marks.push({ start: s, end: e, innerStart: s + 2, innerEnd: e - 2, tag: "strong" });
   }
-  const italic = /(?<!\*)\*(?=\S)([^*\n]+?)(?<=\S)\*(?!\*)/g;
+  const italic = /(?<!\*)\*(?=\S)([^*\n]+?)\*(?!\*)/g;
   while ((m = italic.exec(text))) {
     const s = m.index, e = s + m[0].length;
     if (marks.some((b) => s < b.end && e > b.start)) continue; // inside a bold / bold-italic run

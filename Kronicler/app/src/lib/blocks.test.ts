@@ -46,8 +46,17 @@ describe("splitAtEnter", () => {
     expect(splitAtEnter("- one\n- ", 8)).toEqual({ next: "- one\n", caret: 6 });
   });
 
-  it("drops a heading to plain body", () => {
+  it("drops a heading to plain body when Enter is at its end", () => {
     expect(splitAtEnter("# Title", 7)).toEqual({ next: "# Title\n", caret: 8 });
+  });
+
+  it("keeps the heading style when split in the middle", () => {
+    // "# Title", caret after "# Ti" (offset 4) — both halves stay heading
+    expect(splitAtEnter("# Title", 4)).toEqual({ next: "# Ti\n# tle", caret: 7 });
+  });
+
+  it("preserves the heading level on a split", () => {
+    expect(splitAtEnter("### Big", 5)).toEqual({ next: "### B\n### ig", caret: 10 });
   });
 
   it("plain paragraph just gets a newline", () => {

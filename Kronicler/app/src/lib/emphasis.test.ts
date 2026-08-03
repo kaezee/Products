@@ -45,6 +45,22 @@ describe("scanEmphasis", () => {
   it("returns nothing for plain text", () => {
     expect(scanEmphasis("just words, no stars")).toEqual([]);
   });
+
+  it("tolerates a trailing space inside the markers (typed at a word's edge)", () => {
+    // "*Test *" must still read as italic, not fall back to literal asterisks
+    const [t] = scanEmphasis("*Test *");
+    expect(t).toMatchObject({ start: 0, end: 7, tag: "em" });
+    const [b] = scanEmphasis("**test **");
+    expect(b).toMatchObject({ start: 0, end: 9, tag: "strong" });
+  });
+
+  it("still refuses a leading space (no `* text*`)", () => {
+    expect(scanEmphasis("* text*")).toHaveLength(0);
+  });
+
+  it("does not treat a lone `a * b` as emphasis", () => {
+    expect(scanEmphasis("a * b")).toHaveLength(0);
+  });
 });
 
 describe("toggleMarker", () => {

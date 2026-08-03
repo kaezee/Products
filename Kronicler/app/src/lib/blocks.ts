@@ -60,32 +60,38 @@ export function insertSceneBreak(text: string, caret: number): BlockResult {
   return { next, start: caretTo, end: caretTo };
 }
 
-// The prefix a *continued* line inherits (numbered lists step up; headings and
-// plain text inherit nothing), plus where the line's content begins and whether
-// the item is empty — the signal that Enter should exit the block.
+// The prefix a *continued* line inherits (numbered lists step up; a heading keeps
+// its level), plus the line bounds, its kind, and whether the item is empty — the
+// signal that Enter should exit the block.
 function lineInfo(text: string, pos: number) {
   const ls = text.lastIndexOf("\n", pos - 1) + 1;
   let le = text.indexOf("\n", pos);
   if (le < 0) le = text.length;
   const line = text.slice(ls, le);
+  const hm = line.match(/^(#{1,3}) /);
   const olm = line.match(/^(\d+)\. /);
   const ul = line.startsWith("- ");
   const quote = line.startsWith("> ");
-  const contentStart = ul || quote ? ls + 2 : olm ? ls + olm[0].length : ls;
-  const prefix = ul ? "- " : quote ? "> " : olm ? `${parseInt(olm[1], 10) + 1}. ` : "";
-  const empty = (ul || quote || !!olm) && text.slice(contentStart, le).trim() === "";
-  return { ls, le, prefix, empty };
+  const heading = !!hm;
+  const contentStart = ul || quote ? ls + 2 : hm ? ls + hm[0].length : olm ? ls + olm[0].length : ls;
+  const prefix = ul ? "- " : quote ? "> " : hm ? hm[0] : olm ? `${parseInt(olm[1], 10) + 1}. ` : "";
+  const continuable = ul || quote || heading || !!olm;
+  const empty = continuable && text.slice(contentStart, le).trim() === "";
+  return { ls, le, prefix, heading, empty };
 }
 
 // Enter, the way Docs/Word handle it: inside a list or quote, the new line
-// continues the block (numbered lists step up); a heading drops to plain body;
-// and Enter on an *empty* list/quote item exits the block instead of nesting a
-// blank one. Pure text in → text + caret out; the editor just applies it.
+// continues the block (numbered lists step up). A heading keeps its style when
+// split in the middle but drops to plain body when you press Enter at its end.
+// Enter on an *empty* block item exits it instead of nesting a blank one.
 export function splitAtEnter(text: string, caret: number): { next: string; caret: number } {
-  const { ls, le, prefix, empty } = lineInfo(text, caret);
+  const { ls, le, prefix, heading, empty } = lineInfo(text, caret);
   if (empty) return { next: text.slice(0, ls) + text.slice(le), caret: ls };
-  const next = text.slice(0, caret) + "\n" + prefix + text.slice(caret);
-  return { next, caret: caret + 1 + prefix.length };
+  // A heading shouldn't spawn another heading below itself — only preserve it
+  // when there's text being pushed onto the new line (a real split).
+  const carry = heading && caret >= le ? "" : prefix;
+  const next = text.slice(0, caret) + "\n" + carry + text.slice(caret);
+  return { next, caret: caret + 1 + carry.length };
 }
 
 const MARKER = { em: "*", strong: "**", both: "***" } as const;

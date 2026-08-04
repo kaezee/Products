@@ -87,6 +87,7 @@ function Workspace({ session }: { session: Session }) {
   const [newWorldDraft, setNewWorldDraft] = useState("");
   const [newForm, setNewForm] = useState<FormKey>("novel");   // §2.3 structure
   const [newGenre, setNewGenre] = useState<GenreKey>("fantasy"); // §2.4 seeded types
+  const [newEntry, setNewEntry] = useState<"blank" | "example" | "import">("blank"); // §2.6 start choice
   const [railCollapsed, setRailCollapsed] = useState(() => localStorage.getItem("k.rail") === "1");
   const [theme, setThemeState] = useState<Theme>(getStoredTheme());
   const [appearanceOpen, setAppearanceOpen] = useState(false);
@@ -161,7 +162,7 @@ function Workspace({ session }: { session: Session }) {
 
   // New world now opens an in-app dialog (no native prompt). Reused by the
   // worlds popover, the empty-state hero, and the command palette.
-  function makeWorld() { setNewWorldDraft(""); setNewForm("novel"); setNewGenre("fantasy"); setWorldsScreenOpen(false); setNewWorldOpen(true); }
+  function makeWorld() { setNewWorldDraft(""); setNewForm("novel"); setNewGenre("fantasy"); setNewEntry("blank"); setWorldsScreenOpen(false); setNewWorldOpen(true); }
   // §2.2 one-screen creation: name + form + genre + entry choice. "Example" hands
   // off to the seeded sample; the other two create the project, seed its shape
   // (§2.3 container levels + §2.4 genre types), then open prose or the importer.
@@ -459,55 +460,107 @@ function Workspace({ session }: { session: Session }) {
       )}
 
       {newWorldOpen && (() => {
-        // §2.6 decay: 1st project gets full copy, 2nd drops it, 3rd+ is bare pickers.
-        const projectCount = worlds?.length ?? 0;
+        // §2.6 decay: the first project gets the full "how do you want to start?"
+        // card so the start choice leads; every project after is the bare picker
+        // form with import demoted to a footer link.
+        const first = (worlds?.length ?? 0) === 0;
+        // The primary follows the selected start card (§2.6): example needs no name,
+        // blank/import do. On a returning project the choice is blank↔import only.
+        const needsName = newEntry !== "example";
+        const canCommit = !needsName || !!newWorldDraft.trim();
+        const primaryLabel = newEntry === "example" ? "Open the example" : newEntry === "import" ? "Choose a file" : "Start writing";
+        const commit = () => { if (canCommit) void commitNewWorld(newEntry); };
+        const nameField = (
+          <label className="np-field">
+            <span className="np-flabel">Project name</span>
+            <input autoFocus value={newWorldDraft} placeholder={first ? "e.g. The Vurnan Chronicles" : "e.g. Scones at the End of Time"}
+              onChange={(e) => setNewWorldDraft(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") commit(); if (e.key === "Escape") setNewWorldOpen(false); }}
+              style={{ width: "100%", fontFamily: "var(--serif)", fontSize: 15 }} />
+          </label>
+        );
+        const formPicker = (help?: string) => (
+          <div className="np-field">
+            <span className="np-flabel">What are you making?</span>
+            <div className="np-chips">
+              {FORM_KEYS.map((k) => (
+                <button key={k} className={"np-chip" + (newForm === k ? " on" : "")} onClick={() => setNewForm(k)}>{FORM_STRUCTURES[k].label}</button>
+              ))}
+            </div>
+            {help && <span className="np-subhelp">{help}</span>}
+          </div>
+        );
+        const genrePicker = (help?: string) => (
+          <div className="np-field">
+            <span className="np-flabel">What kind of story?</span>
+            <div className="np-chips">
+              {GENRE_KEYS.map((k) => (
+                <button key={k} className={"np-chip" + (newGenre === k ? " on" : "")} onClick={() => setNewGenre(k)}>{GENRE_TYPES[k].label}</button>
+              ))}
+            </div>
+            {help && <span className="np-subhelp">{help}</span>}
+          </div>
+        );
         return (
         <div className="overlay" onClick={() => setNewWorldOpen(false)}>
-          <div className="modal np-modal" onClick={(e) => e.stopPropagation()} style={{ width: 460 }}>
+          <div className={"modal np-modal" + (first ? " np-first" : "")} onClick={(e) => e.stopPropagation()} style={{ width: first ? 620 : 460 }}>
             <div className="row" style={{ borderBottom: "none", padding: 0, marginBottom: 4 }}>
-              <h3 style={{ fontFamily: "var(--serif)", fontWeight: 500, margin: 0, fontSize: 19 }}>New project</h3>
+              <h3 style={{ fontFamily: "var(--serif)", fontWeight: 500, margin: 0, fontSize: first ? 24 : 19 }}>{first ? "Start your first project" : "New project"}</h3>
               <span className="spacer" />
               <span onClick={() => setNewWorldOpen(false)} style={{ cursor: "pointer", color: "var(--muted)", display: "inline-flex" }}><Icon name="close" size={16} /></span>
             </div>
-            {projectCount === 0 && (
-              <p className="muted" style={{ marginTop: 0 }}>A project holds one story’s world — its people, chapters, timeline, and the web of who-knows-what. Nothing here is permanent; rename any of it later.</p>
+
+            {first ? (
+              <>
+                <div className="np-field">
+                  <span className="np-flabel">How do you want to start?</span>
+                  <div className="np-starts">
+                    {([
+                      { k: "blank", icon: "feather", t: "Blank", d: "An empty page. Start typing." },
+                      { k: "example", icon: "book", t: "The example", d: "Sherlock, fully marked up. Poke at it, delete it later." },
+                      { k: "import", icon: "import", t: "Your manuscript", d: "Upload a .docx — we’ll split the chapters." },
+                    ] as const).map((c) => (
+                      <button key={c.k} className={"np-start" + (newEntry === c.k ? " on" : "")} onClick={() => setNewEntry(c.k)}>
+                        <Icon name={c.icon} size={18} />
+                        <span className="np-start-t">{c.t}</span>
+                        <span className="np-start-d">{c.d}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {nameField}
+
+                <div className="np-cols">
+                  {formPicker("Sets up your chapters and books.")}
+                  {genrePicker("Sets up your first character and place types.")}
+                </div>
+
+                <div className="np-foot">
+                  <span className="np-foot-note">You can rename any of this later.</span>
+                  <span className="spacer" />
+                  <button className="ghost" onClick={() => setNewWorldOpen(false)}>Cancel</button>
+                  <button className="primary" disabled={!canCommit} onClick={commit}>{primaryLabel}</button>
+                </div>
+              </>
+            ) : (
+              <>
+                {nameField}
+                {formPicker()}
+                {genrePicker()}
+
+                <div className="np-foot">
+                  <label className="np-import-toggle">
+                    <input type="checkbox" checked={newEntry === "import"}
+                      onChange={(e) => setNewEntry(e.target.checked ? "import" : "blank")} />
+                    Bring in a manuscript instead
+                  </label>
+                  <span className="spacer" />
+                  <button className="ghost" onClick={() => setNewWorldOpen(false)}>Cancel</button>
+                  <button className="primary" disabled={!canCommit} onClick={commit}>{primaryLabel}</button>
+                </div>
+              </>
             )}
-
-            <label className="np-field">
-              <span className="np-flabel">Project name</span>
-              <input autoFocus value={newWorldDraft} placeholder="e.g. The Vurnan Chronicles"
-                onChange={(e) => setNewWorldDraft(e.target.value)}
-                onKeyDown={(e) => { if (e.key === "Enter" && newWorldDraft.trim()) void commitNewWorld("blank"); if (e.key === "Escape") setNewWorldOpen(false); }}
-                style={{ width: "100%", fontFamily: "var(--serif)", fontSize: 15 }} />
-            </label>
-
-            <div className="np-field">
-              <span className="np-flabel">What are you making?</span>
-              <div className="np-chips">
-                {FORM_KEYS.map((k) => (
-                  <button key={k} className={"np-chip" + (newForm === k ? " on" : "")} onClick={() => setNewForm(k)}>{FORM_STRUCTURES[k].label}</button>
-                ))}
-              </div>
-            </div>
-
-            <div className="np-field">
-              <span className="np-flabel">What kind of story?</span>
-              <div className="np-chips">
-                {GENRE_KEYS.map((k) => (
-                  <button key={k} className={"np-chip" + (newGenre === k ? " on" : "")} onClick={() => setNewGenre(k)}>{GENRE_TYPES[k].label}</button>
-                ))}
-              </div>
-            </div>
-
-            {projectCount === 0 && (
-              <p className="np-help muted">Both are just starting points — rename or change them any time in Settings.</p>
-            )}
-
-            <div className="np-entry">
-              <button className="primary" disabled={!newWorldDraft.trim()} onClick={() => void commitNewWorld("blank")}>Blank</button>
-              <button className="ghost" onClick={() => void commitNewWorld("example")}>Start from the example</button>
-              <button className="ghost" disabled={!newWorldDraft.trim()} onClick={() => void commitNewWorld("import")}>Bring in a manuscript</button>
-            </div>
           </div>
         </div>
         );

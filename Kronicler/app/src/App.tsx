@@ -104,26 +104,12 @@ function Workspace({ session }: { session: Session }) {
     getMyWorlds()
       .then(async (w) => {
         if (!alive) return;
-        // First-ever visit with nothing here → seed the example world so the
-        // first thing a new writer sees is a full, explorable world.
-        if (w.length === 0 && !localStorage.getItem("k.onboarded")) {
-          setSeeding(true);
-          try {
-            const id = await seedSampleWorld();
-            localStorage.setItem("k.onboarded", "1");
-            const w2 = await getMyWorlds();
-            if (!alive) return;
-            setWorlds(w2);
-            setWorldId(w2.find((x) => x.id === id)?.id ?? w2[0]?.id ?? null);
-          } catch {
-            if (alive) { setWorlds(w); setWorldId(null); } // seeding failed → empty state
-          } finally {
-            if (alive) setSeeding(false);
-          }
-          return;
-        }
         setWorlds(w);
         setWorldId((cur) => cur ?? w[0]?.id ?? null);
+        // First-ever visit with nothing here → open the creation chooser so the
+        // start choice leads (§2.6). The example is one of the three options now,
+        // no longer force-seeded ahead of the writer's choice.
+        if (w.length === 0 && !localStorage.getItem("k.onboarded")) makeWorld();
       })
       .catch((x) => alive && setErr(String(x)));
     return () => { alive = false; };

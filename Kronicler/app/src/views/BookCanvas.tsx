@@ -538,11 +538,12 @@ export function BookCanvas(props: {
             <div className="ed-panel-body">
               {panel === "comments" && (
                 <ChapterComments key={activeChapter.id} worldId={worldId} chapterId={activeChapter.id}
-                  chapters={chapterRefs} bookIds={bookIds}
+                  chapters={chapterRefs} bookIds={bookIds} body={activeChapter.body || ""}
                   pending={pendingComment && pendingComment.chapterId === activeChapter.id
                     ? { start: pendingComment.start, end: pendingComment.end, quote: pendingComment.quote } : null}
                   onPendingConsumed={() => setPendingComment(null)}
-                  onJump={jumpComment} onNavigate={onNavigate} onCount={setCommentCount} />
+                  onJump={jumpComment} onNavigate={onNavigate} onCount={setCommentCount}
+                  getSelection={() => proseApis.current.get(openId)?.currentSelection() ?? null} />
               )}
               {panel === "notes" && (
                 <ChapterNotes key={activeChapter.id} worldId={worldId} chapterId={activeChapter.id}

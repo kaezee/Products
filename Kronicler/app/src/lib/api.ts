@@ -74,7 +74,7 @@ export async function softDeleteNote(id: string): Promise<void> {
 }
 
 // ── comments (§6) ──────────────────────────────────────────────────────────
-const COMMENT_COLS = "id, world_id, chapter_id, body, anchor_start, anchor_end, quote, resolved, created_at, updated_at";
+const COMMENT_COLS = "id, world_id, chapter_id, body, anchor_start, anchor_end, quote, anchor_prefix, anchor_suffix, anchor_status, resolved, created_at, updated_at";
 
 // Until the 0024 migration is applied, the table is absent — degrade to an empty
 // list rather than surfacing an error, so the editor works with or without it.
@@ -105,7 +105,7 @@ export async function getWorldComments(worldId: string): Promise<Comment[]> {
 
 export async function createComment(
   worldId: string, chapterId: string,
-  patch: { body: string; anchor_start: number; anchor_end: number; quote: string },
+  patch: { body: string; anchor_start: number; anchor_end: number; quote: string; anchor_prefix?: string; anchor_suffix?: string },
 ): Promise<Comment> {
   const { data, error } = await supabase
     .from("comments").insert({ world_id: worldId, chapter_id: chapterId, ...patch }).select(COMMENT_COLS).single();
@@ -115,7 +115,7 @@ export async function createComment(
 
 export async function updateComment(
   id: string,
-  patch: Partial<Pick<Comment, "body" | "resolved" | "anchor_start" | "anchor_end" | "quote">>,
+  patch: Partial<Pick<Comment, "body" | "resolved" | "anchor_start" | "anchor_end" | "quote" | "anchor_prefix" | "anchor_suffix" | "anchor_status">>,
 ): Promise<void> {
   const { error } = await supabase.from("comments").update(patch).eq("id", id);
   if (error) throw error;

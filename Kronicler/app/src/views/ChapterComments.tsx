@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { getWorldComments, createComment, updateComment, softDeleteComment } from "../lib/api";
 import type { Comment } from "../lib/types";
+import { resolveAnchor, type Anchor } from "../lib/anchor";
 import { Icon } from "../components/icons";
 
 type Scope = "chapter" | "book" | "world";
@@ -9,16 +10,18 @@ type ChapterRef = { id: string; manuscript_order: number; title: string };
 // §6 comments + §3.5 panel: margin comments anchored to prose. Scope the list to
 // this Chapter, its Book, or the whole World; search; group by chapter when the
 // scope is wider than one. Create from the selection bar; click a quote to jump.
-export function ChapterComments({ worldId, chapterId, chapters, bookIds, pending, onPendingConsumed, onJump, onNavigate, onCount }: {
+export function ChapterComments({ worldId, chapterId, chapters, bookIds, body, pending, onPendingConsumed, onJump, onNavigate, onCount, getSelection }: {
   worldId: string;
   chapterId: string;
   chapters: ChapterRef[];
   bookIds: Set<string>;
+  body: string;
   pending: { start: number; end: number; quote: string } | null;
   onPendingConsumed: () => void;
   onJump: (c: Comment) => boolean;
   onNavigate: (chapterId: string) => void;
   onCount?: (n: number) => void;
+  getSelection: () => Anchor | null;
 }) {
   const [all, setAll] = useState<Comment[] | null>(null);
   const [scope, setScope] = useState<Scope>("chapter");
@@ -54,6 +57,19 @@ export function ChapterComments({ worldId, chapterId, chapters, bookIds, pending
   const chapterUnresolved = useMemo(() => (all ?? []).filter((c) => c.chapter_id === chapterId && !c.resolved).length, [all, chapterId]);
   useEffect(() => { onCount?.(chapterUnresolved); }, [chapterUnresolved]); // eslint-disable-line
 
+  // Resolve this chapter's comments live against the prose — a stale one (its quote
+  // edited away) is shown persistently with a repair path, never silently dropped
+  // on reload (the old in-memory-only detach was quiet data loss).
+  const staleIds = useMemo(() => {
+    const s = new Set<string>();
+    for (const c of all ?? []) {
+      if (c.chapter_id !== chapterId) continue;
+      const res = resolveAnchor(body, { quote: c.quote, prefix: c.anchor_prefix ?? "", suffix: c.anchor_suffix ?? "", start: c.anchor_start, end: c.anchor_end });
+      if (res.status === "stale") s.add(c.id);
+    }
+    return s;
+  }, [all, chapterId, body]);
+
   async function save() {
     const body = draft.trim();
     if (!body || !compose) { setCompose(null); setDraft(""); return; }
@@ -73,19 +89,36 @@ export function ChapterComments({ worldId, chapterId, chapters, bookIds, pending
   async function del(c: Comment) {
     try { await softDeleteComment(c.id); reload(); } catch (x) { setErr(String(x)); }
   }
+  async function reanchor(c: Comment) {
+    const a = getSelection();
+    if (!a || a.quote.length < 1) return;
+    try {
+      await updateComment(c.id, { anchor_start: a.start, anchor_end: a.end, quote: a.quote, anchor_prefix: a.prefix, anchor_suffix: a.suffix, anchor_status: "ok" });
+      reload();
+    } catch (x) { setErr(String(x)); }
+  }
   function jump(c: Comment) {
     if (c.chapter_id !== chapterId) { onNavigate(c.chapter_id); return; }
     const ok = onJump(c);
     setDetached((d) => { const n = new Set(d); ok ? n.delete(c.id) : n.add(c.id); return n; });
   }
 
-  const row = (c: Comment) => (
+  const row = (c: Comment) => {
+    const stale = staleIds.has(c.id) || detached.has(c.id);
+    return (
     <div className={"ccmt" + (c.resolved ? " done" : "")} key={c.id}>
-      <div className="ccmt-quote" onClick={() => jump(c)} title="Jump to this passage">
+      <div className="ccmt-quote" onClick={() => !stale && jump(c)} title={stale ? undefined : "Jump to this passage"}>
         <span className="ccmt-bar" />
         <span className="ccmt-quote-t">{c.quote || <span className="muted">(no quote)</span>}</span>
-        {detached.has(c.id) && <span className="ccmt-detached" title="The quoted text was edited away">detached</span>}
+        {stale && <span className="ccmt-detached" title="The quoted text was edited away">detached</span>}
       </div>
+      {stale && c.chapter_id === chapterId && (
+        <div className="moment-stale">
+          This no longer points at any text — the passage was edited or removed.
+          <button onClick={() => reanchor(c)} title="Attach to the current selection">Re-anchor</button>
+          <button onClick={() => del(c)}>Delete</button>
+        </div>
+      )}
       {editId === c.id ? (
         <textarea autoFocus className="cnote-edit" value={editDraft} rows={2}
           onChange={(e) => setEditDraft(e.target.value)}
@@ -102,7 +135,8 @@ export function ChapterComments({ worldId, chapterId, chapters, bookIds, pending
         <span className="cnote-act danger" title="Delete comment" onClick={() => del(c)}><Icon name="trash" size={12} /></span>
       </div>
     </div>
-  );
+    );
+  };
 
   // Group rows by chapter when the scope is wider than one chapter.
   const grouped = (list: Comment[]) => {

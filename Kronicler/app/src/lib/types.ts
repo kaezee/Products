@@ -65,6 +65,9 @@ export interface Comment {
   anchor_start: number;
   anchor_end: number;
   quote: string;
+  anchor_prefix: string | null;
+  anchor_suffix: string | null;
+  anchor_status: "ok" | "stale" | null;
   resolved: boolean;
   created_at: string;
   updated_at: string;

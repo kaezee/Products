@@ -6,7 +6,8 @@ import {
 } from "../lib/api";
 import type { Chapter, ChapterStatus, Entity, RelationshipType, ChapterVersion, ChapterEntity, StreamRow, Comment } from "../lib/types";
 import { CHAPTER_STATUSES, statusMeta } from "../lib/chapterStatus";
-import { resolveAnchor } from "../lib/anchor";
+import { resolveAnchor, makeAnchor } from "../lib/anchor";
+import { firstCoOccurrence } from "../lib/offers";
 import { VALENCE_COLOR } from "../lib/valence";
 import type { ActiveFormats } from "../lib/blocks";
 import { detectMentions } from "../lib/mentions";
@@ -261,6 +262,10 @@ export function BookCanvas(props: {
   // §4.4 the net: a one-line teach for the gesture, dismissible once per project.
   const [momentNetOff, setMomentNetOff] = useState(() => localStorage.getItem(`k.momentnet.${worldId}`) === "1");
   const dismissMomentNet = () => { localStorage.setItem(`k.momentnet.${worldId}`, "1"); setMomentNetOff(true); };
+  // §4.2 engine offers retire permanently after 3 marked moments, per account
+  // (browser-scoped), never re-arming.
+  const [markedCount, setMarkedCount] = useState(() => Number(localStorage.getItem("k.momentsMarked") || 0));
+  const bumpMarked = () => setMarkedCount((c) => { const n = c + 1; localStorage.setItem("k.momentsMarked", String(n)); return n; });
   const summon = (p: "comments" | "notes" | "continuity") => { setTakeover(null); setPanel((cur) => (cur === p ? null : p)); };
   const summonTakeover = (t: "history") => { setPanel(null); setTakeover((cur) => (cur === t ? null : t)); };
   const [pendingComment, setPendingComment] = useState<{ chapterId: string; start: number; end: number; quote: string } | null>(null);
@@ -355,6 +360,20 @@ export function BookCanvas(props: {
     () => chapterMoments.filter((m) => m.start != null).map((m) => ({ id: m.s.state_id, start: m.start!, color: VALENCE_COLOR[m.s.valence] })),
     [chapterMoments],
   );
+
+  // §4.2 the one offer this chapter may make — a co-occurrence with no moment yet.
+  const offer = useMemo(() => {
+    if (!activeChapter || markedCount >= 3) return null;
+    const anchored = chapterMoments.filter((m) => m.start != null)
+      .map((m) => ({ start: m.start!, end: m.start! + (m.s.anchor_quote?.length ?? 0) }));
+    return firstCoOccurrence(activeChapter.body || "", ents, anchored);
+  }, [activeChapter, markedCount, chapterMoments, ents]);
+  function acceptOffer() {
+    if (!offer || !activeChapter) return;
+    setEntChId(activeChapter.id);
+    setPendingAnchor(makeAnchor(activeChapter.body || "", offer.start, offer.end));
+    setComposerOpen(true);
+  }
 
   const reloadStream = useCallback(() => { getStream(worldId).then(setStream).catch(() => {}); }, [worldId]);
   async function reanchorState(stateId: string) {
@@ -569,6 +588,13 @@ export function BookCanvas(props: {
                         <button className="iconbtn" title="Got it" onClick={dismissMomentNet}><Icon name="close" size={13} /></button>
                       </div>
                     )}
+                    {offer && (
+                      <div className="moment-offer">
+                        <span><b>{offer.aTitle}</b> and <b>{offer.bTitle}</b> appear together here.</span>
+                        <div className="moment-offer-q">“{offer.quote}”</div>
+                        <button className="primary" onClick={acceptOffer}>Record what changes</button>
+                      </div>
+                    )}
                     <div className="ed-panel-lab">In this chapter {visible.length > 0 && <span className="ed-panel-count">{visible.length}</span>}</div>
                     {unlinked.length > 1 && (
                       <button style={{ padding: "3px 9px", fontSize: 11, marginBottom: 8 }} onClick={() => linkAll(unlinked.map((e) => e.id))}
@@ -649,7 +675,7 @@ export function BookCanvas(props: {
             note={selText.trim()}
             anchor={pendingAnchor}
             onClose={() => { setComposerOpen(false); setPendingAnchor(null); }}
-            onAppended={() => reloadActiveSide(activeId)}
+            onAppended={() => { reloadActiveSide(activeId); bumpMarked(); }}
             onTypesChanged={() => getRelationshipTypes(worldId).then(setTypes).catch(() => {})}
           />
         );

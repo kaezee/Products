@@ -168,8 +168,17 @@ function Workspace({ session }: { session: Session }) {
     } catch (x) { setErr(String(x)); }
   }
 
-  // Re-add the seeded example world on demand (world switcher / empty state).
+  // Open the seeded example (world switcher / empty state / creation chooser).
+  // If a sample world already exists, open it — never seed a second copy.
   async function loadExample() {
+    const existing = (worlds ?? []).find((w) => w.is_sample);
+    if (existing) {
+      localStorage.setItem("k.onboarded", "1");
+      setNewWorldOpen(false); setWorldsScreenOpen(false);
+      setWorldId(existing.id);
+      go({ scope: "overview" });
+      return;
+    }
     setSeeding(true);
     try {
       const id = await seedSampleWorld();
@@ -259,7 +268,7 @@ function Workspace({ session }: { session: Session }) {
   // false — no chrome, nowhere to cancel to) and the "New project" modal.
   function creationCard(first: boolean, dismissible: boolean) {
     const canCommit = newEntry === "example" || !!newWorldDraft.trim();
-    const primaryLabel = newEntry === "example" ? "Open the example" : newEntry === "import" ? "Choose a file" : "Start writing";
+    const primaryLabel = newEntry === "example" ? "Open the example" : newEntry === "import" ? "Import a .docx" : "Start writing";
     const commit = () => { if (canCommit) void commitNewWorld(newEntry); };
     const nameField = (
       <label className="np-field">
@@ -566,7 +575,7 @@ function Workspace({ session }: { session: Session }) {
       )}
 
       {newWorldOpen && (
-        <div className="overlay" onClick={() => setNewWorldOpen(false)}>
+        <div className="onboard-page onboard-over" onClick={() => setNewWorldOpen(false)}>
           {creationCard((worlds?.length ?? 0) === 0, true)}
         </div>
       )}

@@ -35,7 +35,7 @@ type SaveState = "saved" | "saving" | "dirty";
 // inspector act on whichever chapter is active.
 function ChapterBlock({
   worldId, chapter, entities, stateOf, onOpenEntity, onSelect, onMentions,
-  onMarkEntity, onMarkMoment, onComment, registerApi, onSaveState, onActive, onDateChanged,
+  onMarkEntity, onMarkMoment, onComment, registerApi, onSaveState, onActive, onDateChanged, marks, onMarkClick,
 }: {
   worldId: string;
   chapter: Chapter;
@@ -51,6 +51,8 @@ function ChapterBlock({
   onSaveState: (s: SaveState) => void;
   onActive: (a: ActiveFormats) => void;
   onDateChanged: () => void;
+  marks?: { id: string; start: number; color: string }[];
+  onMarkClick?: (id: string) => void;
 }) {
   const [body, setBody] = useState(chapter.body);
   const [saveState, setSaveState] = useState<SaveState>("saved");
@@ -184,6 +186,7 @@ function ChapterBlock({
         onMarkMoment={(anchor) => onMarkMoment(chapter.id, anchor)}
         onComment={(range) => onComment(chapter.id, range)}
         apiRef={setApi}
+        marks={marks} onMarkClick={onMarkClick}
         placeholder="Write the chapter here. Known names light up as you type — hover one to peek. Select a sentence to record a moment."
       />
     </section>
@@ -339,13 +342,19 @@ export function BookCanvas(props: {
       .filter((s) => s.manuscript_ref === activeChapter.id && !s.is_correction)
       .map((s) => {
         const anchored = s.anchor_start != null && s.anchor_quote != null;
-        const stale = anchored && resolveAnchor(body, {
+        const res = anchored ? resolveAnchor(body, {
           quote: s.anchor_quote!, prefix: s.anchor_prefix ?? "", suffix: s.anchor_suffix ?? "",
           start: s.anchor_start!, end: s.anchor_end!,
-        }).status === "stale";
-        return { s, anchored, stale };
+        }) : null;
+        return { s, anchored, stale: res?.status === "stale", start: res && res.status === "ok" ? res.start : null };
       });
   }, [stream, activeChapter]);
+
+  // §6.3 the margin marks: resolved, non-stale anchored moments for the open chapter.
+  const momentMarks = useMemo(
+    () => chapterMoments.filter((m) => m.start != null).map((m) => ({ id: m.s.state_id, start: m.start!, color: VALENCE_COLOR[m.s.valence] })),
+    [chapterMoments],
+  );
 
   const reloadStream = useCallback(() => { getStream(worldId).then(setStream).catch(() => {}); }, [worldId]);
   async function reanchorState(stateId: string) {
@@ -521,7 +530,7 @@ export function BookCanvas(props: {
               onMarkEntity={(id) => openMarkEntity(id)}
               onMarkMoment={(id, anchor) => { setEntChId(id); setPendingAnchor(anchor); setComposerOpen(true); }}
               onComment={onComment} registerApi={registerApi} onSaveState={setChSaveState}
-              onActive={setActive}
+              onActive={setActive} marks={momentMarks} onMarkClick={() => summon("continuity")}
               onDateChanged={() => onChapterMetaChanged?.()} />
           )}
         </div>

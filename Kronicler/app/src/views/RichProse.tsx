@@ -41,7 +41,7 @@ export interface ProseApi {
   currentSelection: () => Anchor | null;
 }
 
-export function RichProse({ value, entities, onChange, onSelectText, onActive, onOpenEntity, stateOf, onMarkEntity, onMarkMoment, onComment, apiRef, placeholder }: {
+export function RichProse({ value, entities, onChange, onSelectText, onActive, onOpenEntity, stateOf, onMarkEntity, onMarkMoment, onComment, apiRef, placeholder, marks, onMarkClick }: {
   value: string;
   entities: Entity[];
   onChange: (v: string) => void;
@@ -54,6 +54,8 @@ export function RichProse({ value, entities, onChange, onSelectText, onActive, o
   onComment?: (range: { start: number; end: number; quote: string }) => void;
   apiRef?: (api: ProseApi | null) => void;
   placeholder?: string;
+  marks?: { id: string; start: number; color: string }[];   // §6.3 anchored moments
+  onMarkClick?: (id: string) => void;
 }) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const edRef = useRef<HTMLDivElement>(null);
@@ -63,6 +65,10 @@ export function RichProse({ value, entities, onChange, onSelectText, onActive, o
   const [peek, setPeek] = useState<{ x: number; y: number; entity: Entity } | null>(null);
   // The floating annotation control — anchored to the current text selection.
   const [sel, setSel] = useState<{ x: number; y: number; len: number; word: boolean } | null>(null);
+  // §6.3 margin marks — a moment's vertical position beside its anchored line.
+  const [markTops, setMarkTops] = useState<{ id: string; top: number; color: string }[]>([]);
+  const marksRef = useRef(marks);
+  marksRef.current = marks;
 
   // Keep the latest entity set available to the decorate routine.
   const entRef = useRef(entities);
@@ -295,6 +301,26 @@ export function RichProse({ value, entities, onChange, onSelectText, onActive, o
       el.innerHTML = html;
       if (focused) setCaret(el, off);
     }
+    computeMarks();
+  }
+
+  // Vertical position of each anchored moment, relative to the wrapper the gutter
+  // lives in. Recomputed whenever layout could change (decorate, value, resize).
+  function computeMarks() {
+    const el = edRef.current, wrap = wrapRef.current;
+    const ms = marksRef.current;
+    if (!el || !wrap || !ms || ms.length === 0) { setMarkTops((p) => (p.length ? [] : p)); return; }
+    const wrapTop = wrap.getBoundingClientRect().top;
+    const out: { id: string; top: number; color: string }[] = [];
+    for (const m of ms) {
+      const p = locate(el, m.start);
+      if (!p) continue;
+      const r = document.createRange();
+      r.setStart(p.node, p.off); r.setEnd(p.node, p.off);
+      const rect = r.getClientRects()[0] ?? r.getBoundingClientRect();
+      out.push({ id: m.id, top: rect.top - wrapTop, color: m.color });
+    }
+    setMarkTops(out);
   }
 
   // Mount: configure the element and paint the initial value.
@@ -313,6 +339,18 @@ export function RichProse({ value, entities, onChange, onSelectText, onActive, o
     if ((el.textContent ?? "") !== value) el.innerHTML = decorateHtml(value);
     // eslint-disable-next-line
   }, [value]);
+
+  // Keep margin marks positioned as content/layout changes.
+  useEffect(() => {
+    computeMarks();
+    const el = edRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(() => computeMarks());
+    ro.observe(el);
+    window.addEventListener("resize", computeMarks);
+    return () => { ro.disconnect(); window.removeEventListener("resize", computeMarks); };
+    // eslint-disable-next-line
+  }, [value, marks]);
 
   // Load the world's type registry so mentions colour from curated swatches.
   const worldId = entities[0]?.world_id;
@@ -434,7 +472,12 @@ export function RichProse({ value, entities, onChange, onSelectText, onActive, o
   }
 
   return (
-    <div className="prose-wrap" ref={wrapRef}>
+    <div className={"prose-wrap" + (markTops.length ? " has-marks" : "")} ref={wrapRef}>
+      {markTops.map((m) => (
+        <button key={m.id} className="prose-mark" style={{ top: m.top, color: m.color }}
+          title="A recorded moment — open it" onMouseDown={(e) => e.preventDefault()}
+          onClick={() => onMarkClick?.(m.id)}><span /></button>
+      ))}
       <div
         ref={edRef}
         className="rich"

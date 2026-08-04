@@ -106,10 +106,8 @@ function Workspace({ session }: { session: Session }) {
         if (!alive) return;
         setWorlds(w);
         setWorldId((cur) => cur ?? w[0]?.id ?? null);
-        // First-ever visit with nothing here → open the creation chooser so the
-        // start choice leads (§2.6). The example is one of the three options now,
-        // no longer force-seeded ahead of the writer's choice.
-        if (w.length === 0 && !localStorage.getItem("k.onboarded")) makeWorld();
+        // First-ever visit (empty + not onboarded) is handled below by a full-page
+        // onboarding screen — the chooser card alone, no dashboard behind it.
       })
       .catch((x) => alive && setErr(String(x)));
     return () => { alive = false; };
@@ -231,11 +229,133 @@ function Workspace({ session }: { session: Session }) {
       .catch(() => {});
   }, [worldId]);
 
+  // §2.6 start-choice cards. Each carries a small illustration of what it does —
+  // a blank page + caret, a marked-up manuscript, a .docx becoming split chapters.
+  const START_CARDS = [
+    { k: "blank" as const, t: "Blank", d: "An empty page. Start typing." },
+    { k: "example" as const, t: "The example", d: "Sherlock, fully marked up. Poke at it, delete it later." },
+    { k: "import" as const, t: "Your manuscript", d: "Upload a .docx — we’ll split the chapters." },
+  ];
+  function startViz(k: "blank" | "example" | "import") {
+    if (k === "blank") return (
+      <div className="np-viz np-viz-blank"><div className="np-viz-page"><span className="np-viz-caret" /></div></div>
+    );
+    if (k === "example") return (
+      <div className="np-viz np-viz-example">
+        <div className="np-viz-annot"><span className="np-viz-dot" /><span className="np-viz-dot" /></div>
+        <div className="np-viz-lines"><i /><i className="hl" /><i /><i className="short" /></div>
+      </div>
+    );
+    return (
+      <div className="np-viz np-viz-import">
+        <span className="np-viz-docx">DOCX</span>
+        <span className="np-viz-arrow">→</span>
+        <span className="np-viz-doc" />
+      </div>
+    );
+  }
+
+  // The creation card, shared by the full-page first-run onboarding (dismissible
+  // false — no chrome, nowhere to cancel to) and the "New project" modal.
+  function creationCard(first: boolean, dismissible: boolean) {
+    const canCommit = newEntry === "example" || !!newWorldDraft.trim();
+    const primaryLabel = newEntry === "example" ? "Open the example" : newEntry === "import" ? "Choose a file" : "Start writing";
+    const commit = () => { if (canCommit) void commitNewWorld(newEntry); };
+    const nameField = (
+      <label className="np-field">
+        <span className="np-flabel">Project name</span>
+        <input autoFocus value={newWorldDraft} placeholder={first ? "e.g. The Vurnan Chronicles" : "e.g. Scones at the End of Time"}
+          onChange={(e) => setNewWorldDraft(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter") commit(); if (e.key === "Escape" && dismissible) setNewWorldOpen(false); }}
+          style={{ width: "100%", fontFamily: "var(--serif)", fontSize: 15 }} />
+      </label>
+    );
+    const formPicker = (help?: string) => (
+      <div className="np-field">
+        <span className="np-flabel">What are you making?</span>
+        <div className="np-chips">
+          {FORM_KEYS.map((k) => (
+            <button key={k} className={"np-chip" + (newForm === k ? " on" : "")} onClick={() => setNewForm(k)}>{FORM_STRUCTURES[k].label}</button>
+          ))}
+        </div>
+        {help && <span className="np-subhelp">{help}</span>}
+      </div>
+    );
+    const genrePicker = (help?: string) => (
+      <div className="np-field">
+        <span className="np-flabel">What kind of story?</span>
+        <div className="np-chips">
+          {GENRE_KEYS.map((k) => (
+            <button key={k} className={"np-chip" + (newGenre === k ? " on" : "")} onClick={() => setNewGenre(k)}>{GENRE_TYPES[k].label}</button>
+          ))}
+        </div>
+        {help && <span className="np-subhelp">{help}</span>}
+      </div>
+    );
+    return (
+      <div className={"modal np-modal" + (first ? " np-first" : "")} onClick={(e) => e.stopPropagation()} style={{ width: first ? 620 : 460 }}>
+        <div className="row" style={{ borderBottom: "none", padding: 0, marginBottom: 4 }}>
+          <h3 style={{ fontFamily: "var(--serif)", fontWeight: 500, margin: 0, fontSize: first ? 24 : 19 }}>{first ? "Start your first project" : "New project"}</h3>
+          <span className="spacer" />
+          {dismissible && <span onClick={() => setNewWorldOpen(false)} style={{ cursor: "pointer", color: "var(--muted)", display: "inline-flex" }}><Icon name="close" size={16} /></span>}
+        </div>
+        {first ? (
+          <>
+            <div className="np-field">
+              <span className="np-flabel">How do you want to start?</span>
+              <div className="np-starts">
+                {START_CARDS.map((c) => (
+                  <button key={c.k} className={"np-start" + (newEntry === c.k ? " on" : "")} onClick={() => setNewEntry(c.k)}>
+                    {startViz(c.k)}
+                    <span className="np-start-t">{c.t}</span>
+                    <span className="np-start-d">{c.d}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+            {nameField}
+            <div className="np-cols">
+              {formPicker("Sets up your chapters and books.")}
+              {genrePicker("Sets up your first character and place types.")}
+            </div>
+            <div className="np-foot">
+              <span className="np-foot-note">You can rename any of this later.</span>
+              <span className="spacer" />
+              {dismissible && <button className="ghost" onClick={() => setNewWorldOpen(false)}>Cancel</button>}
+              <button className="primary" disabled={!canCommit} onClick={commit}>{primaryLabel}</button>
+            </div>
+          </>
+        ) : (
+          <>
+            {nameField}
+            {formPicker()}
+            {genrePicker()}
+            <div className="np-foot">
+              <label className="np-import-toggle">
+                <input type="checkbox" checked={newEntry === "import"} onChange={(e) => setNewEntry(e.target.checked ? "import" : "blank")} />
+                Bring in a manuscript instead
+              </label>
+              <span className="spacer" />
+              {dismissible && <button className="ghost" onClick={() => setNewWorldOpen(false)}>Cancel</button>}
+              <button className="primary" disabled={!canCommit} onClick={commit}>{primaryLabel}</button>
+            </div>
+          </>
+        )}
+      </div>
+    );
+  }
+
   if (!worlds) return (
     <div className="center">
       <Spinner size={26} />
       <span className="muted">{seeding ? "Building your example project…" : "Loading your projects…"}</span>
     </div>
+  );
+
+  // First-ever visit → onboarding is the chooser card alone on a clean screen,
+  // no dashboard chrome behind it. Creating (or opening the example) leaves it.
+  if (worlds.length === 0 && !localStorage.getItem("k.onboarded")) return (
+    <div className="onboard-page">{creationCard(true, false)}</div>
   );
 
   const searching = query.trim().length >= 2;
@@ -445,112 +565,11 @@ function Workspace({ session }: { session: Session }) {
         </div>
       )}
 
-      {newWorldOpen && (() => {
-        // §2.6 decay: the first project gets the full "how do you want to start?"
-        // card so the start choice leads; every project after is the bare picker
-        // form with import demoted to a footer link.
-        const first = (worlds?.length ?? 0) === 0;
-        // The primary follows the selected start card (§2.6): example needs no name,
-        // blank/import do. On a returning project the choice is blank↔import only.
-        const needsName = newEntry !== "example";
-        const canCommit = !needsName || !!newWorldDraft.trim();
-        const primaryLabel = newEntry === "example" ? "Open the example" : newEntry === "import" ? "Choose a file" : "Start writing";
-        const commit = () => { if (canCommit) void commitNewWorld(newEntry); };
-        const nameField = (
-          <label className="np-field">
-            <span className="np-flabel">Project name</span>
-            <input autoFocus value={newWorldDraft} placeholder={first ? "e.g. The Vurnan Chronicles" : "e.g. Scones at the End of Time"}
-              onChange={(e) => setNewWorldDraft(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter") commit(); if (e.key === "Escape") setNewWorldOpen(false); }}
-              style={{ width: "100%", fontFamily: "var(--serif)", fontSize: 15 }} />
-          </label>
-        );
-        const formPicker = (help?: string) => (
-          <div className="np-field">
-            <span className="np-flabel">What are you making?</span>
-            <div className="np-chips">
-              {FORM_KEYS.map((k) => (
-                <button key={k} className={"np-chip" + (newForm === k ? " on" : "")} onClick={() => setNewForm(k)}>{FORM_STRUCTURES[k].label}</button>
-              ))}
-            </div>
-            {help && <span className="np-subhelp">{help}</span>}
-          </div>
-        );
-        const genrePicker = (help?: string) => (
-          <div className="np-field">
-            <span className="np-flabel">What kind of story?</span>
-            <div className="np-chips">
-              {GENRE_KEYS.map((k) => (
-                <button key={k} className={"np-chip" + (newGenre === k ? " on" : "")} onClick={() => setNewGenre(k)}>{GENRE_TYPES[k].label}</button>
-              ))}
-            </div>
-            {help && <span className="np-subhelp">{help}</span>}
-          </div>
-        );
-        return (
+      {newWorldOpen && (
         <div className="overlay" onClick={() => setNewWorldOpen(false)}>
-          <div className={"modal np-modal" + (first ? " np-first" : "")} onClick={(e) => e.stopPropagation()} style={{ width: first ? 620 : 460 }}>
-            <div className="row" style={{ borderBottom: "none", padding: 0, marginBottom: 4 }}>
-              <h3 style={{ fontFamily: "var(--serif)", fontWeight: 500, margin: 0, fontSize: first ? 24 : 19 }}>{first ? "Start your first project" : "New project"}</h3>
-              <span className="spacer" />
-              <span onClick={() => setNewWorldOpen(false)} style={{ cursor: "pointer", color: "var(--muted)", display: "inline-flex" }}><Icon name="close" size={16} /></span>
-            </div>
-
-            {first ? (
-              <>
-                <div className="np-field">
-                  <span className="np-flabel">How do you want to start?</span>
-                  <div className="np-starts">
-                    {([
-                      { k: "blank", icon: "feather", t: "Blank", d: "An empty page. Start typing." },
-                      { k: "example", icon: "book", t: "The example", d: "Sherlock, fully marked up. Poke at it, delete it later." },
-                      { k: "import", icon: "import", t: "Your manuscript", d: "Upload a .docx — we’ll split the chapters." },
-                    ] as const).map((c) => (
-                      <button key={c.k} className={"np-start" + (newEntry === c.k ? " on" : "")} onClick={() => setNewEntry(c.k)}>
-                        <Icon name={c.icon} size={18} />
-                        <span className="np-start-t">{c.t}</span>
-                        <span className="np-start-d">{c.d}</span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {nameField}
-
-                <div className="np-cols">
-                  {formPicker("Sets up your chapters and books.")}
-                  {genrePicker("Sets up your first character and place types.")}
-                </div>
-
-                <div className="np-foot">
-                  <span className="np-foot-note">You can rename any of this later.</span>
-                  <span className="spacer" />
-                  <button className="ghost" onClick={() => setNewWorldOpen(false)}>Cancel</button>
-                  <button className="primary" disabled={!canCommit} onClick={commit}>{primaryLabel}</button>
-                </div>
-              </>
-            ) : (
-              <>
-                {nameField}
-                {formPicker()}
-                {genrePicker()}
-
-                <div className="np-foot">
-                  <label className="np-import-toggle">
-                    <input type="checkbox" checked={newEntry === "import"}
-                      onChange={(e) => setNewEntry(e.target.checked ? "import" : "blank")} />
-                    Bring in a manuscript instead
-                  </label>
-                  <span className="spacer" />
-                  <button className="ghost" onClick={() => setNewWorldOpen(false)}>Cancel</button>
-                  <button className="primary" disabled={!canCommit} onClick={commit}>{primaryLabel}</button>
-                </div>
-              </>
-            )}
-          </div>
+          {creationCard((worlds?.length ?? 0) === 0, true)}
         </div>
-        );
-      })()}
+      )}
     </div>
   );
 }

@@ -27,22 +27,33 @@ Current priority, ahead of the backlog below. Build order from the handoff §10:
      (Ctrl/Cmd+Shift+M); dismissible teaching line atop the Continuity panel.
 7. ✅ **§5 Help page** — rail footer; First steps / Shortcuts / What things are called.
 
-### ▸ Dependency pass — do these together, last (the flagged items)
+### ▸ Dependency pass (confirmed plan) — in progress
 
-All blocked on the same thing: **a moment has no prose text-anchor yet** (the
-deferred §2.1 moments model). Needs a small additive column on the moment/state
-(anchor_start/anchor_end) + write-path wiring, then:
+Foundation (schema anchors on `relationship_states` + comments, no new tables):
+- ✅ Migration `0027` applied to live: nullable W3C anchor columns on
+    `relationship_states`; comments upgraded (prefix/suffix/status). Legacy untouched.
+- ✅ `lib/anchor.ts` — shared resolve/repair (offsets → prefix/suffix search → stale), tested.
+- ✅ Write-path capture — marking a moment stores its anchor (`setStateAnchor`).
+- ✅ **§6.2 per-chapter moment count** on the Continuity panel, no zero badge.
+- ✅ Shortcut → single constant `lib/shortcuts.ts`, rebound **Cmd/Ctrl+Shift+.**
+    (matched on e.code=Period). Documented-bindings clean; live matrix not run.
 
-- ☐ **§6.3 margin indicator** — a moment marks the prose margin (not inline), click
-    opens it in the Continuity panel. Also seed it in the example project.
-- ☐ **§6.2 Continuity panel moment count** — per-chapter count, no zero badge.
-- ☐ **§4.2 engine offers** — offer the mark when two linked entities co-occur in an
-    unmarked sentence; ≤1/chapter; retire after 3 marks (per account); never re-arm.
-- ☐ **§2.7 guest conversion** — route "Add an email to keep it" into the creation
-    screen (entangled with the async email-confirmation auth round-trip).
+Remaining payoffs (heavier editor work):
+- ☐ **Repair path** — stale moments/comments show "no longer points at any text →
+    Re-anchor · Delete"; wire `resolveAnchor` into both panels (also fixes the
+    silent comment-drop-on-reload bug). One resolver, both surfaces.
+- ☐ **§6.3 margin indicator** — mark in the left margin beside the anchored line,
+    click opens it in the Continuity panel. Renders only for anchored states.
+- ☐ **Re-seed Sherlock** with anchored states (every chapter-bound state gets a
+    real anchor) so moments are visible in the example.
+- ☐ **§4.2 engine offers** — Intl.Segmenter sentences; offer on an unmarked
+    co-occurrence; ≤1/chapter; retire after 3 marks/account; never re-arm.
 
-**OPEN (§9):** `Mark a moment` binding — wired as **Ctrl/Cmd+Shift+M** (avoids macOS
-⌘M minimize). Confirm or rebind in the dependency pass; it's a one-line change.
+Expressiveness (answered, not built — composer sprint): single-subject state and
+change-free presence are both currently un-representable (RPC requires ≥2
+participants; `type_id` is NOT NULL).
+
+**§2.7 guest conversion** — separate run (async email-confirmation flow).
 
 ---
 

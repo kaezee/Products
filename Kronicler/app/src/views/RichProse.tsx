@@ -38,6 +38,7 @@ export interface ProseApi {
   selectRange: (start: number, end: number, quote: string) => boolean;
   format: (marker: "**" | "*") => void;
   block: (kind: BlockKind | "hr") => void;
+  currentSelection: () => Anchor | null;
 }
 
 export function RichProse({ value, entities, onChange, onSelectText, onActive, onOpenEntity, stateOf, onMarkEntity, onMarkMoment, onComment, apiRef, placeholder }: {
@@ -220,7 +221,7 @@ export function RichProse({ value, entities, onChange, onSelectText, onActive, o
     return true;
   }
   useEffect(() => {
-    apiRef?.({ selectRange, format: applyWrap, block: applyBlock });
+    apiRef?.({ selectRange, format: applyWrap, block: applyBlock, currentSelection });
     return () => apiRef?.(null);
     // eslint-disable-next-line
   }, [apiRef]);
@@ -256,6 +257,15 @@ export function RichProse({ value, entities, onChange, onSelectText, onActive, o
       onMarkMoment(makeAnchor(el.textContent ?? "", range.start, range.end));
     }
     setSel(null);
+  }
+
+  // The live (or last) selection as plain-text offsets + quote — used by the
+  // repair path to re-anchor a stale moment to freshly-selected prose.
+  function currentSelection(): Anchor | null {
+    const el = edRef.current;
+    const range = (el && selectionOffsets(el)) || lastRange.current;
+    if (!el || !range || range.end - range.start < 1) return null;
+    return makeAnchor(el.textContent ?? "", range.start, range.end);
   }
 
   function applyBlock(kind: BlockKind | "hr") {

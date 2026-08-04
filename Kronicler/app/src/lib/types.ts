@@ -206,4 +206,11 @@ export interface StreamRow {
   note: string | null;
   created_at: string;
   participants: StreamParticipant[];
+  // Prose anchor (nullable — corrections and graph-minted states have no prose).
+  anchor_quote: string | null;
+  anchor_prefix: string | null;
+  anchor_suffix: string | null;
+  anchor_start: number | null;
+  anchor_end: number | null;
+  anchor_status: "ok" | "stale" | null;
 }

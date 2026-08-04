@@ -19,6 +19,7 @@ const row = (p: Partial<StreamRow> & { relationship_id: string }): StreamRow => 
   note: null,
   created_at: "2020-01-01",
   participants: [{ entity_id: "a", title: "Anna", role: null }, { entity_id: "b", title: "Ben", role: null }],
+  anchor_quote: null, anchor_prefix: null, anchor_suffix: null, anchor_start: null, anchor_end: null, anchor_status: null,
   ...p,
 });
 

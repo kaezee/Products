@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   getRelationshipTypes, getChapterVersions, getChapterEntities,
-  linkChapterEntity, saveChapterBody, getStream,
+  linkChapterEntity, saveChapterBody, getStream, deleteState, setStateAnchor,
   getEntities, createEntity, updateEntity, updateChapterTitle, setChapterStatus,
 } from "../lib/api";
 import type { Chapter, ChapterStatus, Entity, RelationshipType, ChapterVersion, ChapterEntity, StreamRow, Comment } from "../lib/types";
 import { CHAPTER_STATUSES, statusMeta } from "../lib/chapterStatus";
+import { resolveAnchor } from "../lib/anchor";
+import { VALENCE_COLOR } from "../lib/valence";
 import type { ActiveFormats } from "../lib/blocks";
 import { detectMentions } from "../lib/mentions";
 import { computeBrief } from "../lib/brief";
@@ -327,6 +329,34 @@ export function BookCanvas(props: {
     [stream, activeChapter],
   );
 
+  // This chapter's moments, each resolved live against the current prose — a
+  // stale one (its quote gone) drives the repair path. Status is derived, not
+  // cached, so it's always right without a write on every open.
+  const chapterMoments = useMemo(() => {
+    if (!stream || !activeChapter) return [];
+    const body = activeChapter.body || "";
+    return stream
+      .filter((s) => s.manuscript_ref === activeChapter.id && !s.is_correction)
+      .map((s) => {
+        const anchored = s.anchor_start != null && s.anchor_quote != null;
+        const stale = anchored && resolveAnchor(body, {
+          quote: s.anchor_quote!, prefix: s.anchor_prefix ?? "", suffix: s.anchor_suffix ?? "",
+          start: s.anchor_start!, end: s.anchor_end!,
+        }).status === "stale";
+        return { s, anchored, stale };
+      });
+  }, [stream, activeChapter]);
+
+  const reloadStream = useCallback(() => { getStream(worldId).then(setStream).catch(() => {}); }, [worldId]);
+  async function reanchorState(stateId: string) {
+    const anchor = proseApis.current.get(openId)?.currentSelection();
+    if (!anchor || anchor.quote.length < 3) return;
+    try { await setStateAnchor(stateId, anchor); reloadStream(); } catch (x) { setErr(String(x)); }
+  }
+  async function deleteMoment(stateId: string) {
+    try { await deleteState(stateId); reloadStream(); } catch (x) { setErr(String(x)); }
+  }
+
   const scroller = useRef<HTMLDivElement | null>(null);
   // Editing one chapter → scroll the page back to the top when it changes.
   useEffect(() => { scroller.current?.scrollTo({ top: 0 }); }, [openId]);
@@ -548,9 +578,23 @@ export function BookCanvas(props: {
                         </div>
                       );
                     })}
-                    {momentCount > 0 && (
+                    {chapterMoments.length > 0 && (
                       <div className="ed-panel-lab" style={{ marginTop: 14 }}>Recorded here <span className="ed-panel-count">{momentCount}</span></div>
                     )}
+                    {chapterMoments.map(({ s, stale }) => (
+                      <div className="row" key={s.state_id} style={{ padding: "7px 0", gap: 6, borderColor: "var(--line)", flexWrap: "wrap" }}>
+                        <span style={{ flex: 1, minWidth: 0, fontSize: 12.5 }}>
+                          {s.participants.map((p) => p.title).join(" · ")} <span style={{ color: VALENCE_COLOR[s.valence], fontWeight: 600 }}>{s.type_label}</span>
+                        </span>
+                        {stale && (
+                          <div className="moment-stale">
+                            This no longer points at any text — the passage was edited or removed.
+                            <button onClick={() => reanchorState(s.state_id)} title="Attach to the current selection">Re-anchor</button>
+                            <button onClick={() => deleteMoment(s.state_id)}>Delete</button>
+                          </div>
+                        )}
+                      </div>
+                    ))}
                     <div className="ed-panel-lab" style={{ marginTop: 14 }}>The story so far</div>
                     {!brief ? <span className="muted">Computing…</span>
                       : <BriefPanel brief={brief} chapterOrder={activeChapter.manuscript_order} nameOf={nameOf} onOpenEntity={onOpenEntity} compact />}

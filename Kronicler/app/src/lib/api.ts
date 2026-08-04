@@ -652,6 +652,20 @@ export async function setStateAnchor(
   if (error) throw error;
 }
 
+// Mark an anchor stale (the quote can no longer be found) without touching the
+// rest of the row — the repair path shows it, the writer re-anchors or deletes.
+export async function setStateAnchorStatus(stateId: string, status: "ok" | "stale"): Promise<void> {
+  const { error } = await supabase.from("relationship_states").update({ anchor_status: status }).eq("id", stateId);
+  if (error) throw error;
+}
+
+// Delete a single moment. relationship_states is append-only with no deleted_at,
+// so this is a hard delete — used by the repair path when a moment's prose is gone.
+export async function deleteState(stateId: string): Promise<void> {
+  const { error } = await supabase.from("relationship_states").delete().eq("id", stateId);
+  if (error) throw error;
+}
+
 export async function setStateKnownBy(
   stateId: string,
   knownBy: { concealed_from?: string[]; believed_by?: string[] } | null,

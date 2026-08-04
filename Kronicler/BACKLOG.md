@@ -27,7 +27,16 @@ Current priority, ahead of the backlog below. Build order from the handoff §10:
      (Ctrl/Cmd+Shift+M); dismissible teaching line atop the Continuity panel.
 7. ✅ **§5 Help page** — rail footer; First steps / Shortcuts / What things are called.
 
-### ▸ Dependency pass (confirmed plan) — in progress
+### ▸ Dependency pass (confirmed plan) — ✅ COMPLETE
+
+All shipped: anchor schema (migrations 0027/0028) + shared tested resolver +
+write-path capture + moment count + shortcut rebind + repair path (moments AND
+comments, silent-drop bug fixed) + margin indicator + Sherlock re-seed (371/550
+anchored) + engine offers (Intl.Segmenter, ≤1/chapter, retire after 3/account).
+Caveats: margin-indicator pixel positioning and the recap/new-project screens were
+not visually QA'd headlessly; new-comment prefix/suffix populate only on re-anchor;
+shortcut checked against documented bindings, not a live browser matrix.
+
 
 Foundation (schema anchors on `relationship_states` + comments, no new tables):
 - ✅ Migration `0027` applied to live: nullable W3C anchor columns on

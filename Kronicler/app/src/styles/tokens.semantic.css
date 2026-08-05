@@ -1,5 +1,7 @@
 /* Kronicler design tokens — TIER 2: semantic. The only tier components touch.
-   Colour resolves per theme; type/space/layout/radius/motion are theme-independent. */
+   Colour resolves per theme; type/space/layout/radius/motion are theme-independent.
+   Amended by PATCH-scale-surfaces-and-colour-roles.md (surfaces, action split,
+   system/icon/selection roles, metric type, radius roles, warm-axis, derived tints). */
 
 /* ── theme-independent tokens ──────────────────────────────────────────── */
 :root {
@@ -20,6 +22,8 @@
   --k-type-micro-size:   10px; --k-type-micro-lh:   1.40;
   --k-type-mono-size:    11px; --k-type-mono-lh:    1.50;
   --k-type-mono-lg-size: 13px; --k-type-mono-lg-lh: 1.40;
+  /* metric — counts on cards read as figures, not headings (§2, new role) */
+  --k-type-metric-size: 24px; --k-type-metric-lh: 28px; --k-type-metric-weight: 600;
 
   /* content layer (writer-owned; overridden per world at runtime) */
   --k-read-face:    var(--k-font-brand);
@@ -32,23 +36,40 @@
   --k-space-4: 12px; --k-space-5: 16px; --k-space-6: 20px; --k-space-7: 24px;
   --k-space-8: 32px; --k-space-9: 40px; --k-space-10: 48px; --k-space-11: 64px; --k-space-12: 80px;
 
-  /* layout */
-  --k-rail-width: 176px; --k-shell-max: 1120px; --k-content-max: 880px;
+  /* layout — content column raised 880 → 920 (§8.5: 14px body needs the width) */
+  --k-rail-width: 176px; --k-shell-max: 1120px; --k-content-max: 920px;
   --k-side-width: 280px; --k-chrome-height: 56px;
 
-  /* radius */
+  /* radius — legacy scale + proportional roles (§3) */
   --k-radius-sm: 5px; --k-radius-md: 8px; --k-radius-lg: 12px; --k-radius-xl: 16px; --k-radius-full: 999px;
+  --k-radius-mark: 2px; --k-radius-control: 6px; --k-radius-container: 8px;
 
   /* motion */
   --k-duration-fast: 120ms; --k-duration-base: 180ms; --k-duration-slow: 260ms;
   --k-ease: cubic-bezier(.2, 0, .2, 1);
+
+  /* Entity tints are derived from the active canvas (§6.3): a fixed cool tint on
+     warm cream reads cold. color-mix resolves per theme from that theme's own
+     canvas + entity ink, so one definition serves Paper, White and Dark. */
+  --k-entity-azure-tint:   color-mix(in srgb, var(--k-bg-canvas) 88%, var(--k-entity-azure) 12%);
+  --k-entity-teal-tint:    color-mix(in srgb, var(--k-bg-canvas) 88%, var(--k-entity-teal) 12%);
+  --k-entity-green-tint:   color-mix(in srgb, var(--k-bg-canvas) 88%, var(--k-entity-green) 12%);
+  --k-entity-moss-tint:    color-mix(in srgb, var(--k-bg-canvas) 88%, var(--k-entity-moss) 12%);
+  --k-entity-amber-tint:   color-mix(in srgb, var(--k-bg-canvas) 88%, var(--k-entity-amber) 12%);
+  --k-entity-ochre-tint:   color-mix(in srgb, var(--k-bg-canvas) 88%, var(--k-entity-ochre) 12%);
+  --k-entity-rust-tint:    color-mix(in srgb, var(--k-bg-canvas) 88%, var(--k-entity-rust) 12%);
+  --k-entity-crimson-tint: color-mix(in srgb, var(--k-bg-canvas) 88%, var(--k-entity-crimson) 12%);
+  --k-entity-magenta-tint: color-mix(in srgb, var(--k-bg-canvas) 88%, var(--k-entity-magenta) 12%);
+  --k-entity-violet-tint:  color-mix(in srgb, var(--k-bg-canvas) 88%, var(--k-entity-violet) 12%);
+  --k-entity-plum-tint:    color-mix(in srgb, var(--k-bg-canvas) 88%, var(--k-entity-plum) 12%);
+  --k-entity-slate-tint:   color-mix(in srgb, var(--k-bg-canvas) 88%, var(--k-entity-slate) 12%);
 }
 
 /* ── Paper (default) ───────────────────────────────────────────────────── */
 :root, [data-theme="paper"] {
   --k-bg-canvas:  var(--k-warm-50);
   --k-bg-surface: #FFFFFF;
-  --k-bg-sunken:  var(--k-warm-100);
+  --k-bg-sunken:  #F7F6F1;              /* well — lightened from #F5F4EF (§4) */
   --k-bg-raised:  #FFFFFF;
   --k-bg-hover:   var(--k-warm-100);
   --k-border:        #E7E2D3;
@@ -57,12 +78,38 @@
   --k-text-secondary: #5C5647;
   --k-text-tertiary:  #98917E;
   --k-text-inverse:   var(--k-warm-50);
+
+  /* action — split fill from container (§5.2) */
+  --k-action-fill:         #394293;    /* woad-500 — primary button fills */
+  --k-on-action-fill:      #FFFFFF;
+  --k-action-container:    #DFE2F2;     /* selected states, active rail, tonal buttons */
+  --k-on-action-container: #2B3273;
+  --k-action-text:         #22285D;     /* woad-700 — action text and links */
+  /* legacy action tokens (retained; retired in the Phase-2 sweep) */
   --k-action-default: var(--k-woad-700);
   --k-action-hover:   #1B1F4B;
   --k-action-active:  #14183D;
   --k-action-subtle:  #EEEFF6;
   --k-action-ring:    #D6D8EB;
   --k-action-on:      #FFFFFF;
+
+  /* system feedback — container-only, never inline text (§5.1) */
+  --k-system-error:              #9F1E2C;
+  --k-on-system-error:           #FFFFFF;
+  --k-system-error-container:    color-mix(in srgb, var(--k-bg-canvas) 88%, var(--k-system-error) 12%);
+  --k-on-system-error-container: #6B1420;
+  --k-system-info:               var(--k-action-text);
+  --k-system-info-container:     var(--k-action-container);
+  --k-on-system-info-container:  var(--k-on-action-container);
+
+  /* icon inks — resting icons are secondary, never tertiary (§5.3) */
+  --k-icon-default: var(--k-text-secondary);
+  --k-icon-active:  var(--k-on-action-container);
+  --k-icon-accent:  var(--k-action-text);
+
+  /* text selection — a brand surface (§5.4) */
+  --k-selection-bg: rgba(57, 66, 147, .16);
+
   --k-shadow-sm:  0 1px 2px rgba(31,29,24,.05);
   --k-shadow-md:  0 1px 2px rgba(31,29,24,.05), 0 4px 12px rgba(31,29,24,.05);
   --k-shadow-pop: 0 10px 32px rgba(31,29,24,.16), 0 2px 6px rgba(31,29,24,.08);
@@ -72,28 +119,28 @@
   --k-valence-neutral:     #706C5F; --k-valence-neutral-line:    #D1D0CC;
   --k-valence-hostile:     #C13F30; --k-valence-hostile-line:    #EBC2BD;
 
-  --k-entity-azure:   #287398; --k-entity-azure-tint:   #EAF2F5;
-  --k-entity-teal:    #1E7875; --k-entity-teal-tint:    #EAF6F5;
-  --k-entity-green:   #217B4B; --k-entity-green-tint:   #EAF5EF;
-  --k-entity-moss:    #407923; --k-entity-moss-tint:    #EEF5EB;
-  --k-entity-amber:   #88671A; --k-entity-amber-tint:   #F7F3E9;
-  --k-entity-ochre:   #6E701A; --k-entity-ochre-tint:   #F5F6EA;
-  --k-entity-rust:    #A75627; --k-entity-rust-tint:    #F6EEEA;
-  --k-entity-crimson: #C63548; --k-entity-crimson-tint: #F5EAEC;
-  --k-entity-magenta: #BB368A; --k-entity-magenta-tint: #F5EBF1;
-  --k-entity-violet:  #A33FBD; --k-entity-violet-tint:  #F2EBF4;
-  --k-entity-plum:    #8153C6; --k-entity-plum-tint:    #EFEBF4;
-  --k-entity-slate:   #676C77; --k-entity-slate-tint:   #EDEFF2;
+  --k-entity-azure:   #287398;
+  --k-entity-teal:    #1E7875;
+  --k-entity-green:   #217B4B;
+  --k-entity-moss:    #407923;
+  --k-entity-amber:   #88671A;
+  --k-entity-ochre:   #6E701A;
+  --k-entity-rust:    #A75627;
+  --k-entity-crimson: #C63548;
+  --k-entity-magenta: #BB368A;
+  --k-entity-violet:  #A33FBD;
+  --k-entity-plum:    #8153C6;
+  --k-entity-slate:   #676C77;
 }
 
-/* ── Grey ──────────────────────────────────────────────────────────────── */
+/* ── White ─────────────────────────────────────────────────────────────── */
 [data-theme="white"] {
   color-scheme: light;
   /* Crisp office-white — cool axis (~hue 210), flat: borders and tonal steps
-     lift, not shadows. See PATCH-white-theme-and-badges.md §1. */
-  --k-bg-canvas:      #F3F5F7;
+     lift, not shadows. Canvas + well lightened per §4. */
+  --k-bg-canvas:      #F7F8FA;          /* lightened from #F3F5F7 (§4) */
   --k-bg-surface:     #FFFFFF;
-  --k-bg-sunken:      #E8EBEE;
+  --k-bg-sunken:      #F1F3F6;          /* well — lightened from #E8EBEE (§4) */
   --k-bg-raised:      #FFFFFF;
   --k-bg-hover:       #EDF0F3;
   --k-border:         #DCE0E5;
@@ -102,33 +149,54 @@
   --k-text-secondary: #5A6069;
   --k-text-tertiary:  #686E78;
   --k-text-inverse:   #FFFFFF;
+
+  --k-action-fill:         #394293;
+  --k-on-action-fill:      #FFFFFF;
+  --k-action-container:    #DEE3F4;
+  --k-on-action-container: #2B3273;
+  --k-action-text:         #22285D;
   --k-action-default: var(--k-woad-700);
   --k-action-hover:   #1B1F4B;
   --k-action-active:  #14183D;
   --k-action-subtle:  #E9ECF6;
   --k-action-ring:    #CFD5EA;
   --k-action-on:      #FFFFFF;
+
+  --k-system-error:              #9F1E2C;
+  --k-on-system-error:           #FFFFFF;
+  --k-system-error-container:    color-mix(in srgb, var(--k-bg-canvas) 88%, var(--k-system-error) 12%);
+  --k-on-system-error-container: #6B1420;
+  --k-system-info:               var(--k-action-text);
+  --k-system-info-container:     var(--k-action-container);
+  --k-on-system-info-container:  var(--k-on-action-container);
+
+  --k-icon-default: var(--k-text-secondary);
+  --k-icon-active:  var(--k-on-action-container);
+  --k-icon-accent:  var(--k-action-text);
+
+  --k-selection-bg: rgba(57, 66, 147, .16);
+
   --k-shadow-sm:  none;
   --k-shadow-md:  0 1px 2px rgba(31,41,55,.05);
   --k-shadow-pop: 0 8px 24px rgba(31,41,55,.13), 0 1px 3px rgba(31,41,55,.08);
 
   --k-valence-allied:      #1F7B4D; --k-valence-allied-line:     #B7D5C6;
-  --k-valence-obligation:  #8C6519; --k-valence-obligation-line: #DACEB5;
-  --k-valence-neutral:     #706C5F; --k-valence-neutral-line:    #D1D0CC;
+  --k-valence-obligation:  #8A6A22; --k-valence-obligation-line: #DACEB5;  /* warm-axis rotate (§6.2) */
+  --k-valence-neutral:     #5A6069; --k-valence-neutral-line:    #D1D0CC;  /* = text-secondary (§6.1) */
   --k-valence-hostile:     #C13F30; --k-valence-hostile-line:    #EBC2BD;
 
-  --k-entity-azure:   #287398; --k-entity-azure-tint:   #EAF2F5;
-  --k-entity-teal:    #1E7875; --k-entity-teal-tint:    #EAF6F5;
-  --k-entity-green:   #217B4B; --k-entity-green-tint:   #EAF5EF;
-  --k-entity-moss:    #407923; --k-entity-moss-tint:    #EEF5EB;
-  --k-entity-amber:   #88671A; --k-entity-amber-tint:   #F7F3E9;
-  --k-entity-ochre:   #6E701A; --k-entity-ochre-tint:   #F5F6EA;
-  --k-entity-rust:    #A75627; --k-entity-rust-tint:    #F6EEEA;
-  --k-entity-crimson: #C63548; --k-entity-crimson-tint: #F5EAEC;
-  --k-entity-magenta: #BB368A; --k-entity-magenta-tint: #F5EBF1;
-  --k-entity-violet:  #A33FBD; --k-entity-violet-tint:  #F2EBF4;
-  --k-entity-plum:    #8153C6; --k-entity-plum-tint:    #EFEBF4;
-  --k-entity-slate:   #676C77; --k-entity-slate-tint:   #EDEFF2;
+  --k-entity-azure:   #287398;
+  --k-entity-teal:    #1E7875;
+  --k-entity-green:   #217B4B;
+  --k-entity-moss:    #407923;
+  --k-entity-amber:   #836A28;          /* warm-axis rotate (§6.2) */
+  --k-entity-ochre:   #69702A;          /* warm-axis rotate (§6.2) */
+  --k-entity-rust:    #A25A35;          /* warm-axis rotate (§6.2) */
+  --k-entity-crimson: #C63548;
+  --k-entity-magenta: #BB368A;
+  --k-entity-violet:  #A33FBD;
+  --k-entity-plum:    #8153C6;
+  --k-entity-slate:   #676C77;
 }
 
 /* ── Dark ──────────────────────────────────────────────────────────────── */
@@ -144,33 +212,54 @@
   --k-text-secondary: #A3AABF;
   --k-text-tertiary:  #767D93;
   --k-text-inverse:   #080A11;
+
+  --k-action-fill:         #7B86EA;
+  --k-on-action-fill:      #080A11;
+  --k-action-container:    #272B49;
+  --k-on-action-container: #C6CCE8;
+  --k-action-text:         #7B86EA;
   --k-action-default: var(--k-woad-a400);
   --k-action-hover:   var(--k-woad-a300);
   --k-action-active:  var(--k-woad-a500);
   --k-action-subtle:  #272B49;
   --k-action-ring:    #323867;
   --k-action-on:      #080A11;
+
+  --k-system-error:              #F2A0A6;
+  --k-on-system-error:           #2A0B10;
+  --k-system-error-container:    color-mix(in srgb, var(--k-bg-canvas) 88%, var(--k-system-error) 12%);
+  --k-on-system-error-container: #F2A0A6;
+  --k-system-info:               var(--k-action-text);
+  --k-system-info-container:     var(--k-action-container);
+  --k-on-system-info-container:  var(--k-on-action-container);
+
+  --k-icon-default: var(--k-text-secondary);
+  --k-icon-active:  var(--k-on-action-container);
+  --k-icon-accent:  var(--k-action-text);
+
+  --k-selection-bg: rgba(123, 134, 234, .16);
+
   --k-shadow-sm:  none;
   --k-shadow-md:  0 2px 16px rgba(0,0,0,.55);
   --k-shadow-pop: 0 12px 36px rgba(0,0,0,.7);
 
   --k-valence-allied:      #28B56F; --k-valence-allied-line:     #2A6647;
   --k-valence-obligation:  #CE9524; --k-valence-obligation-line: #6B5320;
-  --k-valence-neutral:     #A69F8D; --k-valence-neutral-line:    #544F42;
+  --k-valence-neutral:     #A3AABF; --k-valence-neutral-line:    #544F42;  /* = text-secondary (§6.1) */
   --k-valence-hostile:     #E2867C; --k-valence-hostile-line:    #71403A;
 
-  --k-entity-azure:   #4EA9D6; --k-entity-azure-tint:   #1F3A47;
-  --k-entity-teal:    #27B1AC; --k-entity-teal-tint:    #1E4847;
-  --k-entity-green:   #2BB56B; --k-entity-green-tint:   #1F4732;
-  --k-entity-moss:    #5BB32E; --k-entity-moss-tint:    #2D4620;
-  --k-entity-amber:   #CA9721; --k-entity-amber-tint:   #4D3D19;
-  --k-entity-ochre:   #A5A923; --k-entity-ochre-tint:   #48491D;
-  --k-entity-rust:    #DE8B5C; --k-entity-rust-tint:    #492D1D;
-  --k-entity-crimson: #E28491; --k-entity-crimson-tint: #471F24;
-  --k-entity-magenta: #DE81BC; --k-entity-magenta-tint: #462038;
-  --k-entity-violet:  #CA86DB; --k-entity-violet-tint:  #3D2343;
-  --k-entity-plum:    #B091DE; --k-entity-plum-tint:    #302343;
-  --k-entity-slate:   #99A0AD; --k-entity-slate-tint:   #29303D;
+  --k-entity-azure:   #4EA9D6;
+  --k-entity-teal:    #27B1AC;
+  --k-entity-green:   #2BB56B;
+  --k-entity-moss:    #5BB32E;
+  --k-entity-amber:   #CA9721;
+  --k-entity-ochre:   #A5A923;
+  --k-entity-rust:    #DE8B5C;
+  --k-entity-crimson: #E28491;
+  --k-entity-magenta: #DE81BC;
+  --k-entity-violet:  #CA86DB;
+  --k-entity-plum:    #B091DE;
+  --k-entity-slate:   #99A0AD;
 }
 
 /* native controls / scrollbars follow the theme */

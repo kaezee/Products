@@ -1060,6 +1060,10 @@ button.ghost:hover:not(:disabled) { background: var(--wash); border-color: var(-
 .np-field { display: flex; flex-direction: column; gap: 6px; }
 .np-flabel { font-size: 11px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted); }
 .np-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+/* §7 entity-mention channel (inline, derived sentences): solid underline in the
+   entity colour + faint wash, radius 2. Linework only — no container. */
+.ment-x { border-bottom: 2px solid var(--mc); background: var(--mw); border-radius: var(--k-radius-mark, 2px); padding: 0 1.5px; font-weight: 600; color: inherit; }
+
 /* Selection is a toggle, not a fade — no transition, so the pressed chip/card
    flips to its selected look on the same frame as the click (no perceived lag). */
 .np-chip { font-size: 12.5px; font-weight: 550; padding: 5px 11px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); color: var(--sub); transition: none; }

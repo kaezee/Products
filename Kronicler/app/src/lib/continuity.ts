@@ -8,10 +8,13 @@ import { isBelief, believersOf } from "./knowledge";
 // participants is NOT an error — that's a secret betrayal the victim doesn't
 // know about, a core use of the lens.)
 
+// A name the UI can render as an entity mention (§7): id resolves to a swatch.
+export type EntityRef = { id: string; title: string };
+
 export type Issue =
-  | { kind: "reopened"; relId: string; entityId?: string; who: string; termCh: number; termLabel: string; laterCh: number; laterLabel: string }
-  | { kind: "orphaned-anchor"; relId: string; entityId?: string; who: string; label: string; note: string | null }
-  | { kind: "belief-clash"; relId: string; entityId?: string; believers: string; belief: string; truth: string };
+  | { kind: "reopened"; relId: string; entityId?: string; who: string; whoRefs: EntityRef[]; termCh: number; termLabel: string; laterCh: number; laterLabel: string }
+  | { kind: "orphaned-anchor"; relId: string; entityId?: string; who: string; whoRefs: EntityRef[]; label: string; note: string | null }
+  | { kind: "belief-clash"; relId: string; entityId?: string; believers: string; believerRefs: EntityRef[]; belief: string; truth: string };
 
 // latest TRUTH state per relationship (beliefs + corrections ignored)
 function latestTruth(stream: StreamRow[]): Map<string, StreamRow> {
@@ -49,6 +52,7 @@ export function findIssues(stream: StreamRow[], types: RelationshipType[], nameO
       if (later) out.push({
         kind: "reopened", relId, entityId: term.participants[0]?.entity_id,
         who: term.participants.map((p) => p.title).join(" · "),
+        whoRefs: term.participants.map((p) => ({ id: p.entity_id, title: p.title })),
         termCh: term.manuscript_order!, termLabel: term.type_label,
         laterCh: later.manuscript_order!, laterLabel: later.type_label,
       });
@@ -65,7 +69,8 @@ export function findIssues(stream: StreamRow[], types: RelationshipType[], nameO
       if (seenOrphan.has(s.state_id)) continue; seenOrphan.add(s.state_id);
       out.push({
         kind: "orphaned-anchor", relId: s.relationship_id, entityId: s.participants[0]?.entity_id,
-        who: s.participants.map((p) => p.title).join(" · "), label: s.type_label, note: s.note,
+        who: s.participants.map((p) => p.title).join(" · "),
+        whoRefs: s.participants.map((p) => ({ id: p.entity_id, title: p.title })), label: s.type_label, note: s.note,
       });
     }
   }
@@ -81,7 +86,8 @@ export function findIssues(stream: StreamRow[], types: RelationshipType[], nameO
     if (seenBelief.has(key)) continue; seenBelief.add(key);
     out.push({
       kind: "belief-clash", relId: s.relationship_id, entityId: s.participants[0]?.entity_id,
-      believers: believersOf(s).map(nameOf).join(", "), belief: s.type_label, truth: t.type_label,
+      believers: believersOf(s).map(nameOf).join(", "),
+      believerRefs: believersOf(s).map((id) => ({ id, title: nameOf(id) })), belief: s.type_label, truth: t.type_label,
     });
   }
 

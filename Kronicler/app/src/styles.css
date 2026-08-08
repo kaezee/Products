@@ -73,7 +73,7 @@ input, textarea, select { font-size: 13px; padding: 9px 11px; border: 1px solid 
 .world-switch { display: inline-flex; align-items: center; gap: 6px; max-width: 200px; border: none; background: none; padding: 3px 5px; border-radius: 7px; font-weight: 600; font-size: 13px; color: var(--ink); cursor: pointer; }
 .world-switch:hover { background: var(--wash); }
 .world-switch-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.world-switch svg { color: var(--muted); flex: 0 0 auto; }
+.world-switch svg { color: var(--k-icon-default); flex: 0 0 auto; }
 
 /* Worlds popover — the unified switcher (replaces the native <select>). */
 .worlds-pop { position: absolute; top: calc(100% + 8px); left: 0; z-index: 40; width: 300px; padding: 6px; background: var(--k-bg-raised); border: 1px solid var(--k-border); border-radius: 12px; box-shadow: 0 10px 28px rgba(0,0,0,.16); }
@@ -85,7 +85,7 @@ input, textarea, select { font-size: 13px; padding: 9px 11px; border: 1px solid 
 .worlds-check { display: inline-flex; flex: 0 0 auto; width: 16px; color: var(--bond); }
 .worlds-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .worlds-tag { flex: 0 0 auto; font-size: 9.5px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); background: var(--inset); border: 1px solid var(--line); border-radius: 999px; padding: 1px 6px; }
-.worlds-act { display: inline-flex; flex: 0 0 auto; padding: 4px; border-radius: 6px; color: var(--muted); opacity: 0; }
+.worlds-act { display: inline-flex; flex: 0 0 auto; padding: 4px; border-radius: 6px; color: var(--k-icon-default); opacity: 0; }
 .worlds-row:hover .worlds-act { opacity: 1; }
 .worlds-act:hover { background: var(--surface); color: var(--ink); }
 .worlds-act.danger:hover { color: var(--hostile, #c0392b); }
@@ -94,7 +94,7 @@ input, textarea, select { font-size: 13px; padding: 9px 11px; border: 1px solid 
 .worlds-action { flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 8px; border: none; border-radius: 8px; background: none; color: var(--sub); font-size: 12.5px; font-weight: 600; cursor: pointer; }
 .worlds-action:hover:not(:disabled) { background: var(--wash); color: var(--ink); }
 .searchwrap { flex: 1; min-width: 0; position: relative; }
-.searchwrap .ic { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); color: var(--muted); display: inline-flex; }
+.searchwrap .ic { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); color: var(--k-icon-default); display: inline-flex; }
 .searchwrap input { width: 100%; padding-left: 32px; }
 .kbtn { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--sub); padding: 8px 12px; border: 1px solid var(--line); border-radius: 9px; background: var(--surface); cursor: pointer; white-space: nowrap; font-weight: 500; }
 .kbd { font-family: var(--k-font-mono); font-size: 10.5px; border: 1px solid var(--lineStrong); border-radius: 5px; padding: 2px 6px; background: var(--inset); }
@@ -125,7 +125,7 @@ input, textarea, select { font-size: 13px; padding: 9px 11px; border: 1px solid 
 .railworld-btn:hover { background: var(--wash); }
 .railworld-btn .k { font-family: var(--serif); font-style: italic; font-weight: 600; font-size: 17px; color: var(--bond); flex: 0 0 auto; }
 .railworld-name { flex: 1 1 auto; min-width: 0; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.railworld-btn svg { color: var(--muted); flex: 0 0 auto; }
+.railworld-btn svg { color: var(--k-icon-default); flex: 0 0 auto; }
 .rail-collapsed .railworld { flex: 0 0 auto; }
 /* Worlds gallery — the full "all worlds" screen (Figma back-to-files / Docs home). */
 .worlds-screen { position: fixed; inset: 0; z-index: 300; background: var(--paper); display: flex; flex-direction: column; }
@@ -134,7 +134,7 @@ input, textarea, select { font-size: 13px; padding: 9px 11px; border: 1px solid 
 .worlds-screen-head h2 { font-family: var(--serif); font-weight: 500; font-size: 22px; margin: 0; }
 .worlds-back { display: inline-flex; align-items: center; gap: 3px; padding: 6px 12px 6px 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); font-size: 13px; font-weight: 500; color: var(--ink); cursor: pointer; }
 .worlds-back:hover { background: var(--wash); border-color: var(--lineStrong); }
-.worlds-back svg { color: var(--muted); }
+.worlds-back svg { color: var(--k-icon-default); }
 .worlds-head-sep { width: 1px; align-self: stretch; margin: 2px 4px; background: var(--line); }
 .worlds-screen-body { flex: 1; min-height: 0; overflow-y: auto; padding: clamp(20px, 4vw, 44px) clamp(20px, 5vw, 56px) 20vh; }
 .worlds-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; max-width: 1100px; }
@@ -153,7 +153,7 @@ input, textarea, select { font-size: 13px; padding: 9px 11px; border: 1px solid 
   background: none; border-style: dashed; box-shadow: none; }
 .worldcard.new:hover { color: var(--ink); background: var(--wash); }
 .worldcard.new:disabled { opacity: .6; cursor: default; }
-.rail-toggle-btn { display: flex; align-items: center; justify-content: center; width: 30px; height: 30px; padding: 0; border: 1px solid var(--line); border-radius: 8px; background: transparent; color: var(--muted); cursor: pointer; }
+.rail-toggle-btn { display: flex; align-items: center; justify-content: center; width: 30px; height: 30px; padding: 0; border: 1px solid var(--line); border-radius: 8px; background: transparent; color: var(--k-icon-default); cursor: pointer; }
 .rail-toggle-btn:hover { background: var(--wash); color: var(--ink); }
 .railitem { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-radius: 8px; font-size: 13px; cursor: pointer; color: var(--sub); font-weight: 450; transition: background var(--k-duration-fast, 120ms) var(--k-ease, ease), color var(--k-duration-fast, 120ms) var(--k-ease, ease); }
 .railitem:hover:not(.on) { background: var(--wash); color: var(--ink); }
@@ -503,7 +503,7 @@ h2.ed-canvas-title, .ed-canvas-input { margin: 0; }
 @media (prefers-reduced-motion: reduce) { .skel { animation-duration: 0s; } .spin { animation-duration: 1.4s; } }
 
 /* Dashboard (Overview) — stat tiles, the continue launchpad, and columns. */
-.dash-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(148px, 1fr)); gap: 12px; margin: 14px 0 18px; }
+.dash-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(148px, 1fr)); gap: 16px; margin: 32px 0 16px; }
 .stat { text-align: left; display: flex; flex-direction: column; gap: 3px; padding: 13px 15px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; cursor: pointer; transition: background var(--k-duration-fast,120ms) var(--k-ease,ease), border-color var(--k-duration-fast,120ms) var(--k-ease,ease); }
 .stat:hover { background: var(--wash); border-color: var(--lineStrong); }
 .stat-top { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); }

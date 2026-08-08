@@ -416,31 +416,29 @@ export function Overview({ worldId, go }: { worldId: string; go: (n: Nav) => voi
       {(openComments.length > 0 || recentNotes.length > 0) && (
         <div style={{ marginBottom: 18 }}>
           <div className="label" style={{ marginTop: 0 }}>What you left yourself</div>
-          <div className="card">
-            {openComments.length > 0 && (
-              <div className="row click" onClick={() => go({ scope: "manuscript", chapterId: openComments[0].chapter_id })}>
-                <span style={{ fontSize: 12.5 }}>
-                  <b>{openComments.length}</b> unresolved comment{openComments.length === 1 ? "" : "s"} across {commentChapters.size} chapter{commentChapters.size === 1 ? "" : "s"}
-                </span>
-                <span className="spacer" />
-                <Icon name="arrow" size={14} style={{ color: "var(--faint)" }} />
-              </div>
-            )}
-            {recentNotes.map((n) => {
-              const ch = (n.chapter_ids ?? []).map((id) => chById.get(id)).find(Boolean);
-              const ent = !ch && (n.entity_ids ?? []).length ? entities.find((e) => e.id === n.entity_ids[0]) : null;
-              const label = ch ? `Ch. ${ch.manuscript_order}` : ent ? ent.title : "World";
-              const nav: Nav = ch ? { scope: "manuscript", chapterId: ch.id } : ent ? { scope: "library", entityId: ent.id } : { scope: "overview" };
-              return (
-                <div className="row click" key={n.id} onClick={() => go(nav)}>
-                  <span style={{ fontSize: 12.5, flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                    {n.body.trim().slice(0, 70) || <span className="muted">(empty note)</span>}
-                  </span>
-                  <span className="muted" style={{ fontSize: 11 }}>{label}</span>
+          {openComments.length > 0 && (
+            <div className="trail-well click" style={{ flexDirection: "row", alignItems: "center" }}
+              onClick={() => go({ scope: "manuscript", chapterId: openComments[0].chapter_id })}>
+              <span style={{ fontSize: 12.5 }}>
+                <b>{openComments.length}</b> unresolved comment{openComments.length === 1 ? "" : "s"} across {commentChapters.size} chapter{commentChapters.size === 1 ? "" : "s"}
+              </span>
+              <span className="spacer" />
+              <Icon name="arrow" size={14} style={{ color: "var(--faint)" }} />
+            </div>
+          )}
+          {recentNotes.map((n) => {
+            const ch = (n.chapter_ids ?? []).map((id) => chById.get(id)).find(Boolean);
+            const ent = !ch && (n.entity_ids ?? []).length ? entities.find((e) => e.id === n.entity_ids[0]) : null;
+            const nav: Nav = ch ? { scope: "manuscript", chapterId: ch.id } : ent ? { scope: "library", entityId: ent.id } : { scope: "overview" };
+            return (
+              <div className="trail-well click" key={n.id} onClick={() => go(nav)}>
+                <div className="trail-body">{n.body.trim().slice(0, 180) || <span className="muted">(empty note)</span>}</div>
+                <div className="trail-meta">
+                  {ch ? `in chapter ${ch.manuscript_order}` : ent ? <>pinned to <Mention name={ent.title} swatch={swatchOf(ent.id)} /></> : "in this world"}
                 </div>
-              );
-            })}
-          </div>
+              </div>
+            );
+          })}
         </div>
       )}
 

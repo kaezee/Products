@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { getStream, getEntities, getRelationshipTypes, getChapters, getNotes, getWorldComments, getWorld } from "../lib/api";
-import type { StreamRow, Entity, RelationshipType, Chapter, Note, Comment } from "../lib/types";
+import { getStream, getEntities, getEntityTypes, getRelationshipTypes, getChapters, getNotes, getWorldComments, getWorld } from "../lib/api";
+import type { StreamRow, Entity, EntityType, RelationshipType, Chapter, Note, Comment } from "../lib/types";
+import { buildTypeSwatches } from "../lib/entityTypes";
+import { Mention } from "../components/Mention";
 import { detectMentions } from "../lib/mentions";
 import { isBelief } from "../lib/knowledge";
 import { findIssues } from "../lib/continuity";
@@ -21,6 +23,7 @@ const fmt = (n: number) => n.toLocaleString();
 export function Overview({ worldId, go }: { worldId: string; go: (n: Nav) => void }) {
   const [stream, setStream] = useState<StreamRow[] | null>(null);
   const [entities, setEntities] = useState<Entity[]>([]);
+  const [entityTypes, setEntityTypes] = useState<EntityType[]>([]);
   const [types, setTypes] = useState<RelationshipType[]>([]);
   const [chapters, setChapters] = useState<Chapter[]>([]);
   const [notes, setNotes] = useState<Note[]>([]);
@@ -41,13 +44,27 @@ export function Overview({ worldId, go }: { worldId: string; go: (n: Nav) => voi
 
   useEffect(() => {
     let alive = true;
-    Promise.all([getStream(worldId), getEntities(worldId), getRelationshipTypes(worldId), getChapters(worldId), getNotes(worldId), getWorldComments(worldId), getWorld(worldId)])
-      .then(([s, e, t, c, n, cm, w]) => { if (!alive) return; setStream(s); setEntities(e); setTypes(t); setChapters(c); setNotes(n); setComments(cm); setWorldName(w.name); })
+    Promise.all([getStream(worldId), getEntities(worldId), getRelationshipTypes(worldId), getChapters(worldId), getNotes(worldId), getWorldComments(worldId), getWorld(worldId), getEntityTypes(worldId)])
+      .then(([s, e, t, c, n, cm, w, et]) => { if (!alive) return; setStream(s); setEntities(e); setTypes(t); setChapters(c); setNotes(n); setComments(cm); setWorldName(w.name); setEntityTypes(et); })
       .catch((x) => alive && setErr(String(x)));
     return () => { alive = false; };
   }, [worldId]);
 
   const typesById = useMemo(() => new Map(types.map((t) => [t.id, t])), [types]);
+
+  // §7 mention channel: resolve an entity id → its swatch, so a name can render
+  // with a coloured underline + wash. whoM renders a state's participants as
+  // mentions joined by " · ".
+  const entById = useMemo(() => new Map(entities.map((e) => [e.id, e])), [entities]);
+  const typeSwatch = useMemo(
+    () => buildTypeSwatches(entityTypes.map((t) => ({ name: t.name, swatch: t.swatch })), entities.map((e) => e.type)),
+    [entityTypes, entities],
+  );
+  const swatchOf = (id?: string) => { const e = id ? entById.get(id) : undefined; return e ? typeSwatch.get(e.type.toLowerCase()) : undefined; };
+  const whoM = (s: StreamRow): ReactNode =>
+    s.participants.map((p, i) => <span key={p.entity_id + i}>{i > 0 ? " · " : ""}<Mention name={p.title} swatch={swatchOf(p.entity_id)} /></span>);
+  const refsM = (refs: { id: string; title: string }[], sep = ", "): ReactNode =>
+    refs.map((r, i) => <span key={r.id + i}>{i > 0 ? sep : ""}<Mention name={r.title} swatch={swatchOf(r.id)} /></span>);
 
   const recent = useMemo(
     () => [...(stream ?? [])].sort((a, b) => (b.created_at > a.created_at ? 1 : -1)).slice(0, 6),
@@ -170,8 +187,6 @@ export function Overview({ worldId, go }: { worldId: string; go: (n: Nav) => voi
   if (err) return <p className="err">{err}</p>;
   if (!stream) return <OverviewSkeleton />;
 
-  const who = (s: StreamRow) => s.participants.map((p) => p.title).join(" · ");
-
   // Worth a look (§9 rulings): honest duplicate questions, dramatic irony, and
   // dormant threads. Reopened moves to Recently; lost anchors become one quiet
   // aggregate line; unconnected entities are not flagged pre-composer at all.
@@ -238,7 +253,7 @@ export function Overview({ worldId, go }: { worldId: string; go: (n: Nav) => voi
       body: ckDone[1] && ckEnt ? `${ckEnt.title} now lights up wherever you write the name. Hover to peek.` : "A character, a place, a faction — anyone in your story." },
     { done: ckDone[2], title: "Record what changes", nav: { scope: "manuscript" },
       body: ckDone[2] && ckMoment
-        ? <>Kronicler can now say: <b>{who(ckMoment)}</b> <span style={{ color: VALENCE_COLOR[ckMoment.valence], fontWeight: 600 }}>{ckMoment.type_label}</span>{ckMoment.manuscript_order != null ? ` — ch. ${ckMoment.manuscript_order}` : ""}</>
+        ? <>Kronicler can now say: {whoM(ckMoment)} <span style={{ color: VALENCE_COLOR[ckMoment.valence], fontWeight: 600 }}>{ckMoment.type_label}</span>{ckMoment.manuscript_order != null ? ` — ch. ${ckMoment.manuscript_order}` : ""}</>
         : "Select a line where something shifts between two people." },
     { done: ckDone[3], title: "Give a chapter a date", nav: { scope: "timeline" },
       body: ckDone[3] && ckDated ? `Chapter ${ckDated.manuscript_order} sits on your timeline at ${ckDateLabel}.` : "Give a chapter a date and it lands on your timeline." },
@@ -285,7 +300,7 @@ export function Overview({ worldId, go }: { worldId: string; go: (n: Nav) => voi
             <div className="recap-lab">What's true right now</div>
             <ul className="recap-list">
               {truths.map((s) => (
-                <li key={s.state_id}>{who(s)} <span style={{ color: VALENCE_COLOR[s.valence], fontWeight: 600 }}>{s.type_label}</span>.</li>
+                <li key={s.state_id}>{whoM(s)} <span style={{ color: VALENCE_COLOR[s.valence], fontWeight: 600 }}>{s.type_label}</span>.</li>
               ))}
             </ul>
           </section>
@@ -438,8 +453,8 @@ export function Overview({ worldId, go }: { worldId: string; go: (n: Nav) => voi
               <div className="row" key={"dup" + d.key}>
                 <span style={{ fontSize: 12.5, flex: 1, minWidth: 0 }}>
                   {d.reason === "same-name"
-                    ? <>{d.entities.length === 2 ? "Two" : d.entities.length} {typeWord(d.entities[0], d.entities.length)} are called <b>{d.entities[0].title}</b>. Same {typeWord(d.entities[0], 1)}, or {d.entities.length === 2 ? "two" : "separate"}?</>
-                    : <><b>{d.entities[0].title}</b> is a {typeWord(d.entities[0], 1)} of its own, and also an alias of <b>{d.entities[1].title}</b>. Same thing, or two?</>}
+                    ? <>{d.entities.length === 2 ? "Two" : d.entities.length} {typeWord(d.entities[0], d.entities.length)} are called <Mention name={d.entities[0].title} swatch={swatchOf(d.entities[0].id)} />. Same {typeWord(d.entities[0], 1)}, or {d.entities.length === 2 ? "two" : "separate"}?</>
+                    : <><Mention name={d.entities[0].title} swatch={swatchOf(d.entities[0].id)} /> is a {typeWord(d.entities[0], 1)} of its own, and also an alias of <Mention name={d.entities[1].title} swatch={swatchOf(d.entities[1].id)} />. Same thing, or two?</>}
                 </span>
                 <button className="ghost" style={{ fontSize: 11.5, padding: "3px 8px" }} onClick={() => go({ scope: "library", entityId: d.entities[0].id })}>Merge</button>
                 <button className="ghost" style={{ fontSize: 11.5, padding: "3px 8px" }} onClick={() => keepBoth(d.key)}>Keep both</button>
@@ -448,18 +463,18 @@ export function Overview({ worldId, go }: { worldId: string; go: (n: Nav) => voi
             {ironies.map((c) => nextLook() && (
               <div className="row click" key={"i" + c.relId} onClick={() => go({ scope: "relationships" })}>
                 <span style={{ fontSize: 12.5 }}>
-                  <b>{c.believers}</b> believe{c.believers.includes(",") ? "" : "s"} it's <span style={{ color: "var(--obligation)", fontWeight: 600 }}>{c.belief}</span> — the reader knows it's <span style={{ color: "var(--hostile)", fontWeight: 600 }}>{c.truth}</span>.
+                  {refsM(c.believerRefs)} believe{c.believerRefs.length > 1 ? "" : "s"} it's <span style={{ color: "var(--obligation)", fontWeight: 600 }}>{c.belief}</span> — the reader knows it's <span style={{ color: "var(--hostile)", fontWeight: 600 }}>{c.truth}</span>.
                 </span>
               </div>
             ))}
             {dormant.map((s) => nextLook() && (
               <div className="row click" key={"d" + s.state_id} onClick={() => go({ scope: "relationships" })}>
-                <span style={{ fontSize: 12.5 }}><b>{who(s)}</b> · {s.type_label} — untouched for a while.</span>
+                <span style={{ fontSize: 12.5 }}>{whoM(s)} · {s.type_label} — untouched for a while.</span>
               </div>
             ))}
             {mentions.absent.map(({ e, since }) => nextLook() && (
               <div className="row click" key={"ab" + e.id} onClick={() => go({ scope: "library", entityId: e.id })}>
-                <span style={{ fontSize: 12.5 }}><b>{e.title}</b> hasn't appeared since chapter {since}.</span>
+                <span style={{ fontSize: 12.5 }}><Mention name={e.title} swatch={swatchOf(e.id)} /> hasn't appeared since chapter {since}.</span>
               </div>
             ))}
             {lookItems > LOOK_CAP && (
@@ -490,7 +505,7 @@ export function Overview({ worldId, go }: { worldId: string; go: (n: Nav) => voi
             <div className="row click" key={"re" + c.relId} onClick={() => c.entityId && go({ scope: "library", entityId: c.entityId })}>
               <span className="dot" style={{ background: "var(--hostile)" }} />
               <span style={{ fontWeight: 500 }}>
-                <b>{c.who}</b> are <span style={{ color: "var(--hostile)", fontWeight: 600 }}>{c.laterLabel}</span> again — they were {c.termLabel} in ch. {c.termCh}.
+                {refsM(c.whoRefs, " · ")} are <span style={{ color: "var(--hostile)", fontWeight: 600 }}>{c.laterLabel}</span> again — they were {c.termLabel} in ch. {c.termCh}.
               </span>
             </div>
           ))}
@@ -498,7 +513,7 @@ export function Overview({ worldId, go }: { worldId: string; go: (n: Nav) => voi
             <div className="row click" key={s.state_id} onClick={() => go({ scope: "relationships" })}>
               <span className="dot" style={{ background: VALENCE_COLOR[s.valence] }} />
               <span style={{ fontWeight: 500 }}>
-                {who(s)} <span style={{ color: VALENCE_COLOR[s.valence], fontWeight: 600 }}>{s.type_label}</span>
+                {whoM(s)} <span style={{ color: VALENCE_COLOR[s.valence], fontWeight: 600 }}>{s.type_label}</span>
               </span>
               <span className="spacer" />
               <span className="muted">{s.manuscript_order != null ? `ch. ${s.manuscript_order}` : "—"}</span>

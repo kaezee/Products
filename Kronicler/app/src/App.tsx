@@ -469,7 +469,7 @@ function Workspace({ session }: { session: Session }) {
               {session.user.is_anonymous && (
                 <div className="guest-banner">
                   <Icon name="book" size={15} />
-                  <span>You're exploring as a <b>guest</b> — this project lives only in this browser.</span>
+                  <span>You're exploring as a <b>guest</b> — your work is saved, but you'll lose access to it when this session ends.</span>
                   <button onClick={() => go({ scope: "settings" })}>Add an email to keep it</button>
                 </div>
               )}

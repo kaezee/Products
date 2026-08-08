@@ -51,7 +51,12 @@ export interface Note {
   y: number;
   w: number | null;
   h: number | null;
+  source: NoteSource; // where the note was captured (Foundations §4.4)
 }
+
+// Where a note was captured. 'mobile' is the PWA capture path (added later);
+// existing and app-created notes are 'app'; 'import' is a manuscript import.
+export type NoteSource = "app" | "import" | "mobile";
 
 // §6 comments: a margin comment anchored to a range of a chapter's prose. The
 // anchor is plain-text character offsets into the body (the editor's coordinate

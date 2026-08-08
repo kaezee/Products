@@ -128,6 +128,22 @@ so their real cost can rise with the care (and QA rounds) they need._
   Account deletion should soft-delete first (recoverable window) then hard-purge.
   _Size: M. Risk: high (auth + destructive) — build behind a role check first._
 
+- **Guest (anonymous) hygiene + monitoring.** Keep the `auth.users` table and
+  MAU under control as guest mode drives anonymous sign-ins (Foundations §2.3).
+  Note the premise: an inactive guest ages out of MAU on its own the next month,
+  so deletion is about *table size / storage / total-user cap*, not recurring
+  MAU. Two pieces, in order of value:
+  1. **Scheduled cleanup** (Supabase cron / edge function): delete anonymous
+     users inactive > N days with **no linked email**, plus their orphaned
+     worlds. Automatic — no dashboard to remember. Deletion needs the
+     `service_role` via a server-side function; never the client.
+  2. **Read-only guest metrics** in the admin panel: guests total / active this
+     month / converted — monitor without a destructive surface.
+  Gate on the same `is_admin` check as account removal. **Build after auth (§6):**
+  admin gating needs the auth model, and the "inactive, unconverted" lifecycle
+  depends on the guest→account conversion flow. _Size: S (metrics) + M (cleanup
+  job). Risk: med-high (service_role + destructive on the cleanup half)._
+
 - **Test accounts with settable "time away".** A way to simulate a returning
   writer so the §4.4 recap / §4.1 orientation states can be tested on demand.
   Note: the recap is currently driven by a per-browser `localStorage` mark

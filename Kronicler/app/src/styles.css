@@ -52,7 +52,9 @@ h2 { font-family: var(--serif); font-weight: 500; }
 
 /* Button tiers (design system §8): only the primary carries colour. Secondary
    (default) = surface fill + strong border. All states meet WCAG AA contrast. */
-button { font-family: var(--sans); font-size: 12.5px; font-weight: 600; cursor: pointer; padding: 8px 14px; border-radius: 8px; border: 1px solid var(--lineStrong); background: var(--surface); color: var(--ink); transition: background var(--k-duration-fast, 120ms) var(--k-ease, ease), border-color var(--k-duration-fast, 120ms) var(--k-ease, ease); }
+/* No state-change fade on buttons: selection must land on the click frame, not
+   ease in over 120ms (that read as lag on every chip/toggle). */
+button { font-family: var(--sans); font-size: 12.5px; font-weight: 600; cursor: pointer; padding: 8px 14px; border-radius: 8px; border: 1px solid var(--lineStrong); background: var(--surface); color: var(--ink); }
 button:hover:not(:disabled):not(.primary) { background: var(--wash); border-color: var(--k-text-tertiary); }
 button.primary { background: var(--k-action-fill); color: var(--k-on-action-fill); border: 1px solid transparent; }
 button.primary:hover:not(:disabled) { background: var(--k-action-hover); }
@@ -157,7 +159,7 @@ input, textarea, select { font-size: 13px; padding: 9px 11px; border: 1px solid 
 .worldcard.new:disabled { opacity: .6; cursor: default; }
 .rail-toggle-btn { display: flex; align-items: center; justify-content: center; width: 30px; height: 30px; padding: 0; border: 1px solid var(--line); border-radius: 8px; background: transparent; color: var(--k-icon-default); cursor: pointer; }
 .rail-toggle-btn:hover { background: var(--wash); color: var(--ink); }
-.railitem { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-radius: 8px; font-size: 13px; cursor: pointer; color: var(--sub); font-weight: 450; transition: background var(--k-duration-fast, 120ms) var(--k-ease, ease), color var(--k-duration-fast, 120ms) var(--k-ease, ease); }
+.railitem { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-radius: 8px; font-size: 13px; cursor: pointer; color: var(--sub); font-weight: 450; }
 .railitem:hover:not(.on) { background: var(--wash); color: var(--ink); }
 .railitem .g { display: inline-flex; align-items: center; justify-content: center; width: 18px; opacity: 0.75; }
 .railitem.on { background: var(--bondBg); color: var(--bond); font-weight: 650; }

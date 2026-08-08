@@ -1060,6 +1060,14 @@ button.ghost:hover:not(:disabled) { background: var(--wash); border-color: var(-
 .np-field { display: flex; flex-direction: column; gap: 6px; }
 .np-flabel { font-size: 11px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted); }
 .np-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+/* Writer's trail ("What you left yourself"): notes-to-self are borderless wells
+   (§4 — a recessed tinted block takes no outline), not rows in a bordered card. */
+.trail-well { display: flex; flex-direction: column; gap: 6px; background: var(--inset); border-radius: var(--k-radius-container, 8px); padding: 14px 16px; margin-bottom: 8px; }
+.trail-well.click { cursor: pointer; }
+.trail-well.click:hover { background: var(--wash); }
+.trail-body { font-size: 13.5px; line-height: 1.5; color: var(--ink); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.trail-meta { font-size: 11.5px; color: var(--muted); }
+
 /* §7 entity-mention channel (inline, derived sentences): solid underline in the
    entity colour + faint wash, radius 2. Linework only — no container. */
 .ment-x { border-bottom: 2px solid var(--mc); background: var(--mw); border-radius: var(--k-radius-mark, 2px); padding: 0 1.5px; font-weight: 600; color: inherit; }

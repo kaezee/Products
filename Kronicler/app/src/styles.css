@@ -21,7 +21,10 @@ svg.lucide { display: inline-block; vertical-align: -0.15em; flex: none; }
   --ink: var(--k-text-primary); --sub: var(--k-text-secondary);
   --muted: var(--k-text-tertiary); --faint: var(--k-text-tertiary);
   --line: var(--k-border); --lineStrong: var(--k-border-strong);
-  --bond: var(--k-action-default); --bondBg: var(--k-action-subtle); --bondLine: var(--k-action-ring);
+  /* action: fill = primary button (woad-500), text = links/accents (woad-700),
+     Bg = tonal container for selected states — visibly selected now (§5.2). */
+  --bond: var(--k-action-text); --bondBg: var(--k-action-container); --bondLine: var(--k-action-ring);
+  --bondFill: var(--k-action-fill); --onBondFill: var(--k-on-action-fill); --onBondBg: var(--k-on-action-container);
   /* Valence: colour is the meaning (text + a derived border). Fills belong to
      the theme — the *Bg here is a canvas-derived tint (no fixed cream), used
      only by non-badge callouts; text-bearing badges take *Line + text, no fill.
@@ -42,7 +45,7 @@ svg.lucide { display: inline-block; vertical-align: -0.15em; flex: none; }
 }
 * { box-sizing: border-box; }
 body { margin: 0; font-family: var(--sans); background: var(--paper); color: var(--ink); font-size: 13px; line-height: 1.5; }
-::selection { background: var(--k-action-subtle); }
+::selection { background: var(--k-selection-bg); }
 input, select, button, textarea { font-family: var(--sans); }
 input:focus, textarea:focus, select:focus { outline: none; border-color: var(--bond); box-shadow: 0 0 0 3px var(--bondBg); }
 h2 { font-family: var(--serif); font-weight: 500; }
@@ -51,7 +54,7 @@ h2 { font-family: var(--serif); font-weight: 500; }
    (default) = surface fill + strong border. All states meet WCAG AA contrast. */
 button { font-family: var(--sans); font-size: 12.5px; font-weight: 600; cursor: pointer; padding: 8px 14px; border-radius: 8px; border: 1px solid var(--lineStrong); background: var(--surface); color: var(--ink); transition: background var(--k-duration-fast, 120ms) var(--k-ease, ease), border-color var(--k-duration-fast, 120ms) var(--k-ease, ease); }
 button:hover:not(:disabled):not(.primary) { background: var(--wash); border-color: var(--k-text-tertiary); }
-button.primary { background: var(--k-action-default); color: var(--k-action-on); border: 1px solid transparent; }
+button.primary { background: var(--k-action-fill); color: var(--k-on-action-fill); border: 1px solid transparent; }
 button.primary:hover:not(:disabled) { background: var(--k-action-hover); }
 button.primary:active:not(:disabled) { background: var(--k-action-active); }
 button:focus-visible { outline: 2px solid var(--k-action-default); outline-offset: 2px; }
@@ -195,7 +198,7 @@ input, textarea, select { font-size: 13px; padding: 9px 11px; border: 1px solid 
 /* segmented (lens) toggle */
 .seg { display: inline-flex; border: 1px solid var(--lineStrong); border-radius: 9px; overflow: hidden; font-size: 12.5px; }
 .seg span { padding: 6px 16px; cursor: pointer; color: var(--sub); }
-.seg span.on { background: var(--k-action-default); color: var(--k-action-on); font-weight: 650; }
+.seg span.on { background: var(--bondFill); color: var(--onBondFill); font-weight: 650; }
 
 /* ── auth ──────────────────────────────────────────────── */
 .center { min-height: 80vh; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; }
@@ -211,7 +214,7 @@ textarea { font-family: var(--serif); }
 /* Auth "or" divider + guest banner. */
 .auth-or { display: flex; align-items: center; gap: 10px; color: var(--faint); font-size: 10.5px; text-transform: uppercase; letter-spacing: .1em; margin: 2px 0; }
 .auth-or::before, .auth-or::after { content: ""; flex: 1; height: 1px; background: var(--line); }
-.guest-banner { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 9px 14px; margin-bottom: 14px; border: 1px solid var(--obligationLine); background: transparent; color: var(--obligation); border-radius: 10px; font-size: 12.5px; }
+.guest-banner { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 9px 14px; margin-bottom: 14px; border: 1px solid var(--k-action-ring); background: var(--k-system-info-container); color: var(--k-action-text); border-radius: 10px; font-size: 12.5px; }
 .guest-banner b { color: var(--ink); font-weight: 600; }
 .guest-banner button { margin-left: auto; padding: 5px 11px; font-size: 12px; }
 
@@ -505,7 +508,7 @@ h2.ed-canvas-title, .ed-canvas-input { margin: 0; }
 .stat:hover { background: var(--wash); border-color: var(--lineStrong); }
 .stat-top { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); }
 .stat-lab { font-size: 10.5px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
-.stat-num { font-family: var(--serif); font-size: 25px; font-weight: 600; line-height: 1.1; color: var(--ink); font-variant-numeric: tabular-nums; }
+.stat-num { font-family: var(--k-font-mono); font-size: var(--k-type-metric-size); line-height: var(--k-type-metric-lh); font-weight: var(--k-type-metric-weight); color: var(--ink); font-variant-numeric: tabular-nums; }
 .stat-sub { font-size: 11.5px; color: var(--muted); }
 .dash-continue { display: flex; align-items: center; gap: 15px; padding: 16px 18px; margin-bottom: 20px; background: var(--bondBg); border: 1px solid var(--bondLine); border-radius: 14px; }
 .dash-continue-ic { display: inline-flex; align-items: center; justify-content: center; width: 40px; height: 40px; flex: 0 0 auto; border-radius: 11px; background: var(--surface); color: var(--bond); border: 1px solid var(--bondLine); }
@@ -1049,7 +1052,7 @@ button.ghost:hover:not(:disabled) { background: var(--wash); border-color: var(-
 .np-chips { display: flex; flex-wrap: wrap; gap: 6px; }
 .np-chip { font-size: 12.5px; font-weight: 550; padding: 5px 11px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); color: var(--sub); }
 .np-chip:hover:not(:disabled) { border-color: var(--lineStrong); background: var(--wash); }
-.np-chip.on { border-color: var(--bond); background: var(--bond); color: #fff; }
+.np-chip.on { border-color: var(--bondFill); background: var(--bondFill); color: var(--onBondFill); }
 .np-help { font-size: 12px; margin: 2px 0 0; }
 .np-entry { display: flex; gap: 8px; margin-top: 6px; flex-wrap: wrap; }
 

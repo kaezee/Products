@@ -112,12 +112,14 @@ input, textarea, select { font-size: 13px; padding: 9px 11px; border: 1px solid 
 .shellbody { display: flex; flex: 1; min-height: 0; min-width: 0; }
 .rail { width: 178px; flex-shrink: 0; border-right: 1px solid var(--line); padding: 14px 10px 10px; display: flex; flex-direction: column; gap: 2px; background: transparent; overflow-y: auto; overflow-x: hidden; transition: width var(--k-duration-base, 180ms) var(--k-ease, ease); }
 .rail-collapsed { width: 56px; padding-left: 8px; padding-right: 8px; }
-.rail-collapsed .railitem { justify-content: center; padding: 9px 0; gap: 0; }
+/* Collapsed keeps items left-aligned at the same inset as expanded: only the
+   rail *width* animates, so icons don't slide inward as it narrows (no jump). */
+.rail-collapsed .railitem { padding: 8px 12px; gap: 0; }
 .rail-collapsed .railitem .g { width: auto; opacity: 0.9; }
 .rail-collapsed .railitem.on { background: var(--bondBg); }
 /* Sidebar collapse control — a small toggle at the top of the rail. */
 .rail-top { display: flex; align-items: center; gap: 6px; padding: 0 4px 8px; margin-bottom: 4px; border-bottom: 1px solid var(--line); }
-.rail-collapsed .rail-top { justify-content: center; padding: 0 0 8px; flex-direction: column; gap: 8px; }
+.rail-collapsed .rail-top { justify-content: flex-start; flex-direction: row; padding: 0 6px 8px; }
 /* Rail header world switcher (§1/§7): K + full name + chevron; name never truncates. */
 .railworld { position: relative; flex: 1 1 auto; min-width: 0; }
 .railworld-btn { display: flex; align-items: center; gap: 7px; width: 100%; border: none; background: none; box-shadow: none;
@@ -1050,7 +1052,9 @@ button.ghost:hover:not(:disabled) { background: var(--wash); border-color: var(-
 .np-field { display: flex; flex-direction: column; gap: 6px; }
 .np-flabel { font-size: 11px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted); }
 .np-chips { display: flex; flex-wrap: wrap; gap: 6px; }
-.np-chip { font-size: 12.5px; font-weight: 550; padding: 5px 11px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); color: var(--sub); }
+/* Selection is a toggle, not a fade — no transition, so the pressed chip/card
+   flips to its selected look on the same frame as the click (no perceived lag). */
+.np-chip { font-size: 12.5px; font-weight: 550; padding: 5px 11px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); color: var(--sub); transition: none; }
 .np-chip:hover:not(:disabled) { border-color: var(--lineStrong); background: var(--wash); }
 .np-chip.on { border-color: var(--bondFill); background: var(--bondFill); color: var(--onBondFill); }
 .np-help { font-size: 12px; margin: 2px 0 0; }
@@ -1060,7 +1064,7 @@ button.ghost:hover:not(:disabled) { background: var(--wash); border-color: var(-
 .np-subhelp { font-size: 11.5px; color: var(--muted); }
 .np-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
 .np-starts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
-.np-start { display: flex; flex-direction: column; align-items: stretch; gap: 4px; text-align: left; padding: 10px 11px 12px; border: 1px solid var(--line); border-radius: 11px; background: var(--surface); color: var(--ink); }
+.np-start { display: flex; flex-direction: column; align-items: stretch; gap: 4px; text-align: left; padding: 10px 11px 12px; border: 1px solid var(--line); border-radius: 11px; background: var(--surface); color: var(--ink); transition: none; }
 .np-start:hover:not(.on) { border-color: var(--lineStrong); background: var(--wash); }
 .np-start.on { border-color: var(--bond); background: var(--bondBg); box-shadow: 0 0 0 1px var(--bond); }
 .np-start-t { font-weight: 650; font-size: 14px; margin-top: 2px; }

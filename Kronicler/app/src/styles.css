@@ -57,7 +57,7 @@ button:hover:not(:disabled):not(.primary) { background: var(--wash); border-colo
 button.primary { background: var(--k-action-fill); color: var(--k-on-action-fill); border: 1px solid transparent; }
 button.primary:hover:not(:disabled) { background: var(--k-action-hover); }
 button.primary:active:not(:disabled) { background: var(--k-action-active); }
-button:focus-visible { outline: 2px solid var(--k-action-default); outline-offset: 2px; }
+button:focus-visible { outline: 2px solid var(--k-action-fill); outline-offset: 2px; }
 button:disabled { opacity: 0.45; cursor: default; }
 input, textarea, select { font-size: 13px; padding: 9px 11px; border: 1px solid var(--line); border-radius: 8px; background: var(--inset); color: var(--ink); }
 
@@ -108,7 +108,7 @@ input, textarea, select { font-size: 13px; padding: 9px 11px; border: 1px solid 
 .appearance-opt > span:first-of-type { flex: 1; }
 .appearance-opt:hover { background: var(--wash); color: var(--ink); }
 .appearance-opt.on { color: var(--ink); font-weight: 600; }
-.appearance-check { display: inline-flex; color: var(--k-action-default); }
+.appearance-check { display: inline-flex; color: var(--k-action-text); }
 .shellbody { display: flex; flex: 1; min-height: 0; min-width: 0; }
 .rail { width: 178px; flex-shrink: 0; border-right: 1px solid var(--line); padding: 14px 10px 10px; display: flex; flex-direction: column; gap: 2px; background: transparent; overflow-y: auto; overflow-x: hidden; transition: width var(--k-duration-base, 180ms) var(--k-ease, ease); }
 .rail-collapsed { width: 56px; padding-left: 8px; padding-right: 8px; }
@@ -516,7 +516,7 @@ h2.ed-canvas-title, .ed-canvas-input { margin: 0; }
 .dash-continue-title { font-family: var(--serif); font-size: 18px; font-weight: 600; color: var(--ink); margin: 1px 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .dash-continue-sub { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
 .dash-cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(340px, 100%), 1fr)); gap: 18px; }
-.dash-count { font-family: var(--k-font-mono); font-size: 11px; font-weight: 600; color: var(--k-action-on); background: var(--k-action-default); border-radius: 999px; padding: 0 7px; line-height: 17px; }
+.dash-count { font-family: var(--k-font-mono); font-size: 11px; font-weight: 600; color: var(--k-on-action-fill); background: var(--k-action-fill); border-radius: 999px; padding: 0 7px; line-height: 17px; }
 
 /* In-app confirmation dialog (replaces the native browser confirm). */
 .confirm-overlay { align-items: center; padding-top: 0; z-index: 90; }
@@ -589,8 +589,8 @@ button.danger:hover:not(:disabled) { filter: brightness(0.93); background: var(-
 .wt2-grip:hover { color: var(--muted); }
 .wt2-grip:active { cursor: grabbing; }
 /* Live placement guide shown while an undated chapter is dragged over the canvas. */
-.wt2-drophint { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--k-action-default); z-index: 6; pointer-events: none; box-shadow: 0 0 0 1px var(--k-bg-canvas); }
-.wt2-drophint-lab { position: absolute; top: 2px; left: 50%; transform: translateX(-50%); background: var(--k-action-default); color: var(--k-action-on); font-family: var(--mono); font-size: 10.5px; font-weight: 600; padding: 1px 6px; border-radius: 5px; white-space: nowrap; }
+.wt2-drophint { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--k-action-fill); z-index: 6; pointer-events: none; box-shadow: 0 0 0 1px var(--k-bg-canvas); }
+.wt2-drophint-lab { position: absolute; top: 2px; left: 50%; transform: translateX(-50%); background: var(--k-action-fill); color: var(--k-on-action-fill); font-family: var(--mono); font-size: 10.5px; font-weight: 600; padding: 1px 6px; border-radius: 5px; white-space: nowrap; }
 .wt2-outline { display: flex; align-items: center; gap: 7px; padding: 5px 2px; }
 .wt2-outline-dot { width: 8px; height: 8px; border-radius: 50%; flex: 0 0 auto; }
 .wt2-outline-name { flex: 1; min-width: 0; font-size: 12px; color: var(--sub); cursor: pointer; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
@@ -606,7 +606,7 @@ button.danger:hover:not(:disabled) { filter: brightness(0.93); background: var(-
   border-radius: 2px;
 }
 .ment:hover, .ment:focus-visible { background: var(--k-ment-tint, var(--k-action-subtle)); }
-.ment:focus-visible { outline: 2px solid var(--k-action-default); outline-offset: 1px; }
+.ment:focus-visible { outline: 2px solid var(--k-action-fill); outline-offset: 1px; }
 
 /* Floating annotation control — appears at the text selection (design doc 2 §5) */
 .prose-wrap { position: relative; }
@@ -1067,8 +1067,8 @@ button.ghost:hover:not(:disabled) { background: var(--wash); border-color: var(-
 .np-start-d { font-size: 11.5px; line-height: 1.35; color: var(--sub); }
 
 /* Start-card illustrations (§2.6) — what each choice does, drawn not iconned. */
-.np-viz { height: 92px; border-radius: 8px; background: var(--inset); border: 1px solid var(--line); display: flex; align-items: center; justify-content: center; gap: 10px; overflow: hidden; }
-.np-start.on .np-viz { border-color: var(--bondLine); background: var(--surface); }
+.np-viz { height: 92px; border-radius: 8px; background: var(--inset); display: flex; align-items: center; justify-content: center; gap: 10px; overflow: hidden; }
+.np-start.on .np-viz { background: var(--surface); }
 /* Blank: a white page with a blinking caret. */
 .np-viz-page { width: 74%; height: 60px; background: var(--surface); border: 1px solid var(--line); border-radius: 5px; padding: 9px 10px; }
 .np-start.on .np-viz-page { border-color: var(--line); }
@@ -1105,7 +1105,7 @@ button.ghost:hover:not(:disabled) { background: var(--wash); border-color: var(-
 .annot-kbd { margin-left: 6px; font-size: 10px; opacity: 0.6; font-family: var(--k-font-mono, monospace); letter-spacing: 0.02em; }
 
 /* The gesture "net" line in the Continuity panel (onboarding §4.4). */
-.moment-net { display: flex; gap: 8px; align-items: flex-start; font-size: 12px; line-height: 1.5; color: var(--sub); background: var(--inset); border: 1px solid var(--line); border-radius: 9px; padding: 9px 10px; margin-bottom: 12px; }
+.moment-net { display: flex; gap: 8px; align-items: flex-start; font-size: 12px; line-height: 1.5; color: var(--sub); background: var(--inset); border-radius: 9px; padding: 9px 10px; margin-bottom: 12px; }
 .moment-net button { flex: 0 0 auto; }
 
 /* Help page (onboarding §5). */
@@ -1117,7 +1117,7 @@ button.ghost:hover:not(:disabled) { background: var(--wash); border-color: var(-
 .help-kbd:last-child { border-bottom: none; }
 
 /* Repair path for a moment whose prose was edited away (dependency pass §2). */
-.moment-stale { flex-basis: 100%; font-size: 11.5px; line-height: 1.5; color: var(--muted); margin-top: 3px; padding: 7px 9px; background: var(--inset); border: 1px solid var(--line); border-radius: 8px; }
+.moment-stale { flex-basis: 100%; font-size: 11.5px; line-height: 1.5; color: var(--muted); margin-top: 3px; padding: 7px 9px; background: var(--inset); border-radius: 8px; }
 .moment-stale button { padding: 2px 9px; font-size: 11px; margin-left: 8px; }
 
 /* §6.3 margin indicator — a moment marks the left margin beside its anchored line
@@ -1128,6 +1128,6 @@ button.ghost:hover:not(:disabled) { background: var(--wash); border-color: var(-
 .prose-mark > span { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
 
 /* §4.2 engine offer — inside the Continuity panel only; names a location, one per chapter. */
-.moment-offer { font-size: 12.5px; line-height: 1.5; color: var(--sub); background: var(--inset); border: 1px solid var(--line); border-radius: 9px; padding: 10px 11px; margin-bottom: 12px; display: flex; flex-direction: column; gap: 7px; }
+.moment-offer { font-size: 12.5px; line-height: 1.5; color: var(--sub); background: var(--inset); border-radius: 9px; padding: 10px 11px; margin-bottom: 12px; display: flex; flex-direction: column; gap: 7px; }
 .moment-offer-q { font-family: var(--serif); font-style: italic; color: var(--muted); border-left: 2px solid var(--lineStrong); padding-left: 9px; }
 .moment-offer button { align-self: flex-start; padding: 3px 11px; font-size: 11.5px; }

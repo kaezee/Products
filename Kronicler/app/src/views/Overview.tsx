@@ -208,12 +208,12 @@ export function Overview({ worldId, go }: { worldId: string; go: (n: Nav) => voi
   // §5 cards: exactly four, each appearing only when it has something to report
   // (never a zero, never a denominator). A new project earns them one at a time.
   type Tile = { key: string; icon: IconName; label: string; value: string; sub?: string; nav: Nav };
-  const worldCount = stats.cast + stats.places;
   const tiles: Tile[] = ([
     stats.words   && { key: "words", icon: "words", label: "Words", value: fmt(stats.words), nav: { scope: "manuscript" } },
     stats.written && { key: "chapters", icon: "manuscript", label: "Chapters", value: fmt(stats.written), sub: "written", nav: { scope: "manuscript" } },
     stream.length && { key: "moments", icon: "asterisk", label: "Moments", value: fmt(stream.length), sub: "recorded", nav: { scope: "relationships" } },
-    worldCount    && { key: "world", icon: "cast", label: "Your world", value: fmt(worldCount), sub: "people and places", nav: { scope: "library" } },
+    // "Your world" is dropped: the subtitle already states cast + places, so a
+    // fourth stat card just repeats it. Three cards, per the settled composition.
   ] as (Tile | 0 | "")[]).filter(Boolean) as Tile[];
 
 
@@ -412,85 +412,84 @@ export function Overview({ worldId, go }: { worldId: string; go: (n: Nav) => voi
         )}
       </div>
 
-      {/* Writer's trail (§2): unresolved comments + recent notes, deep-linked. */}
-      {(openComments.length > 0 || recentNotes.length > 0) && (
-        <div style={{ marginBottom: 18 }}>
-          <div className="label" style={{ marginTop: 0 }}>What you left yourself</div>
-          {openComments.length > 0 && (
-            <div className="trail-well click" style={{ flexDirection: "row", alignItems: "center" }}
-              onClick={() => go({ scope: "manuscript", chapterId: openComments[0].chapter_id })}>
-              <span style={{ fontSize: 12.5 }}>
-                <b>{openComments.length}</b> unresolved comment{openComments.length === 1 ? "" : "s"} across {commentChapters.size} chapter{commentChapters.size === 1 ? "" : "s"}
-              </span>
-              <span className="spacer" />
-              <Icon name="arrow" size={14} style={{ color: "var(--faint)" }} />
+      {/* The chronicle — ONE card holding the observations (Worth a look) and the
+          writer's own notes (What you left yourself), divided by a rule, with the
+          notes as wells recessed inside the card (§4 ladder: canvas → card → well;
+          §9 cards on canvas, one container per group). */}
+      {(lookItems > 0 || planned > 0 || orphaned.length > 0 || openComments.length > 0 || recentNotes.length > 0) && (
+        <div className="card chronicle" style={{ marginBottom: 18 }}>
+          {(lookItems > 0 || planned > 0 || orphaned.length > 0) && (
+            <div className="chron-sec">
+              <div className="chron-lab">Worth a look</div>
+              {dupList.map((d) => nextLook() && (
+                <div className="chron-row" key={"dup" + d.key}>
+                  <span style={{ flex: 1, minWidth: 0 }}>
+                    {d.reason === "same-name"
+                      ? <>{d.entities.length === 2 ? "Two" : d.entities.length} {typeWord(d.entities[0], d.entities.length)} are called <Mention name={d.entities[0].title} swatch={swatchOf(d.entities[0].id)} />. Same {typeWord(d.entities[0], 1)}, or {d.entities.length === 2 ? "two" : "separate"}?</>
+                      : <><Mention name={d.entities[0].title} swatch={swatchOf(d.entities[0].id)} /> is a {typeWord(d.entities[0], 1)} of its own, and also an alias of <Mention name={d.entities[1].title} swatch={swatchOf(d.entities[1].id)} />. Same thing, or two?</>}
+                  </span>
+                  <button className="ghost" style={{ fontSize: 11.5, padding: "3px 8px" }} onClick={() => go({ scope: "library", entityId: d.entities[0].id })}>Merge</button>
+                  <button className="ghost" style={{ fontSize: 11.5, padding: "3px 8px" }} onClick={() => keepBoth(d.key)}>Keep both</button>
+                </div>
+              ))}
+              {ironies.map((c) => nextLook() && (
+                <div className="chron-row click" key={"i" + c.relId} onClick={() => go({ scope: "relationships" })}>
+                  <span>{refsM(c.believerRefs)} believe{c.believerRefs.length > 1 ? "" : "s"} it's <span style={{ color: "var(--obligation)", fontWeight: 600 }}>{c.belief}</span> — the reader knows it's <span style={{ color: "var(--hostile)", fontWeight: 600 }}>{c.truth}</span>.</span>
+                </div>
+              ))}
+              {dormant.map((s) => nextLook() && (
+                <div className="chron-row click" key={"d" + s.state_id} onClick={() => go({ scope: "relationships" })}>
+                  <span>{whoM(s)} · {s.type_label} — untouched for a while.</span>
+                </div>
+              ))}
+              {mentions.absent.map(({ e, since }) => nextLook() && (
+                <div className="chron-row click" key={"ab" + e.id} onClick={() => go({ scope: "library", entityId: e.id })}>
+                  <span><Mention name={e.title} swatch={swatchOf(e.id)} /> hasn't appeared since chapter {since}.</span>
+                </div>
+              ))}
+              {lookItems > LOOK_CAP && (
+                <div className="chron-row"><span className="chron-meta">{lookItems - LOOK_CAP} more</span></div>
+              )}
+              {planned > 0 && (
+                <div className="chron-row click" onClick={() => go({ scope: "manuscript" })}>
+                  <span className="chron-meta">{planned} chapter{planned === 1 ? " is" : "s are"} planned but unwritten.</span>
+                </div>
+              )}
+              {orphaned.length > 0 && (
+                <div className="chron-row"><span className="chron-meta">
+                  {orphaned.length} moment{orphaned.length === 1 ? "" : "s"} no longer point at any text — fix from the chapter's Continuity panel.
+                </span></div>
+              )}
             </div>
           )}
-          {recentNotes.map((n) => {
-            const ch = (n.chapter_ids ?? []).map((id) => chById.get(id)).find(Boolean);
-            const ent = !ch && (n.entity_ids ?? []).length ? entities.find((e) => e.id === n.entity_ids[0]) : null;
-            const nav: Nav = ch ? { scope: "manuscript", chapterId: ch.id } : ent ? { scope: "library", entityId: ent.id } : { scope: "overview" };
-            return (
-              <div className="trail-well click" key={n.id} onClick={() => go(nav)}>
-                <div className="trail-body">{n.body.trim().slice(0, 180) || <span className="muted">(empty note)</span>}</div>
-                <div className="trail-meta">
-                  {ch ? `in chapter ${ch.manuscript_order}` : ent ? <>pinned to <Mention name={ent.title} swatch={swatchOf(ent.id)} /></> : "in this world"}
+          {(openComments.length > 0 || recentNotes.length > 0) && (
+            <div className="chron-sec">
+              <div className="chron-lab">What you left yourself</div>
+              {openComments.length > 0 && (
+                <div className="trail-well click" style={{ flexDirection: "row", alignItems: "center" }}
+                  onClick={() => go({ scope: "manuscript", chapterId: openComments[0].chapter_id })}>
+                  <span style={{ fontSize: 12.5 }}>
+                    <b>{openComments.length}</b> unresolved comment{openComments.length === 1 ? "" : "s"} across {commentChapters.size} chapter{commentChapters.size === 1 ? "" : "s"}
+                  </span>
+                  <span className="spacer" />
+                  <Icon name="arrow" size={14} style={{ color: "var(--faint)" }} />
                 </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
-
-      {/* Worth a look (§4.3) — honest questions and observations, no chips, no count */}
-      {(lookItems > 0 || planned > 0 || orphaned.length > 0) && (
-        <div style={{ marginBottom: 18 }}>
-          <div className="label" style={{ marginTop: 0 }}>Worth a look</div>
-          <div className="card">
-            {dupList.map((d) => nextLook() && (
-              <div className="row" key={"dup" + d.key}>
-                <span style={{ fontSize: 12.5, flex: 1, minWidth: 0 }}>
-                  {d.reason === "same-name"
-                    ? <>{d.entities.length === 2 ? "Two" : d.entities.length} {typeWord(d.entities[0], d.entities.length)} are called <Mention name={d.entities[0].title} swatch={swatchOf(d.entities[0].id)} />. Same {typeWord(d.entities[0], 1)}, or {d.entities.length === 2 ? "two" : "separate"}?</>
-                    : <><Mention name={d.entities[0].title} swatch={swatchOf(d.entities[0].id)} /> is a {typeWord(d.entities[0], 1)} of its own, and also an alias of <Mention name={d.entities[1].title} swatch={swatchOf(d.entities[1].id)} />. Same thing, or two?</>}
-                </span>
-                <button className="ghost" style={{ fontSize: 11.5, padding: "3px 8px" }} onClick={() => go({ scope: "library", entityId: d.entities[0].id })}>Merge</button>
-                <button className="ghost" style={{ fontSize: 11.5, padding: "3px 8px" }} onClick={() => keepBoth(d.key)}>Keep both</button>
-              </div>
-            ))}
-            {ironies.map((c) => nextLook() && (
-              <div className="row click" key={"i" + c.relId} onClick={() => go({ scope: "relationships" })}>
-                <span style={{ fontSize: 12.5 }}>
-                  {refsM(c.believerRefs)} believe{c.believerRefs.length > 1 ? "" : "s"} it's <span style={{ color: "var(--obligation)", fontWeight: 600 }}>{c.belief}</span> — the reader knows it's <span style={{ color: "var(--hostile)", fontWeight: 600 }}>{c.truth}</span>.
-                </span>
-              </div>
-            ))}
-            {dormant.map((s) => nextLook() && (
-              <div className="row click" key={"d" + s.state_id} onClick={() => go({ scope: "relationships" })}>
-                <span style={{ fontSize: 12.5 }}>{whoM(s)} · {s.type_label} — untouched for a while.</span>
-              </div>
-            ))}
-            {mentions.absent.map(({ e, since }) => nextLook() && (
-              <div className="row click" key={"ab" + e.id} onClick={() => go({ scope: "library", entityId: e.id })}>
-                <span style={{ fontSize: 12.5 }}><Mention name={e.title} swatch={swatchOf(e.id)} /> hasn't appeared since chapter {since}.</span>
-              </div>
-            ))}
-            {lookItems > LOOK_CAP && (
-              <div className="row"><span className="muted" style={{ fontSize: 12 }}>{lookItems - LOOK_CAP} more</span></div>
-            )}
-            {/* §3.1 derived: a single quiet line, never a per-chapter nag */}
-            {planned > 0 && (
-              <div className="row click" onClick={() => go({ scope: "manuscript" })}>
-                <span className="muted" style={{ fontSize: 12 }}>{planned} chapter{planned === 1 ? " is" : "s are"} planned but unwritten.</span>
-              </div>
-            )}
-            {/* Lost anchors are a broken pointer, not a story observation — one quiet line (§9) */}
-            {orphaned.length > 0 && (
-              <div className="row"><span className="muted" style={{ fontSize: 12 }}>
-                {orphaned.length} moment{orphaned.length === 1 ? "" : "s"} no longer point at any text — fix from the chapter's Continuity panel.
-              </span></div>
-            )}
-          </div>
+              )}
+              {recentNotes.map((n) => {
+                const ch = (n.chapter_ids ?? []).map((id) => chById.get(id)).find(Boolean);
+                const ent = !ch && (n.entity_ids ?? []).length ? entities.find((e) => e.id === n.entity_ids[0]) : null;
+                const nav: Nav = ch ? { scope: "manuscript", chapterId: ch.id } : ent ? { scope: "library", entityId: ent.id } : { scope: "overview" };
+                return (
+                  <div className="trail-well click" key={n.id} onClick={() => go(nav)}>
+                    <div className="trail-body">{n.body.trim().slice(0, 180) || <span className="muted">(empty note)</span>}</div>
+                    <div className="trail-meta">
+                      {ch ? `in chapter ${ch.manuscript_order}` : ent ? <>pinned to <Mention name={ent.title} swatch={swatchOf(ent.id)} /></> : "in this world"}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       )}
 

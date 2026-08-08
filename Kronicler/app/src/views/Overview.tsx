@@ -30,6 +30,7 @@ export function Overview({ worldId, go }: { worldId: string; go: (n: Nav) => voi
   const [comments, setComments] = useState<Comment[]>([]);
   const [err, setErr] = useState<string | null>(null);
   const [worldName, setWorldName] = useState("");
+  const [lookExpanded, setLookExpanded] = useState(false); // §Overview: "Show more" in Worth a look
   // §3 demonstration checklist: retires permanently at 4/4 and never returns.
   const [ckRetired] = useState(() => localStorage.getItem(`k.checklist.${worldId}`) === "1");
 
@@ -193,7 +194,7 @@ export function Overview({ worldId, go }: { worldId: string; go: (n: Nav) => voi
   const dupList = duplicates.filter((d) => !dupKept.has(d.key));
   const typeWord = (e: Entity, n: number) => { const t = (e.type || "thing").toLowerCase(); return n === 1 ? t : `${t}s`; };
   const lookItems = dupList.length + ironies.length + dormant.length + mentions.absent.length;
-  const LOOK_CAP = 3;
+  const LOOK_CAP = lookExpanded ? 99 : 3;
   let lookShown = 0;
   const nextLook = () => (lookShown < LOOK_CAP ? (lookShown++, true) : false);
 
@@ -205,12 +206,15 @@ export function Overview({ worldId, go }: { worldId: string; go: (n: Nav) => voi
   if (stats.words) shapeBits.push(`${fmt(stats.words)} words`);
   const shape = shapeBits.length ? shapeBits.join(" · ") : "A new world — nothing in it yet. Start below.";
 
-  // §5 cards: exactly four, each appearing only when it has something to report
-  // (never a zero, never a denominator). A new project earns them one at a time.
+  // §5 cards: each appears only when it has something to report (never a zero,
+  // never a denominator). A new project earns them one at a time.
+  const planned = chapters.filter((c) => c.planned).length;
   type Tile = { key: string; icon: IconName; label: string; value: string; sub?: string; nav: Nav };
   const tiles: Tile[] = ([
     stats.words   && { key: "words", icon: "words", label: "Words", value: fmt(stats.words), nav: { scope: "manuscript" } },
-    stats.written && { key: "chapters", icon: "manuscript", label: "Chapters", value: fmt(stats.written), sub: "written", nav: { scope: "manuscript" } },
+    // Chapter status lives on the Chapters card — "N written · M planned" — not
+    // as a stray subtext line under the story observations.
+    stats.written && { key: "chapters", icon: "manuscript", label: "Chapters", value: fmt(stats.written), sub: planned > 0 ? `written · ${planned} planned` : "written", nav: { scope: "manuscript" } },
     stream.length && { key: "moments", icon: "asterisk", label: "Moments", value: fmt(stream.length), sub: "recorded", nav: { scope: "relationships" } },
     // "Your world" is dropped: the subtitle already states cast + places, so a
     // fourth stat card just repeats it. Three cards, per the settled composition.
@@ -237,7 +241,6 @@ export function Overview({ worldId, go }: { worldId: string; go: (n: Nav) => voi
     const m = head.match(/^[\s\S]*?[.!?]["']?(?=\s|$)/);
     return (m ? m[0] : head).slice(0, 240).trim();
   };
-  const planned = chapters.filter((c) => c.planned).length;
 
   // §3 checklist steps — after-states speak in the chronicle voice from real data;
   // step 3 is the payoff, the engine saying a sentence built from the writer's prose.
@@ -433,12 +436,12 @@ export function Overview({ worldId, go }: { worldId: string; go: (n: Nav) => voi
                 </div>
               ))}
               {ironies.map((c) => nextLook() && (
-                <div className="chron-row click" key={"i" + c.relId} onClick={() => go({ scope: "relationships" })}>
+                <div className="chron-row click" key={"i" + c.relId} onClick={() => go(c.entityId ? { scope: "library", entityId: c.entityId } : { scope: "relationships" })}>
                   <span>{refsM(c.believerRefs)} believe{c.believerRefs.length > 1 ? "" : "s"} it's <span style={{ color: "var(--obligation)", fontWeight: 600 }}>{c.belief}</span> — the reader knows it's <span style={{ color: "var(--hostile)", fontWeight: 600 }}>{c.truth}</span>.</span>
                 </div>
               ))}
               {dormant.map((s) => nextLook() && (
-                <div className="chron-row click" key={"d" + s.state_id} onClick={() => go({ scope: "relationships" })}>
+                <div className="chron-row click" key={"d" + s.state_id} onClick={() => go(s.participants[0]?.entity_id ? { scope: "library", entityId: s.participants[0].entity_id } : { scope: "relationships" })}>
                   <span>{whoM(s)} · {s.type_label} — untouched for a while.</span>
                 </div>
               ))}
@@ -447,13 +450,11 @@ export function Overview({ worldId, go }: { worldId: string; go: (n: Nav) => voi
                   <span><Mention name={e.title} swatch={swatchOf(e.id)} /> hasn't appeared since chapter {since}.</span>
                 </div>
               ))}
-              {lookItems > LOOK_CAP && (
-                <div className="chron-row"><span className="chron-meta">{lookItems - LOOK_CAP} more</span></div>
+              {!lookExpanded && lookItems > LOOK_CAP && (
+                <button className="chron-more" onClick={() => setLookExpanded(true)}>Show {lookItems - LOOK_CAP} more</button>
               )}
-              {planned > 0 && (
-                <div className="chron-row click" onClick={() => go({ scope: "manuscript" })}>
-                  <span className="chron-meta">{planned} chapter{planned === 1 ? " is" : "s are"} planned but unwritten.</span>
-                </div>
+              {lookExpanded && lookItems > 3 && (
+                <button className="chron-more" onClick={() => setLookExpanded(false)}>Show fewer</button>
               )}
               {orphaned.length > 0 && (
                 <div className="chron-row"><span className="chron-meta">
@@ -506,8 +507,8 @@ export function Overview({ worldId, go }: { worldId: string; go: (n: Nav) => voi
               </span>
             </div>
           ))}
-          {recent.map((s) => (
-            <div className="row click" key={s.state_id} onClick={() => go({ scope: "relationships" })}>
+          {recent.slice(0, 3).map((s) => (
+            <div className="row click" key={s.state_id} onClick={() => go(s.participants[0]?.entity_id ? { scope: "library", entityId: s.participants[0].entity_id } : { scope: "relationships" })}>
               <span className="dot" style={{ background: VALENCE_COLOR[s.valence] }} />
               <span style={{ fontWeight: 500 }}>
                 {whoM(s)} <span style={{ color: VALENCE_COLOR[s.valence], fontWeight: 600 }}>{s.type_label}</span>
@@ -516,6 +517,11 @@ export function Overview({ worldId, go }: { worldId: string; go: (n: Nav) => voi
               <span className="muted">{s.manuscript_order != null ? `ch. ${s.manuscript_order}` : "—"}</span>
             </div>
           ))}
+          {stream.length > 3 && (
+            <div className="row click" onClick={() => go({ scope: "timeline" })}>
+              <span className="chron-more">See all activity →</span>
+            </div>
+          )}
         </div>
       </div>
       </>}

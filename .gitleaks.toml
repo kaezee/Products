@@ -1,0 +1,15 @@
+# gitleaks config for the Products monorepo (security-hardening pass).
+# Extends the default rule set and adds a narrow allowlist for the one class of
+# "key" that is *designed* to be public.
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Supabase publishable/anon keys are safe to commit — RLS, not key secrecy, is the boundary. Secret keys (sb_secret_…) and service_role JWTs are deliberately NOT listed here and still trip the scan."
+regexes = [
+  '''sb_publishable_[A-Za-z0-9_-]+''',
+]
+paths = [
+  '''.*\.env\.example$''',
+]

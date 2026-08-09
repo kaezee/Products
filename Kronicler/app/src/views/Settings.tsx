@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
-import { exportWorld, getChapters, getEntities, getTrashCount } from "../lib/api";
+import { exportWorld, getChapters, getEntities, getStream, getNotes, getTrashCount } from "../lib/api";
+import { exportVaultZip } from "../lib/exportVault";
 import { track } from "../lib/analytics";
 import type { Entity } from "../lib/types";
 import { Trash } from "./Trash";
@@ -42,6 +43,22 @@ export function Settings({ worldId, worldName, userEmail, onDeleteWorld, onWorld
     getTrashCount(worldId).then((n) => alive && setTrashCount(n)).catch(() => {});
     return () => { alive = false; };
   }, [worldId, trashOpen]);
+
+  async function obsidianVault() {
+    setBusy("vault"); setErr(null);
+    try {
+      const [data, entities, chapters, stream, notes] = await Promise.all([
+        exportWorld(worldId, worldName), getEntities(worldId), getChapters(worldId), getStream(worldId), getNotes(worldId),
+      ]);
+      const blob = await exportVaultZip({ worldName, entities, chapters, stream, notes, data });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url; a.download = `${slug(worldName)}-obsidian-vault-${stamp()}.zip`;
+      document.body.appendChild(a); a.click(); a.remove();
+      URL.revokeObjectURL(url);
+      track({ name: "export_run" });
+    } catch (x) { setErr(String(x)); } finally { setBusy(null); }
+  }
 
   async function backupJson() {
     setBusy("json"); setErr(null);
@@ -97,10 +114,17 @@ export function Settings({ worldId, worldName, userEmail, onDeleteWorld, onWorld
       <div className="card">
         <div className="row">
           <div style={{ flex: 1 }}>
+            <div style={{ fontWeight: 500 }}>Obsidian vault <span className="chip" style={{ fontSize: 10 }}>.zip</span></div>
+            <span className="muted" style={{ fontSize: 12.5 }}>Your whole world as a folder of Markdown files — chapters and characters cross-linked. Unzip and open it in Obsidian, or read it anywhere. Includes the raw data too.</span>
+          </div>
+          <button className="primary" onClick={obsidianVault} disabled={!!busy}>{busy === "vault" ? <Spinner size={13} /> : "Download"}</button>
+        </div>
+        <div className="row">
+          <div style={{ flex: 1 }}>
             <div style={{ fontWeight: 500 }}>Full backup <span className="chip" style={{ fontSize: 10 }}>.json</span></div>
             <span className="muted" style={{ fontSize: 12.5 }}>Everything — entities, chapters, relationships, notes, the lot. Keep it safe; it's your complete world.</span>
           </div>
-          <button className="primary" onClick={backupJson} disabled={!!busy}>{busy === "json" ? <Spinner size={13} /> : "Download"}</button>
+          <button onClick={backupJson} disabled={!!busy}>{busy === "json" ? <Spinner size={13} /> : "Download"}</button>
         </div>
         <div className="row">
           <div style={{ flex: 1 }}>

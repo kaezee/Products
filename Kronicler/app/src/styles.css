@@ -213,6 +213,9 @@ input, textarea, select { font-size: 13px; padding: 9px 11px; border: 1px solid 
 /* ── auth ──────────────────────────────────────────────── */
 .center { min-height: 80vh; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; }
 .authcard { width: 320px; display: flex; flex-direction: column; gap: 10px; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 24px; box-shadow: var(--shadow); }
+.authcard input, .authcard button { width: 100%; }
+/* Google sign-in button — white with the brand mark, distinct from primary. */
+.google-btn { display: flex; align-items: center; justify-content: center; gap: 10px; background: var(--surface); border: 1px solid var(--lineStrong); color: var(--ink); font-weight: 600; }
 
 /* ── editor + composer ─────────────────────────────────── */
 textarea { font-family: var(--serif); }

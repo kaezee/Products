@@ -2,8 +2,14 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%AA%B6%3C/text%3E%3C/svg%3E" />
+    <!-- PWA (§3): installable to the home screen, offline app shell. -->
+    <meta name="theme-color" content="#FCFAF4" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="Kronicler" />
+    <link rel="apple-touch-icon" href="/icon.svg" />
     <title>Kronicler</title>
     <script>
       // Set the theme synchronously, before any CSS, so there's no flash of the wrong theme.

@@ -3,6 +3,7 @@ import type {
   World, Entity, Chapter, ChapterStatus, Band, RelationshipType, StreamRow, ChapterVersion, ChapterEntity, Note, NoteSource, Comment, TimelineMarker, Segment, SegmentKind, EntityType,
 } from "./types";
 import { ENTITY_SWATCHES, BUILTIN_SWATCH } from "./entityTypes";
+import { track } from "./analytics";
 
 const ET_COLS = "id, world_id, name, mark, swatch, line_style, is_builtin, sort_order";
 
@@ -56,6 +57,7 @@ export async function createNote(worldId: string, x: number, y: number, onTimeli
   const { data, error } = await supabase
     .from("notes").insert({ world_id: worldId, x, y, on_timeline: onTimeline, source }).select(NOTE_COLS).single();
   if (error) throw error;
+  track({ name: "note_created", props: { source } });
   return data as Note;
 }
 
@@ -225,6 +227,7 @@ export async function createEntity(
   type: string,
   title: string,
   body = "",
+  via = "manual", // "manual" | "detection" — how the entity was minted (analytics only)
 ): Promise<Entity> {
   const { data, error } = await supabase
     .from("entities")
@@ -232,6 +235,8 @@ export async function createEntity(
     .select("id, world_id, type, title, aliases, body, tags")
     .single();
   if (error) throw error;
+  track({ name: "entity_created", props: { via } });
+  if (via === "detection") track({ name: "entity_linked_from_detection" });
   return data;
 }
 
@@ -513,6 +518,7 @@ export async function createChapter(
     .select("id, world_id, title, manuscript_order, story_time_ref, story_time_label, body, band_id, segment_id, planned, status, time_year, time_month, time_day, time_precision, day_num_start, day_num_end, anachronic")
     .single();
   if (error) throw error;
+  track({ name: "chapter_created" });
   return data;
 }
 
@@ -598,6 +604,8 @@ export async function appendPairwiseState(args: {
   manuscriptRef?: string | null;
   note?: string;
   concealedFrom?: string[];
+  source?: string;        // the mark gesture (popover/shortcut/offer); analytics only
+  chapterWords?: number;  // words in the chapter it was marked from; analytics only
 }): Promise<string> {
   const { data, error } = await supabase.rpc("append_pairwise_state", {
     p_world_id: args.worldId,
@@ -609,6 +617,7 @@ export async function appendPairwiseState(args: {
     p_concealed_from: args.concealedFrom && args.concealedFrom.length > 0 ? args.concealedFrom : null,
   });
   if (error) throw error;
+  track({ name: "moment_marked", props: { source: args.source ?? (args.manuscriptRef ? "composer" : "standing"), ...(args.chapterWords != null ? { chapter_words: args.chapterWords } : {}) } });
   return data as string;
 }
 
@@ -622,6 +631,8 @@ export async function appendGroupState(args: {
   manuscriptRef?: string | null;
   note?: string;
   concealedFrom?: string[];
+  source?: string;        // the mark gesture (popover/shortcut/offer); analytics only
+  chapterWords?: number;  // words in the chapter it was marked from; analytics only
 }): Promise<string> {
   const { data, error } = await supabase.rpc("append_group_state", {
     p_world_id: args.worldId,
@@ -632,6 +643,7 @@ export async function appendGroupState(args: {
     p_concealed_from: args.concealedFrom && args.concealedFrom.length > 0 ? args.concealedFrom : null,
   });
   if (error) throw error;
+  track({ name: "moment_marked", props: { source: args.source ?? (args.manuscriptRef ? "composer" : "standing"), ...(args.chapterWords != null ? { chapter_words: args.chapterWords } : {}) } });
   return data as string;
 }
 

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
 import { exportWorld, getChapters, getEntities, getTrashCount } from "../lib/api";
+import { track } from "../lib/analytics";
 import type { Entity } from "../lib/types";
 import { Trash } from "./Trash";
 import { getLevelNames, setLevelNames } from "../lib/levelNames";
@@ -15,6 +16,7 @@ function download(filename: string, text: string, type: string) {
   const a = document.createElement("a");
   a.href = url; a.download = filename; document.body.appendChild(a); a.click(); a.remove();
   URL.revokeObjectURL(url);
+  track({ name: "export_run" }); // every export button funnels through here (§4.3)
 }
 const fmtCount = (n: number) => (n > 99 ? "99+" : String(n));
 

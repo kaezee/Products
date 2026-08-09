@@ -5,6 +5,7 @@ import { getMyWorlds, createWorld, softDeleteWorld, renameWorld, seedSampleWorld
 import type { World } from "./lib/types";
 import { FORM_KEYS, GENRE_KEYS, FORM_STRUCTURES, GENRE_TYPES, structureFor, type FormKey, type GenreKey } from "./lib/onboarding";
 import { CANONICAL_ENTITY_TYPES } from "./lib/entityTypes";
+import { track } from "./lib/analytics";
 import { AuthGate } from "./auth/AuthGate";
 import { Library } from "./views/Library";
 import { Relationships } from "./views/Relationships";
@@ -99,6 +100,16 @@ function Workspace({ session }: { session: Session }) {
   }
   function pickTheme(next: Theme) { setTheme(next); setThemeState(next); setAppearanceOpen(false); }
 
+  // §4.3 session_start: once per app load, with days since the last session
+  // (is the recap threshold right). Counts only — no content.
+  useEffect(() => {
+    try {
+      const prev = Number(localStorage.getItem("k.lastSession") || 0);
+      track({ name: "session_start", props: { days_since_last: prev ? Math.floor((Date.now() - prev) / 86400000) : 0 } });
+      localStorage.setItem("k.lastSession", String(Date.now()));
+    } catch { /* private mode — skip */ }
+  }, []);
+
   useEffect(() => {
     let alive = true;
     getMyWorlds()
@@ -164,6 +175,7 @@ function Workspace({ session }: { session: Session }) {
       await seedProjectShape(w.id, containers, extras);
       setWorlds((prev) => [...(prev ?? []), w]);
       setWorldId(w.id);
+      track({ name: "project_created", props: { form: newForm, genre: newGenre, entry } });
       go(entry === "import" ? { scope: "manuscript", openImport: true } : { scope: "overview" });
     } catch (x) { setErr(String(x)); }
   }
@@ -186,6 +198,7 @@ function Workspace({ session }: { session: Session }) {
       const w = await getMyWorlds();
       setWorlds(w);
       setWorldId(id);
+      track({ name: "project_created", props: { form: "example", genre: "example", entry: "example" } });
       go({ scope: "overview" });
     } catch (x) { setErr(String(x)); } finally { setSeeding(false); }
   }

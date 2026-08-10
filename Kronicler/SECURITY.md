@@ -85,9 +85,16 @@ APIs):
 
 ### Content-Security-Policy — TEST ON A PREVIEW BEFORE ENFORCING
 A too-strict CSP white-screens production, so it is **not** shipped blind. The
-policy below is the intended one; deploy it to a Vercel **preview** first, click
-through sign-in (magic link + Google), guest seeding, the editor, and offline
-capture, then promote it once the console is clean.
+policy below is the intended one; deploy it to a Vercel **preview** first and
+exercise it with **guest mode** (which needs no email/OAuth): "Explore as a
+guest" → example world seeds → open the editor and type → go offline and capture
+a note. That path alone exercises every directive that matters — `script-src`
+(app boot), `style-src` (inline styles), `connect-src` (Supabase), and the
+service worker. Promote the CSP once the console is clean.
+
+CSP does **not** govern OAuth — `signInWithOAuth` is a top-level navigation away
+to Google, not a page fetch — so Google sign-in being unconfigured is irrelevant
+to this test.
 
 ```
 Content-Security-Policy:

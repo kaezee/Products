@@ -83,43 +83,43 @@ APIs):
 - `Strict-Transport-Security: max-age=63072000; includeSubDomains; preload`
 - `Permissions-Policy: camera=(), microphone=(), geolocation=(), interest-cohort=()`
 
-### Content-Security-Policy — TEST ON A PREVIEW BEFORE ENFORCING
-A too-strict CSP white-screens production, so it is **not** shipped blind. The
-policy below is the intended one; deploy it to a Vercel **preview** first and
-exercise it with **guest mode** (which needs no email/OAuth): "Explore as a
-guest" → example world seeds → open the editor and type → go offline and capture
-a note. That path alone exercises every directive that matters — `script-src`
-(app boot), `style-src` (inline styles), `connect-src` (Supabase), and the
-service worker. Promote the CSP once the console is clean.
-
-CSP does **not** govern OAuth — `signInWithOAuth` is a top-level navigation away
-to Google, not a page fetch — so Google sign-in being unconfigured is irrelevant
-to this test.
+### Content-Security-Policy — SHIPPED (verified against the real build)
+Enforcing in `app/vercel.json`. Rather than test on a Vercel preview, it was
+verified locally: the production `dist/` was served with this exact policy as a
+real HTTP header and loaded in headless Chromium — **0 CSP violations, 0 page
+errors, app renders, the inline theme script executes** (the hash below matches).
 
 ```
-Content-Security-Policy:
-  default-src 'self';
-  script-src 'self';
-  style-src 'self' 'unsafe-inline';
-  img-src 'self' data: blob:;
-  font-src 'self';
-  connect-src 'self' https://*.supabase.co wss://*.supabase.co;
-  frame-ancestors 'none';
-  base-uri 'self';
-  form-action 'self';
-  object-src 'none'
+default-src 'self';
+script-src 'self' 'sha256-Xit+WMfaN2xKmtCD/r7JgkABA1GW7GogrnpjWFfKt1g=';
+style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
+font-src 'self' https://fonts.gstatic.com;
+img-src 'self' data: blob:;
+connect-src 'self' https://*.supabase.co wss://*.supabase.co;
+manifest-src 'self'; worker-src 'self';
+frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'
 ```
 
-Notes for the test:
-- `style-src 'unsafe-inline'` is required — the UI uses React inline `style`
-  props throughout. Removing it needs a full move to classes; not worth it.
-- `script-src 'self'`: watch the PWA service-worker registration. If
-  vite-plugin-pwa injects an inline register script, it needs a hash added here
-  (or switch `injectRegister` to a self-hosted file). This is the most likely
-  thing to break — verify SW registration in the preview.
-- `connect-src`: add the analytics ingest origin **only if** `VITE_ANALYTICS_URL`
-  is set. Google OAuth is a top-level navigation, not a fetch, so it needs no
-  `connect-src` entry.
+Why each non-obvious entry is there:
+- **`script-src` sha256 hash** allows exactly the one inline `<script>` in
+  `index.html` — the synchronous theme-setter that prevents a flash of the wrong
+  theme. No `'unsafe-inline'`. ⚠️ **If that inline script ever changes, the hash
+  must be regenerated** or theme init silently breaks (falls back to the paper
+  theme — not a white-screen). Regenerate with:
+  `python3 -c "import re,hashlib,base64;h=re.search(r'<script>(.*?)</script>',open('dist/index.html').read(),re.S).group(1);print('sha256-'+base64.b64encode(hashlib.sha256(h.encode()).digest()).decode())"`
+- **`style-src 'unsafe-inline'`** is required — the UI uses React inline `style`
+  props throughout.
+- **`fonts.googleapis.com` / `fonts.gstatic.com`** — `styles.css` `@import`s
+  Google Fonts. See the follow-up below; if the fonts are self-hosted later,
+  drop both origins.
+- **`connect-src`**: add the analytics ingest origin **only if**
+  `VITE_ANALYTICS_URL` is set. Google OAuth is a top-level navigation, not a
+  fetch, so it needs no entry.
+
+Follow-up (not blocking): **self-host the three fonts** (Literata, Public Sans,
+Roboto Mono). Right now they load from Google's CDN, so (a) the offline PWA has
+no custom type when offline, and (b) it's a third-party request. Self-hosting
+fixes both and lets the CSP drop the two Google origins.
 
 ## Open / deferred
 - Error monitoring (Sentry/GlitchTip) — needs an SDK + DSN (infra decision), so

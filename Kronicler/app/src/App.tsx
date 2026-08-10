@@ -557,7 +557,7 @@ function Workspace({ session }: { session: Session }) {
                   onWorldsChanged={reloadWorlds}
                 />
               ) : nav.scope === "help" ? (
-                <Help />
+                <Help worldId={worldId} go={go} />
               ) : (
                 <Relationships worldId={worldId} go={go} />
               )}

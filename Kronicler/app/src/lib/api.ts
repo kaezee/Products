@@ -53,9 +53,9 @@ export async function getNotes(worldId: string): Promise<Note[]> {
   return (data ?? []) as Note[];
 }
 
-export async function createNote(worldId: string, x: number, y: number, onTimeline = false, source: NoteSource = "app"): Promise<Note> {
+export async function createNote(worldId: string, x: number, y: number, onTimeline = false, source: NoteSource = "app", body?: string): Promise<Note> {
   const { data, error } = await supabase
-    .from("notes").insert({ world_id: worldId, x, y, on_timeline: onTimeline, source }).select(NOTE_COLS).single();
+    .from("notes").insert({ world_id: worldId, x, y, on_timeline: onTimeline, source, ...(body != null ? { body } : {}) }).select(NOTE_COLS).single();
   if (error) throw error;
   track({ name: "note_created", props: { source } });
   return data as Note;

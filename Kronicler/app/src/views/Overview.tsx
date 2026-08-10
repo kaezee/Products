@@ -438,7 +438,7 @@ export function Overview({ worldId, go }: { worldId: string; go: (n: Nav) => voi
               ))}
               {ironies.map((c) => nextLook() && (
                 <div className="chron-row click" key={"i" + c.relId} onClick={() => go(c.entityId ? { scope: "library", entityId: c.entityId } : { scope: "relationships" })}>
-                  <span>{refsM(c.believerRefs)} believe{c.believerRefs.length > 1 ? "" : "s"} it's <span style={{ color: "var(--obligation)", fontWeight: 600 }}>{c.belief}</span> — the reader knows it's <span style={{ color: "var(--hostile)", fontWeight: 600 }}>{c.truth}</span>.</span>
+                  <span>{refsM(c.believerRefs)} see{c.believerRefs.length > 1 ? "" : "s"} it as <span className="iro-tag" style={{ color: "var(--obligation)" }}>{c.belief}</span> — the reader knows it as <span className="iro-tag" style={{ color: "var(--hostile)" }}>{c.truth}</span>.</span>
                 </div>
               ))}
               {dormant.map((s) => nextLook() && (

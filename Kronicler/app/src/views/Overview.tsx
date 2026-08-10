@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { getStream, getEntities, getEntityTypes, getRelationshipTypes, getChapters, getNotes, getWorldComments, getWorld } from "../lib/api";
 import type { StreamRow, Entity, EntityType, RelationshipType, Chapter, Note, Comment } from "../lib/types";
-import { buildTypeSwatches } from "../lib/entityTypes";
+import { buildTypeSwatches, plural } from "../lib/entityTypes";
 import { Mention } from "../components/Mention";
 import { Explain } from "../components/Explain";
 import { detectMentions } from "../lib/mentions";
@@ -151,12 +151,22 @@ export function Overview({ worldId, go }: { worldId: string; go: (n: Nav) => voi
 
   // ── world shape (the at-a-glance stats) ──────────────────────────────────
   const stats = useMemo(() => {
-    const byType = (t: string) => entities.filter((e) => e.type.toLowerCase() === t).length;
     const written = chapters.filter((c) => !c.planned).length;
     const words = chapters.reduce((n, c) => n + wordsOf(c.body), 0);
     const relCount = stream ? new Set(stream.map((s) => s.relationship_id)).size : 0;
     const dated = chapters.filter((c) => c.day_num_start != null).length;
-    return { cast: byType("character"), places: byType("place"), entities: entities.length,
+    // Count entities by type so the summary reflects EVERY category the world has
+    // — factions and any custom type included, not just characters and places
+    // (audit #8). Canonical families lead; anything else follows by count.
+    const counts = new Map<string, number>();
+    for (const e of entities) { const t = (e.type || "").toLowerCase(); if (t) counts.set(t, (counts.get(t) ?? 0) + 1); }
+    const ORDER = ["character", "place", "faction", "item"];
+    const typeBreakdown = [...counts.entries()].sort((a, b) => {
+      const ia = ORDER.indexOf(a[0]), ib = ORDER.indexOf(b[0]);
+      if (ia !== ib) return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib);
+      return b[1] - a[1] || a[0].localeCompare(b[0]);
+    });
+    return { typeBreakdown, entities: entities.length,
       written, total: chapters.length, planned: chapters.length - written, words, relCount, dated };
   }, [entities, chapters, stream]);
 
@@ -201,9 +211,10 @@ export function Overview({ worldId, go }: { worldId: string; go: (n: Nav) => voi
 
   // shape sentence
   const shapeBits: string[] = [];
-  if (stats.cast) shapeBits.push(`${stats.cast} character${stats.cast === 1 ? "" : "s"}`);
-  if (stats.places) shapeBits.push(`${stats.places} place${stats.places === 1 ? "" : "s"}`);
-  if (stats.written) shapeBits.push(`${stats.written} chapter${stats.written === 1 ? "" : "s"}`);
+  for (const [type, n] of stats.typeBreakdown) shapeBits.push(`${n} ${n === 1 ? type : plural(type)}`);
+  // Chapters: name the total AND how many are written, so "16 chapters" can't
+  // read as the whole when 2 more are planned (audit #3).
+  if (stats.written) shapeBits.push(stats.planned > 0 ? `${stats.written} of ${stats.total} chapters` : `${stats.written} chapter${stats.written === 1 ? "" : "s"}`);
   if (stats.words) shapeBits.push(`${fmt(stats.words)} words`);
   const shape = shapeBits.length ? shapeBits.join(" · ") : "A new world — nothing in it yet. Start below.";
 

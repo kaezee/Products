@@ -4,6 +4,7 @@ import type { Anchor } from "../lib/anchor";
 import type { Entity, RelationshipType, Valence } from "../lib/types";
 import { VALENCE_COLOR } from "../lib/valence";
 import { Icon } from "../components/icons";
+import { shortName } from "../lib/names";
 
 const VALENCES: Valence[] = ["bond", "hostile", "obligation", "neutral"];
 
@@ -165,7 +166,7 @@ export function Composer(props: {
               <span key={e.id}
                 className={"chip" + (concealed.includes(e.id) ? " on" : "")}
                 onClick={() => setConcealed((c) => c.includes(e.id) ? c.filter((x) => x !== e.id) : [...c, e.id])}>
-                {concealed.includes(e.id) ? "" : "…except "}{e.title.split(" ")[0]}
+                {concealed.includes(e.id) ? "" : "…except "}{shortName(e.title)}
               </span>
             ))}
           </div>
@@ -176,7 +177,7 @@ export function Composer(props: {
               <span key={e.id}
                 className={"chip" + (believers.includes(e.id) ? " on" : "")}
                 onClick={() => setBelievers((c) => c.includes(e.id) ? c.filter((x) => x !== e.id) : [...c, e.id])}>
-                {believers.includes(e.id) ? "🧠 " : ""}{e.title.split(" ")[0]}
+                {believers.includes(e.id) ? "🧠 " : ""}{shortName(e.title)}
               </span>
             ))}
           </div>

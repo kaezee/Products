@@ -4,6 +4,7 @@ import type { StreamRow, Entity, RelationshipType, EntityType, Valence } from ".
 import type { Nav } from "../App";
 import { visibleUnderLens, latestTruthByRel, latestByRel, isBelief } from "../lib/knowledge";
 import { buildTypeSwatches } from "../lib/entityTypes";
+import { shortName } from "../lib/names";
 import { VALENCE_LABEL } from "../lib/valence";
 import { buildArcs, type RelArc } from "../lib/relArc";
 import { Graph } from "./Graph";
@@ -126,11 +127,11 @@ export function Relationships({ worldId, go }: { worldId: string; go: (n: Nav) =
   const toneCount = useMemo(() => { const m = new Map<Valence, number>(); for (const r of baseRels) m.set(r.valence, (m.get(r.valence) ?? 0) + 1); return m; }, [baseRels]);
   const deg = useMemo(() => { const m = new Map<string, number>(); for (const e of edgesNoCentre) for (const p of e.participants) m.set(p.entity_id, (m.get(p.entity_id) ?? 0) + 1); return m; }, [edgesNoCentre]);
   const povPeople = useMemo(
-    () => entities.filter((e) => e.type === "Character").map((e) => ({ id: e.id, name: e.title.split(" ")[0], deg: deg.get(e.id) ?? 0 })),
+    () => entities.filter((e) => e.type === "Character").map((e) => ({ id: e.id, name: shortName(e.title), deg: deg.get(e.id) ?? 0 })),
     [entities, deg],
   );
   const kindDict = useMemo(() => types.map((t) => ({ id: t.id, label: t.label, valence: t.valence })), [types]);
-  const centreName = centre ? entById.get(centre)?.title.split(" ")[0] ?? null : null;
+  const centreName = centre ? (entById.get(centre) ? shortName(entById.get(centre)!.title) : null) : null;
 
   // centring on someone = selecting them (§3.1 — same gesture)
   const centreOn = (id: string) => { setCentre(id); setDepth(1); setSelId(id); };

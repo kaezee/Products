@@ -663,7 +663,7 @@ export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) =
               return (
                 <div key={seg.id}>
                   <span className="wt2-seglab" style={{ left: x1 + depth * 16, top: y, color, cursor: sp0 ? "zoom-in" : "default" }}
-                    title={sp0 ? "Double-click to frame this section" : undefined}
+                    title={sp0 ? `${seg.name} · ${dayToYear(sp[0])}–${dayToYear(sp[1])} — double-click to frame` : seg.name}
                     onDoubleClick={() => { if (sp0) frameRange(sp[0], sp[1]); }}>
                     <span className="wt2-kind">{seg.kind}</span>{seg.name}
                     <span className="faint" style={{ fontSize: 10.5, marginLeft: 6 }}>

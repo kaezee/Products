@@ -30,7 +30,10 @@ function shortLabel(title: string): string {
   const words = title.trim().split(/\s+/);
   let i = 0;
   while (i < words.length - 1 && HONORIFICS.has(words[i].toLowerCase().replace(/\.$/, ""))) i++;
-  return words.slice(i, i + 2).join(" ");
+  // Ellipsis when meaningful words are dropped, so a clipped label reads as
+  // clipped ("221B Baker Street" → "221B Baker…") rather than as a wrong,
+  // complete-looking name ("221B Baker").
+  return words.slice(i, i + 2).join(" ") + (i + 2 < words.length ? "…" : "");
 }
 
 interface Edge { a: string; b: string; row: StreamRow }
@@ -263,6 +266,7 @@ export function Graph({ entities, latest, selected, onOpenEntity, onBackground, 
                   onMouseEnter={() => setHov(id)} onMouseLeave={() => setHov((h) => (h === id ? null : h))}
                   onClick={(ev) => { ev.stopPropagation(); onOpenEntity(id); }}
                   onDoubleClick={(ev) => { ev.stopPropagation(); onIsolate(id); }}>
+                  {ent && <title>{ent.title}</title>}{/* full name on hover — labels are clipped */}
                   {/* selection ring — an outer copy of the same shape, so the
                       node keeps its type colour instead of turning blue */}
                   {isSel && shapeEl(shapeGeom(fam, p.x, p.y, r + 4 / cam.k), {

@@ -155,6 +155,10 @@ export function Manuscript({ worldId, focusChapterId, openImport, go, onLeaf }: 
       const s = await createSegment(worldId, { parent_id: parentId, kind, name, seg_order: order });
       setSegments((p) => [...p, s]);
       if (parentId) setCollapsed((c) => { const n = new Set(c); n.delete(parentId); return n; });
+      // Prompt for a name at creation (audit #7) — drop the new segment straight
+      // into its rename field so it isn't left as an unnamed "New book"
+      // placeholder. Skipped when a name was already supplied (the add flow).
+      if (!givenName?.trim()) { setRenameSegId(s.id); setSegDraft(""); }
     } catch (x) { setErr(String(x)); }
   }
   async function renameSegment(s: Segment, name: string) {

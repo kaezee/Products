@@ -92,8 +92,8 @@ errors, app renders, the inline theme script executes** (the hash below matches)
 ```
 default-src 'self';
 script-src 'self' 'sha256-Xit+WMfaN2xKmtCD/r7JgkABA1GW7GogrnpjWFfKt1g=';
-style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
-font-src 'self' https://fonts.gstatic.com;
+style-src 'self' 'unsafe-inline';
+font-src 'self';
 img-src 'self' data: blob:;
 connect-src 'self' https://*.supabase.co wss://*.supabase.co;
 manifest-src 'self'; worker-src 'self';
@@ -109,17 +109,14 @@ Why each non-obvious entry is there:
   `python3 -c "import re,hashlib,base64;h=re.search(r'<script>(.*?)</script>',open('dist/index.html').read(),re.S).group(1);print('sha256-'+base64.b64encode(hashlib.sha256(h.encode()).digest()).decode())"`
 - **`style-src 'unsafe-inline'`** is required — the UI uses React inline `style`
   props throughout.
-- **`fonts.googleapis.com` / `fonts.gstatic.com`** — `styles.css` `@import`s
-  Google Fonts. See the follow-up below; if the fonts are self-hosted later,
-  drop both origins.
+- **fonts are self-hosted** (`src/fonts.css` + `public/fonts/*.woff2`, latin +
+  latin-ext subsets of Literata, Public Sans, Roboto Mono), so `font-src` and
+  `style-src` need no Google origins and the offline PWA keeps its type. To
+  refresh the fonts, re-fetch the Google `css2` payload with a browser UA, keep
+  the latin subsets, and drop the woff2 into `public/fonts/`.
 - **`connect-src`**: add the analytics ingest origin **only if**
   `VITE_ANALYTICS_URL` is set. Google OAuth is a top-level navigation, not a
   fetch, so it needs no entry.
-
-Follow-up (not blocking): **self-host the three fonts** (Literata, Public Sans,
-Roboto Mono). Right now they load from Google's CDN, so (a) the offline PWA has
-no custom type when offline, and (b) it's a third-party request. Self-hosting
-fixes both and lets the CSP drop the two Google origins.
 
 ## Open / deferred
 - Error monitoring (Sentry/GlitchTip) — needs an SDK + DSN (infra decision), so

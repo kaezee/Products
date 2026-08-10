@@ -620,6 +620,7 @@ export function BookCanvas(props: {
                     {chapterMoments.map(({ s, stale }) => (
                       <div className="row" key={s.state_id} style={{ padding: "7px 0", gap: 6, borderColor: "var(--line)", flexWrap: "wrap" }}>
                         <span style={{ flex: 1, minWidth: 0, fontSize: 12.5 }}>
+                          <span aria-hidden style={{ color: VALENCE_COLOR[s.valence], marginRight: 5 }}>✳</span>
                           {s.participants.map((p) => p.title).join(" · ")} <span style={{ color: VALENCE_COLOR[s.valence], fontWeight: 600 }}>{s.type_label}</span>
                         </span>
                         {stale && (

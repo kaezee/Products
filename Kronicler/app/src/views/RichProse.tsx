@@ -476,7 +476,7 @@ export function RichProse({ value, entities, onChange, onSelectText, onActive, o
       {markTops.map((m) => (
         <button key={m.id} className="prose-mark" style={{ top: m.top, color: m.color }}
           title="A recorded moment — open it" onMouseDown={(e) => e.preventDefault()}
-          onClick={() => onMarkClick?.(m.id)}><span /></button>
+          onClick={() => onMarkClick?.(m.id)}><span>✳</span></button>
       ))}
       <div
         ref={edRef}

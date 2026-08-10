@@ -39,15 +39,43 @@ export function pendingCount(): number {
 // Flush the queue with a caller-supplied sender (kept injectable so the queue is
 // testable without Supabase). Items that send are dropped; items that fail stay
 // for the next flush. Never throws.
-export async function flushQueue(send: (item: PendingNote) => Promise<void>): Promise<{ sent: number; left: number }> {
+//
+// Flushes are serialized. Two overlapping runs (e.g. the `online` event firing
+// while a manual capture flushes) would re-send the same item — a duplicate
+// note — and the final write could clobber a note enqueued mid-flush. A request
+// arriving while a flush is in flight sets `again`, so exactly one follow-up
+// flush runs afterward to pick up anything queued during this one.
+let inFlight: Promise<{ sent: number; left: number }> | null = null;
+let flushing = false;
+let again = false;
+
+export function flushQueue(send: (item: PendingNote) => Promise<void>): Promise<{ sent: number; left: number }> {
+  // `flushing` is a plain boolean set BEFORE doFlush runs: doFlush executes
+  // synchronously into `send`, which (via captureNote) re-enters flushQueue, so
+  // the guard has to be visible on that same synchronous turn or the re-entrant
+  // call starts a second concurrent flush.
+  if (flushing) { again = true; return inFlight ?? Promise.resolve({ sent: 0, left: 0 }); }
+  flushing = true;
+  inFlight = doFlush(send).finally(() => {
+    flushing = false;
+    inFlight = null;
+    if (again) { again = false; void flushQueue(send); }
+  });
+  return inFlight;
+}
+
+async function doFlush(send: (item: PendingNote) => Promise<void>): Promise<{ sent: number; left: number }> {
   const q = read();
   if (q.length === 0) return { sent: 0, left: 0 };
-  const remaining: PendingNote[] = [];
+  const sentIds = new Set<string>();
   let sent = 0;
   for (const item of q) {
-    try { await send(item); sent++; }
-    catch { remaining.push(item); }
+    try { await send(item); sentIds.add(item.id); sent++; }
+    catch { /* keep for the next flush */ }
   }
+  // Re-read before writing so any note enqueued during the flush survives —
+  // drop only the ids we actually sent.
+  const remaining = read().filter((it) => !sentIds.has(it.id));
   write(remaining);
   return { sent, left: remaining.length };
 }

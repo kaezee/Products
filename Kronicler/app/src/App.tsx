@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { supabase } from "./lib/supabase";
-import { getMyWorlds, createWorld, softDeleteWorld, renameWorld, seedSampleWorld, seedProjectShape, getChapters, getEntities, getNotes, createNote, updateNote } from "./lib/api";
+import { getMyWorlds, createWorld, softDeleteWorld, renameWorld, seedSampleWorld, seedProjectShape, getChapters, getEntities, getNotes, createNote } from "./lib/api";
 import { enqueueNote, flushQueue, type PendingNote } from "./lib/captureQueue";
 import { QuickCapture } from "./components/QuickCapture";
 import type { World } from "./lib/types";
@@ -45,8 +45,9 @@ export interface Nav { scope: Scope; entityId?: string; chapterId?: string; open
 // source "mobile" so it's measurable, and it lands as an ordinary note (appears
 // under "What you left yourself") — never a separate object type.
 async function sendPendingNote(item: PendingNote): Promise<void> {
-  const note = await createNote(item.worldId, 0, 0, false, "mobile");
-  await updateNote(note.id, { body: item.body });
+  // One atomic insert with the body — a create-then-update split could leave an
+  // empty orphan note (and re-queue) if the second call failed mid-sync.
+  await createNote(item.worldId, 0, 0, false, "mobile", item.body);
 }
 
 // The rail is split write-first: the everyday writing tools up top, the

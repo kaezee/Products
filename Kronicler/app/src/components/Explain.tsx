@@ -50,15 +50,19 @@ export function Explain({ term, children }: { term: string; children: ReactNode 
         <Icon name="help" size={12} />
       </button>
       {open && pos && createPortal(
+        // Outer wrapper owns the centering transform; the inner popover owns the
+        // `.pop` entrance animation. Kept separate so the animation (which resets
+        // transform to none) can't override translateX(-50%) and make the tooltip
+        // jump sideways as it finishes appearing.
         <span
-          className="explain-pop pop"
-          role="tooltip"
-          style={{ position: "fixed", left: Math.min(Math.max(pos.x, 140), window.innerWidth - 140), top: pos.y + 6, transform: "translateX(-50%)" }}
+          style={{ position: "fixed", left: Math.min(Math.max(pos.x, 140), window.innerWidth - 140), top: pos.y + 6, transform: "translateX(-50%)", zIndex: 320 }}
           onMouseEnter={show}
           onMouseLeave={scheduleHide}
         >
-          <span className="explain-term">{term}</span>
-          <span className="explain-def">{children}</span>
+          <span className="explain-pop pop" role="tooltip">
+            <span className="explain-term">{term}</span>
+            <span className="explain-def">{children}</span>
+          </span>
         </span>,
         document.body,
       )}

@@ -3,6 +3,7 @@ import { getStream, getEntities, getEntityTypes, getRelationshipTypes, getChapte
 import type { StreamRow, Entity, EntityType, RelationshipType, Chapter, Note, Comment } from "../lib/types";
 import { buildTypeSwatches } from "../lib/entityTypes";
 import { Mention } from "../components/Mention";
+import { Explain } from "../components/Explain";
 import { detectMentions } from "../lib/mentions";
 import { isBelief } from "../lib/knowledge";
 import { findIssues } from "../lib/continuity";
@@ -395,7 +396,7 @@ export function Overview({ worldId, go }: { worldId: string; go: (n: Nav) => voi
         {continueCh ? (
           <>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div className="dash-continue-lab">Pick up where you left off</div>
+              <div className="dash-continue-lab">Pick up where you left off<Explain term="Pick up where you left off">A shortcut back to the furthest chapter you’ve been writing, so you can resume in one click.</Explain></div>
               <div className="dash-continue-title">{continueCh.title}</div>
               <div className="dash-continue-sub">ch. {continueCh.manuscript_order} · {fmt(wordsOf(continueCh.body))} words</div>
             </div>
@@ -423,7 +424,7 @@ export function Overview({ worldId, go }: { worldId: string; go: (n: Nav) => voi
         <div className="card chronicle" style={{ marginBottom: 18 }}>
           {(lookItems > 0 || planned > 0 || orphaned.length > 0) && (
             <div className="chron-sec">
-              <div className="chron-lab">Worth a look</div>
+              <div className="chron-lab">Worth a look<Explain term="Worth a look">Things Kronicler noticed in your story that might want attention — dramatic irony, gaps, duplicate names. Observations, not errors.</Explain></div>
               {dupList.map((d) => nextLook() && (
                 <div className="chron-row" key={"dup" + d.key}>
                   <span style={{ flex: 1, minWidth: 0 }}>
@@ -465,7 +466,7 @@ export function Overview({ worldId, go }: { worldId: string; go: (n: Nav) => voi
           )}
           {(openComments.length > 0 || recentNotes.length > 0) && (
             <div className="chron-sec">
-              <div className="chron-lab">What you left yourself</div>
+              <div className="chron-lab">What you left yourself<Explain term="What you left yourself">Your own project notes — quick captures and reminders, gathered in one place. Nothing here is part of the manuscript.</Explain></div>
               {openComments.length > 0 && (
                 <div className="trail-well click" style={{ flexDirection: "row", alignItems: "center" }}
                   onClick={() => go({ scope: "manuscript", chapterId: openComments[0].chapter_id })}>

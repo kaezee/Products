@@ -87,6 +87,7 @@ export function RelChipBar(d: ChipData) {
       return (
         <div className="reldrop-list">
           <div className="reldrop-h">Standing</div>
+          <div className="reldrop-def">The emotional colour of a tie right now — warm, wary, hostile. It can shift as the story moves.</div>
           <button className={"reldrop-opt" + (d.tones.size === 0 ? " on" : "")} onClick={() => d.setTones(new Set())}>
             any standing<span className="reldrop-n">{d.total}</span>
           </button>
@@ -125,6 +126,7 @@ export function RelChipBar(d: ChipData) {
       pickCombo = (id) => { const n = new Set(d.kinds); n.has(id) ? n.delete(id) : n.add(id); d.setKinds(n); setQ(""); setCursor(0); };
       return (
         <div className="reldrop-combo">
+          <div className="reldrop-def">The type of tie itself — “enemy of”, “family”, “allied with”. Independent of its current standing.</div>
           <div className="reldrop-cbx">
             <span className="reldrop-ic"><Icon name="search" size={12} /></span>
             <input className="reldrop-search" autoFocus placeholder="Filter kinds…" value={q}
@@ -171,6 +173,7 @@ export function RelChipBar(d: ChipData) {
       pickCombo = (id) => { d.setPov(id); close(); };
       return (
         <div className="reldrop-combo">
+          <div className="reldrop-def">Show the world as one character understands it here — hiding what they don’t yet know, or are being deceived about.</div>
           <div className="reldrop-cbx">
             <span className="reldrop-ic"><Icon name="search" size={12} /></span>
             <input className="reldrop-search" autoFocus placeholder="Filter people…" value={q}

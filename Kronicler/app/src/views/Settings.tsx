@@ -226,14 +226,17 @@ export function Settings({ worldId, worldName, userEmail, onDeleteWorld, onWorld
 // Account management — change email, change password, request a reset link, and
 // sign out. Supabase emails a confirmation for email changes; password updates
 // apply to the live session immediately.
+// Passwordless account panel (§2.2). For a real account: change email. For a
+// guest: add an email — which links it to the anonymous user (§2.3 conversion),
+// so the project is kept and the writer signs back in with a link, no password.
 function AccountPanel({ userEmail }: { userEmail: string }) {
-  const [mode, setMode] = useState<null | "email" | "password">(null);
+  const [mode, setMode] = useState<null | "email">(null);
   const [email, setEmail] = useState("");
-  const [pw, setPw] = useState("");
-  const [busy, setBusy] = useState<null | "email" | "password" | "reset">(null);
+  const [busy, setBusy] = useState<null | "email">(null);
   const [msg, setMsg] = useState<{ tone: "ok" | "err"; text: string } | null>(null);
+  const isGuest = !userEmail;
 
-  function reset() { setMode(null); setEmail(""); setPw(""); }
+  function reset() { setMode(null); setEmail(""); }
 
   async function saveEmail() {
     const next = email.trim();
@@ -242,60 +245,43 @@ function AccountPanel({ userEmail }: { userEmail: string }) {
     const { error } = await supabase.auth.updateUser({ email: next });
     setBusy(null);
     if (error) setMsg({ tone: "err", text: error.message });
-    else { setMsg({ tone: "ok", text: `Confirmation sent to ${next}. Click the link in that email to finish the change.` }); reset(); }
-  }
-
-  async function savePassword() {
-    if (pw.length < 8) { setMsg({ tone: "err", text: "Use at least 8 characters." }); return; }
-    setBusy("password"); setMsg(null);
-    const { error } = await supabase.auth.updateUser({ password: pw });
-    setBusy(null);
-    if (error) setMsg({ tone: "err", text: error.message });
-    else { setMsg({ tone: "ok", text: "Password updated." }); reset(); }
-  }
-
-  async function sendReset() {
-    setBusy("reset"); setMsg(null);
-    const { error } = await supabase.auth.resetPasswordForEmail(userEmail, { redirectTo: window.location.origin });
-    setBusy(null);
-    if (error) setMsg({ tone: "err", text: error.message });
-    else setMsg({ tone: "ok", text: `Reset link sent to ${userEmail}.` });
+    else {
+      setMsg({ tone: "ok", text: isGuest
+        ? `Confirmation sent to ${next}. Click the link to keep this project on a real account.`
+        : `Confirmation sent to ${next}. Click the link in that email to finish the change.` });
+      reset();
+    }
   }
 
   return (
     <div className="card">
       <div className="row">
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div className="muted" style={{ fontSize: 11 }}>Signed in as</div>
-          <div style={{ fontWeight: 500 }}>{userEmail}</div>
+          {isGuest ? (
+            <>
+              <div style={{ fontWeight: 500 }}>You're exploring as a guest</div>
+              <span className="muted" style={{ fontSize: 12.5 }}>Add an email to keep this project — you'll sign back in with a link, no password.</span>
+            </>
+          ) : (
+            <>
+              <div className="muted" style={{ fontSize: 11 }}>Signed in as</div>
+              <div style={{ fontWeight: 500 }}>{userEmail}</div>
+            </>
+          )}
         </div>
-        {mode !== "email" && <button onClick={() => { setMode("email"); setEmail(userEmail); setMsg(null); }}>Change email</button>}
+        {mode !== "email" && (
+          <button className={isGuest ? "primary" : undefined} onClick={() => { setMode("email"); setEmail(isGuest ? "" : userEmail); setMsg(null); }}>
+            {isGuest ? "Add an email" : "Change email"}
+          </button>
+        )}
       </div>
 
       {mode === "email" && (
         <div className="row" style={{ gap: 8, flexWrap: "wrap" }}>
-          <input autoFocus type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="new email address"
+          <input autoFocus type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="your email address"
             style={{ flex: 1, minWidth: 200 }} onKeyDown={(e) => { if (e.key === "Enter") saveEmail(); if (e.key === "Escape") reset(); }} />
           <button className="primary" onClick={saveEmail} disabled={busy === "email"}>{busy === "email" ? <Spinner size={13} /> : "Send confirmation"}</button>
           <button onClick={reset} disabled={busy === "email"}>Cancel</button>
-        </div>
-      )}
-
-      <div className="row">
-        <div style={{ flex: 1 }}>
-          <div style={{ fontWeight: 500 }}>Password</div>
-          <span className="muted" style={{ fontSize: 12.5 }}>Set a new password, or email yourself a reset link.</span>
-        </div>
-        <button onClick={() => sendReset()} disabled={busy === "reset"}>{busy === "reset" ? <Spinner size={13} /> : "Email reset link"}</button>
-        {mode !== "password" && <button onClick={() => { setMode("password"); setPw(""); setMsg(null); }}>Change password</button>}
-      </div>
-
-      {mode === "password" && (
-        <div className="row" style={{ gap: 8, flexWrap: "wrap" }}>
-          <input autoFocus type="password" value={pw} onChange={(e) => setPw(e.target.value)} placeholder="new password (min 8 chars)"
-            style={{ flex: 1, minWidth: 200 }} onKeyDown={(e) => { if (e.key === "Enter") savePassword(); if (e.key === "Escape") reset(); }} />
-          <button className="primary" onClick={savePassword} disabled={busy === "password"}>{busy === "password" ? <Spinner size={13} /> : "Update password"}</button>
-          <button onClick={reset} disabled={busy === "password"}>Cancel</button>
         </div>
       )}
 

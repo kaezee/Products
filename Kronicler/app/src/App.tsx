@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { supabase } from "./lib/supabase";
-import { getMyWorlds, createWorld, softDeleteWorld, renameWorld, seedSampleWorld, seedProjectShape, getChapters, getEntities, getNotes } from "./lib/api";
+import { getMyWorlds, createWorld, softDeleteWorld, renameWorld, seedSampleWorld, seedProjectShape, getChapters, getEntities, getNotes, createNote, updateNote } from "./lib/api";
+import { enqueueNote, flushQueue, type PendingNote } from "./lib/captureQueue";
+import { QuickCapture } from "./components/QuickCapture";
 import type { World } from "./lib/types";
 import { FORM_KEYS, GENRE_KEYS, FORM_STRUCTURES, GENRE_TYPES, structureFor, type FormKey, type GenreKey } from "./lib/onboarding";
 import { CANONICAL_ENTITY_TYPES } from "./lib/entityTypes";
@@ -38,6 +40,14 @@ export function App() {
 
 type Scope = "overview" | "library" | "manuscript" | "timeline" | "relationships" | "notes" | "settings" | "help";
 export interface Nav { scope: Scope; entityId?: string; chapterId?: string; openImport?: boolean }
+
+// §3 offline capture: turn a locally-queued note into a real project note. Marked
+// source "mobile" so it's measurable, and it lands as an ordinary note (appears
+// under "What you left yourself") — never a separate object type.
+async function sendPendingNote(item: PendingNote): Promise<void> {
+  const note = await createNote(item.worldId, 0, 0, false, "mobile");
+  await updateNote(note.id, { body: item.body });
+}
 
 // The rail is split write-first: the everyday writing tools up top, the
 // analysis tools (timeline, relationships) under a divider — so a newcomer
@@ -85,6 +95,7 @@ function Workspace({ session }: { session: Session }) {
   const [worldNameDraft, setWorldNameDraft] = useState("");
   const [worldsScreenOpen, setWorldsScreenOpen] = useState(false); // full "all worlds" gallery
   const [newWorldOpen, setNewWorldOpen] = useState(false); // new-world dialog
+  const [quickOpen, setQuickOpen] = useState(false); // §3 quick-capture sheet
   const [newWorldDraft, setNewWorldDraft] = useState("");
   const [newForm, setNewForm] = useState<FormKey>("novel");   // §2.3 structure
   const [newGenre, setNewGenre] = useState<GenreKey>("fantasy"); // §2.4 seeded types
@@ -109,6 +120,21 @@ function Workspace({ session }: { session: Session }) {
       localStorage.setItem("k.lastSession", String(Date.now()));
     } catch { /* private mode — skip */ }
   }, []);
+
+  // §3 offline capture: flush any queued notes on load and whenever we reconnect.
+  useEffect(() => {
+    const run = () => { if (navigator.onLine) void flushQueue(sendPendingNote); };
+    run();
+    window.addEventListener("online", run);
+    return () => window.removeEventListener("online", run);
+  }, []);
+
+  async function captureNote(body: string) {
+    if (!worldId || !body.trim()) return;
+    enqueueNote(worldId, body);                                  // durable locally first
+    if (navigator.onLine) await flushQueue(sendPendingNote);     // sync now if we can
+    if (nav.scope === "overview") go({ scope: "overview" });     // reflect it if we're looking
+  }
 
   useEffect(() => {
     let alive = true;
@@ -418,6 +444,11 @@ function Workspace({ session }: { session: Session }) {
             <div className="kbtn" onClick={() => setPaletteOpen(true)}>
               <span className="kbd">⌘K</span> Jump or create
             </div>
+            {worldId && (
+              <button className="appearance-btn" title="Quick note" aria-label="Quick note" onClick={() => setQuickOpen(true)}>
+                <Icon name="notes" size={ICON_SIZE.md} />
+              </button>
+            )}
             <div className="appearance" ref={appearanceRef}>
               <button className="appearance-btn" title={`Appearance: ${THEME_LABEL[theme]}`} aria-label="Appearance"
                 aria-expanded={appearanceOpen} onClick={() => setAppearanceOpen((v) => !v)}>
@@ -585,6 +616,10 @@ function Workspace({ session }: { session: Session }) {
             </div>
           </div>
         </div>
+      )}
+
+      {quickOpen && worldId && (
+        <QuickCapture onClose={() => setQuickOpen(false)} onSave={captureNote} />
       )}
 
       {newWorldOpen && (

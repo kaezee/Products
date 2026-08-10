@@ -1169,32 +1169,20 @@ button.chron-more:hover { background: var(--wash); }
    (standing / kind / point of view) at the moment it's opened. */
 .reldrop-def { font-size: 11.5px; line-height: 1.45; color: var(--muted); padding: 3px 11px 8px; }
 
-/* Help page (onboarding §5). Centered, with the hero column (numbered first
-   steps) beside a compact column of shortcuts + glossary so the page fills its
-   width instead of stranding content in a narrow left strip. */
+/* Help page, slimmed: a short concept primer + a "replay getting-started"
+   button. Shortcuts live in the ⌘K palette; vocabulary is explained inline. */
 .help { max-width: 940px; margin: 0 auto; }
-.help-cols { display: grid; grid-template-columns: 1.15fr 1fr; gap: 0 34px; align-items: start; }
-.help-cols > .help-col { min-width: 0; }
-@media (max-width: 820px) { .help-cols { grid-template-columns: 1fr; } }
-.help .card { padding: 2px 16px; }
-
-/* First steps — numbered, so they read as an order to follow. */
-.help-steps { list-style: none; counter-reset: step; margin: 0; }
-.help-steps li { counter-increment: step; position: relative; padding: 13px 0 13px 40px; font-size: 13.5px; line-height: 1.55; color: var(--sub); border-bottom: 1px solid var(--line); }
-.help-steps li:last-child { border-bottom: none; }
-.help-steps li::before { content: counter(step); position: absolute; left: 0; top: 12px; width: 23px; height: 23px; border-radius: 999px; background: var(--inset); border: 1px solid var(--line); color: var(--muted); font-family: var(--k-font-mono); font-size: 11px; font-weight: 600; display: grid; place-items: center; }
-.help-steps b { color: var(--ink); font-weight: 600; }
-
-/* Keyboard shortcuts — key/value rows. */
-.help-kbd { display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: 13px; color: var(--sub); padding: 9px 0; border-bottom: 1px solid var(--line); }
-.help-kbd:last-child { border-bottom: none; }
-
-/* Glossary — term over definition. */
-.help-gloss { margin: 0; }
-.help-gloss > div { padding: 12px 0; border-bottom: 1px solid var(--line); }
-.help-gloss > div:last-child { border-bottom: none; }
-.help-gloss dt { font-family: var(--serif); font-size: 14px; font-weight: 600; color: var(--ink); margin-bottom: 2px; }
-.help-gloss dd { margin: 0; font-size: 12.5px; line-height: 1.5; color: var(--sub); }
+.help-slim { max-width: 600px; margin: 0 auto; }
+.help-prose { padding: 6px 18px 12px; }
+.help-prose p { font-size: 14px; line-height: 1.62; color: var(--sub); margin: 12px 0; }
+.help-prose b { color: var(--ink); font-weight: 600; }
+.help-prose .kbd { vertical-align: baseline; }
+.help-tip { border-top: 1px solid var(--line); padding-top: 12px; color: var(--muted) !important; font-size: 13px !important; }
+.help-q { display: inline-grid; place-items: center; width: 16px; height: 16px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); font-size: 11px; font-weight: 600; vertical-align: middle; }
+.help-replay { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 14px 18px; }
+.help-replay-t { font-family: var(--serif); font-size: 14.5px; font-weight: 600; color: var(--ink); margin-bottom: 2px; }
+.help-replay p { font-size: 13px; line-height: 1.5; color: var(--sub); margin: 0; }
+.help-replay .primary { flex: 0 0 auto; }
 
 /* Repair path for a moment whose prose was edited away (dependency pass §2). */
 .moment-stale { flex-basis: 100%; font-size: 11.5px; line-height: 1.5; color: var(--muted); margin-top: 3px; padding: 7px 9px; background: var(--inset); border-radius: 8px; }

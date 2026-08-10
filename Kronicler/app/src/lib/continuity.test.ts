@@ -83,4 +83,19 @@ describe("findIssues — belief clash (dramatic irony)", () => {
     ];
     expect(findIssues(stream, types, nameOf).some((i) => i.kind === "belief-clash")).toBe(false);
   });
+
+  it("links the irony to the believer, not the relationship's participant", () => {
+    // Watson believes a thing about the Moriarty–Holmes relationship. The row
+    // names Watson, so clicking it must go to Watson — not participants[0]
+    // (Moriarty), which was the mislead in the audit.
+    const parts = [{ entity_id: "moriarty", title: "Moriarty", role: null }, { entity_id: "holmes", title: "Holmes", role: null }];
+    const stream = [
+      row({ relationship_id: "r1", type_id: "friend", type_label: "friends", manuscript_order: 2, participants: parts }),
+      row({ relationship_id: "r1", type_id: "dead", type_label: "betrayed", manuscript_order: 4, known_by: { believed_by: ["watson"] }, participants: parts }),
+    ];
+    const clash = findIssues(stream, types, nameOf).filter((i) => i.kind === "belief-clash");
+    expect(clash).toHaveLength(1);
+    expect(clash[0].entityId).toBe("watson");
+    if (clash[0].kind === "belief-clash") expect(clash[0].believerRefs[0].id).toBe("watson");
+  });
 });

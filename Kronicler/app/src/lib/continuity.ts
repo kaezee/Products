@@ -85,7 +85,10 @@ export function findIssues(stream: StreamRow[], types: RelationshipType[], nameO
     const key = s.relationship_id + ":" + believersOf(s).sort().join(",");
     if (seenBelief.has(key)) continue; seenBelief.add(key);
     out.push({
-      kind: "belief-clash", relId: s.relationship_id, entityId: s.participants[0]?.entity_id,
+      // Navigate to the BELIEVER the row names — not the relationship's first
+      // participant, which is a different entity and made the row link somewhere
+      // it never mentioned (e.g. row says Watson, link went to Moriarty).
+      kind: "belief-clash", relId: s.relationship_id, entityId: believersOf(s)[0],
       believers: believersOf(s).map(nameOf).join(", "),
       believerRefs: believersOf(s).map((id) => ({ id, title: nameOf(id) })), belief: s.type_label, truth: t.type_label,
     });

@@ -39,11 +39,16 @@ export function TypeStyleEditor({ worldId, typeName, row, swatch, onChanged }: {
     <div style={{ margin: "2px 0 10px" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
         <span style={{ width: 10, height: 10, borderRadius: 3, background: `var(--k-entity-${curSwatch})` }} />
-        <span style={{
-          fontFamily: "var(--serif)", fontSize: 13.5,
-          textDecorationLine: "underline", textDecorationStyle: curLine,
-          textDecorationColor: `var(--k-entity-${curSwatch})`, textDecorationThickness: 2, textUnderlineOffset: 3,
-        }}>How {typeName} mentions look</span>
+        {/* A caption with a single styled SAMPLE token — not a whole underlined
+            phrase, which read as a clickable mention (UX audit #6). */}
+        <span style={{ fontFamily: "var(--serif)", fontSize: 13.5, color: "var(--sub)" }}>
+          Mentions look like{" "}
+          <span style={{
+            color: "var(--ink)",
+            textDecorationLine: "underline", textDecorationStyle: curLine,
+            textDecorationColor: `var(--k-entity-${curSwatch})`, textDecorationThickness: 2, textUnderlineOffset: 3,
+          }}>{typeName}</span>
+        </span>
         <span className="tab" onClick={() => setOpen((v) => !v)} style={{ padding: "3px 9px", fontSize: 11.5 }}>
           {open ? "Done" : "Edit colour"}
         </span>

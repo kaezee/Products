@@ -3,6 +3,7 @@ import { appendPairwiseState, createRelationshipType } from "../lib/api";
 import type { Entity, RelationshipType, Chapter, Note, Valence } from "../lib/types";
 import { VALENCE_COLOR } from "../lib/valence";
 import { Icon } from "../components/icons";
+import { shortName } from "../lib/names";
 
 const VALENCES: Valence[] = ["bond", "hostile", "obligation", "neutral"];
 
@@ -115,7 +116,7 @@ export function NoteToState({ worldId, note, entities, types, chapters, onClose,
               {concealCandidates.map((e) => (
                 <span key={e.id} className={"chip click" + (concealed.includes(e.id) ? " on" : "")}
                   onClick={() => setConcealed((c) => c.includes(e.id) ? c.filter((x) => x !== e.id) : [...c, e.id])}>
-                  {concealed.includes(e.id) && <Icon name="lock" size={11} />} {e.title.split(" ")[0]}
+                  {concealed.includes(e.id) && <Icon name="lock" size={11} />} {shortName(e.title)}
                 </span>
               ))}
             </div>

@@ -2,6 +2,7 @@ import { useEffect, useMemo } from "react";
 import type { Entity } from "../lib/types";
 import type { RelArc } from "../lib/relArc";
 import { familyOf, type NodeFamily } from "../lib/entityTypes";
+import { shortName } from "../lib/names";
 import { RelRow } from "./RelRow";
 import { Icon } from "./icons";
 
@@ -61,7 +62,7 @@ export function EntityPanel({ entity, arcs, entById, typeSwatch, maxCh, asOf, on
       <div className="entpanel-body">
         {arcs.length === 0 ? (
           <div className="entpanel-empty">
-            <p>No connections yet — {entity.title.split(" ")[0]} appears in your prose, but you haven’t said how they relate to anything.</p>
+            <p>No connections yet — {shortName(entity.title)} appears in your prose, but you haven’t said how they relate to anything.</p>
             <button className="primary" onClick={onMarkMoment}>Mark a moment</button>
           </div>
         ) : (

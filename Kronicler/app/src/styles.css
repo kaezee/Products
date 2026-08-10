@@ -1169,20 +1169,16 @@ button.chron-more:hover { background: var(--wash); }
    (standing / kind / point of view) at the moment it's opened. */
 .reldrop-def { font-size: 11.5px; line-height: 1.45; color: var(--muted); padding: 3px 11px 8px; }
 
-/* Help page, slimmed: a short concept primer + a "replay getting-started"
-   button. Shortcuts live in the ⌘K palette; vocabulary is explained inline. */
-.help { max-width: 940px; margin: 0 auto; }
-.help-slim { max-width: 600px; margin: 0 auto; }
+/* Help page, slimmed: a short concept primer. Left-aligned like every other
+   page (not centered); the prose column is capped for readability. Shortcuts
+   live in the ⌘K palette; vocabulary is explained inline. */
+.help-slim { max-width: 640px; }
 .help-prose { padding: 6px 18px 12px; }
 .help-prose p { font-size: 14px; line-height: 1.62; color: var(--sub); margin: 12px 0; }
 .help-prose b { color: var(--ink); font-weight: 600; }
 .help-prose .kbd { vertical-align: baseline; }
 .help-tip { border-top: 1px solid var(--line); padding-top: 12px; color: var(--muted) !important; font-size: 13px !important; }
 .help-q { display: inline-grid; place-items: center; width: 16px; height: 16px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); font-size: 11px; font-weight: 600; vertical-align: middle; }
-.help-replay { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 14px 18px; }
-.help-replay-t { font-family: var(--serif); font-size: 14.5px; font-weight: 600; color: var(--ink); margin-bottom: 2px; }
-.help-replay p { font-size: 13px; line-height: 1.5; color: var(--sub); margin: 0; }
-.help-replay .primary { flex: 0 0 auto; }
 
 /* Repair path for a moment whose prose was edited away (dependency pass §2). */
 .moment-stale { flex-basis: 100%; font-size: 11.5px; line-height: 1.5; color: var(--muted); margin-top: 3px; padding: 7px 9px; background: var(--inset); border-radius: 8px; }

@@ -1151,6 +1151,20 @@ button.chron-more:hover { background: var(--wash); }
 .moment-net { display: flex; gap: 8px; align-items: flex-start; font-size: 12px; line-height: 1.5; color: var(--sub); background: var(--inset); border-radius: 9px; padding: 9px 10px; margin-bottom: 12px; }
 .moment-net button { flex: 0 0 auto; }
 
+/* Inline "?" term explainer (self-explaining product; UX audit §10). The dot
+   sits after a label; the popover is portaled to <body>, so it defines its own
+   type (labels are often uppercase small-caps it must not inherit). */
+.explain { display: inline-flex; align-items: center; vertical-align: middle; }
+.explain-dot { display: inline-grid; place-items: center; width: 16px; height: 16px; margin-left: 3px; padding: 0; border: none; background: none; color: var(--faint); cursor: help; border-radius: 999px; line-height: 0; }
+.explain-dot:hover, .explain-dot[aria-expanded="true"] { color: var(--k-action-text); background: var(--inset); }
+.explain-pop { display: block; max-width: 260px; z-index: 320; background: var(--surface); border: 1px solid var(--lineStrong); border-radius: 10px; padding: 9px 12px; box-shadow: var(--pop); text-transform: none; letter-spacing: normal; }
+.explain-term { display: block; font-family: var(--serif); font-size: 13px; font-weight: 600; color: var(--ink); margin-bottom: 2px; }
+.explain-def { display: block; font-size: 12px; line-height: 1.5; font-weight: 400; color: var(--sub); }
+
+/* One-line definition inside a filter dropdown — teaches the filter's term
+   (standing / kind / point of view) at the moment it's opened. */
+.reldrop-def { font-size: 11.5px; line-height: 1.45; color: var(--muted); padding: 3px 11px 8px; }
+
 /* Help page (onboarding §5). Centered, with the hero column (numbered first
    steps) beside a compact column of shortcuts + glossary so the page fills its
    width instead of stranding content in a narrow left strip. */

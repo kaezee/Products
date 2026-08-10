@@ -209,14 +209,18 @@ export function Overview({ worldId, go }: { worldId: string; go: (n: Nav) => voi
   let lookShown = 0;
   const nextLook = () => (lookShown < LOOK_CAP ? (lookShown++, true) : false);
 
-  // shape sentence
-  const shapeBits: string[] = [];
-  for (const [type, n] of stats.typeBreakdown) shapeBits.push(`${n} ${n === 1 ? type : plural(type)}`);
-  // Chapters: name the total AND how many are written, so "16 chapters" can't
-  // read as the whole when 2 more are planned (audit #3).
-  if (stats.written) shapeBits.push(stats.planned > 0 ? `${stats.written} of ${stats.total} chapters` : `${stats.written} chapter${stats.written === 1 ? "" : "s"}`);
-  if (stats.words) shapeBits.push(`${fmt(stats.words)} words`);
-  const shape = shapeBits.length ? shapeBits.join(" · ") : "A new world — nothing in it yet. Start below.";
+  // Subtitle = the cast. Chapters, words, and moments live in the stat cards
+  // below, so keeping them out of the subtitle avoids echoing the cards. Only
+  // when there's no cast yet does it fall back to the manuscript's size.
+  const castBits: string[] = [];
+  for (const [type, n] of stats.typeBreakdown) castBits.push(`${n} ${n === 1 ? type : plural(type)}`);
+  const sizeBits = [
+    stats.written ? (stats.planned > 0 ? `${stats.written} of ${stats.total} chapters` : `${stats.written} chapter${stats.written === 1 ? "" : "s"}`) : null,
+    stats.words ? `${fmt(stats.words)} words` : null,
+  ].filter(Boolean) as string[];
+  const shape = castBits.length ? castBits.join(" · ")
+    : sizeBits.length ? sizeBits.join(" · ")
+    : "A new world — nothing in it yet. Start below.";
 
   // §5 cards: each appears only when it has something to report (never a zero,
   // never a denominator). A new project earns them one at a time.

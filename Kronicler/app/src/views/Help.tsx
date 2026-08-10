@@ -1,15 +1,9 @@
-import type { Nav } from "../App";
-
 // Help, slimmed (self-explaining pass): the app now teaches itself in place —
 // keyboard shortcuts live in the ⌘K palette, and vocabulary is explained by
-// inline "?" where each term appears. So Help is just the short concept primer
-// plus a way to bring the getting-started checklist back.
-export function Help({ worldId, go }: { worldId: string | null; go: (n: Nav) => void }) {
-  function replay() {
-    if (worldId) { try { localStorage.removeItem(`k.checklist.${worldId}`); } catch { /* private mode */ } }
-    go({ scope: "overview" });
-  }
-
+// inline "?" where each term appears. So Help is just the short concept primer;
+// there's no "replay getting-started" because the checklist reflects real data
+// (it can't rewind on a world you've already built — a new world starts fresh).
+export function Help() {
   return (
     <div className="fi help">
       <h2 className="scope-title">Help</h2>
@@ -22,15 +16,6 @@ export function Help({ worldId, go }: { worldId: string | null; go: (n: Nav) => 
           <p>The one move that’s Kronicler’s alone: <b>mark a moment</b>. Select a line where something shifts between two people and record it. Those moments build each relationship’s history and feed the “Worth a look” observations on your Overview.</p>
           <p>Give a chapter an in-world date and it lands on your <b>timeline</b>, which draws itself — no manual plotting.</p>
           <p className="help-tip">Two things worth knowing: press <kbd className="kbd">⌘K</kbd> to jump anywhere or see every shortcut, and hover the small <span className="help-q">?</span> beside a label to learn what a term means.</p>
-        </div>
-
-        <div className="label">Getting started</div>
-        <div className="card help-replay">
-          <div>
-            <div className="help-replay-t">Bring back the checklist</div>
-            <p>New here, or want a refresher? Replay the step-by-step guide on your Overview.</p>
-          </div>
-          <button className="primary" onClick={replay}>Replay getting-started</button>
         </div>
       </div>
     </div>

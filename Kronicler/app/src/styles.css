@@ -1011,6 +1011,7 @@ button.danger:hover:not(:disabled) { filter: brightness(0.93); background: var(-
 .palette { width: 460px; max-width: calc(100vw - 32px); background: var(--surface); border-radius: 15px; border: 1px solid var(--lineStrong); box-shadow: var(--pop); overflow: hidden; }
 .palette input { width: 100%; font-size: 14px; padding: 14px 18px; border: none; border-bottom: 1px solid var(--line); border-radius: 0; }
 .palette-foot { padding: 9px 18px; border-top: 1px solid var(--line); font-size: 11px; color: var(--muted); display: flex; gap: 16px; background: var(--inset); }
+.palette-sec { padding: 8px 18px 4px; font-size: 10.5px; font-weight: 650; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
 
 .pop { animation: pop .18s cubic-bezier(.3,1.2,.5,1); }
 @keyframes pop { from { opacity: 0; transform: scale(.97) translateY(4px); } to { opacity: 1; transform: none; } }

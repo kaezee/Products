@@ -1191,9 +1191,11 @@ button.chron-more:hover { background: var(--wash); }
 /* §6.3 margin indicator — a moment marks the left margin beside its anchored line
    (never inline; mentions already own inline treatment). Small, quiet, clickable. */
 .prose-wrap.has-marks { padding-left: 22px; }
-.prose-mark { position: absolute; left: 0; width: 16px; height: 18px; padding: 0; margin: 0; border: none; background: none; cursor: pointer; display: flex; align-items: center; justify-content: center; opacity: 0.55; transition: opacity 120ms ease; }
+.prose-mark { position: absolute; left: 0; width: 18px; height: 20px; padding: 0; margin: 0; border: none; background: none; cursor: pointer; display: flex; align-items: center; justify-content: center; opacity: 0.7; transition: opacity 120ms ease; }
 .prose-mark:hover { opacity: 1; background: none; }
-.prose-mark > span { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+/* The ✳ echoes the "✳ Mark a moment" verb, so a margin mark reads as the moment
+   it is; colour carries the valence. */
+.prose-mark > span { font-size: 12px; line-height: 1; color: currentColor; }
 
 /* §4.2 engine offer — inside the Continuity panel only; names a location, one per chapter. */
 .moment-offer { font-size: 12.5px; line-height: 1.5; color: var(--sub); background: var(--inset); border-radius: 9px; padding: 10px 11px; margin-bottom: 12px; display: flex; flex-direction: column; gap: 7px; }

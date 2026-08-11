@@ -71,6 +71,13 @@ const REGISTRY = {
   manuscript: FileText,
   timeline: CalendarClock,
   relationships: Share2,
+  // Custom nav art — used ONLY by the rail (see CUSTOM_ICON). The Lucide values
+  // here are just type/fallback placeholders; the mask always wins.
+  "nav-overview": LayoutDashboard,
+  "nav-write": FileText,
+  "nav-world": LibraryIcon,
+  "nav-relationships": Share2,
+  "nav-timeline": CalendarClock,
   notes: NotebookPen,
   settings: Settings,
   // appearance cycle (paper → white → dark → system)
@@ -141,11 +148,11 @@ export const ICON_SIZE = { sm: 14, md: 16, lg: 18, xl: 20 } as const;
 // set — active state, dark mode, hover all just work. mask-size:contain fits each
 // (non-square) icon into the square slot, preserving its aspect ratio.
 const CUSTOM_ICON: Partial<Record<IconName, string>> = {
-  overview: "/icons/overview.svg",
-  manuscript: "/icons/write.svg",
-  library: "/icons/world.svg",
-  relationships: "/icons/relationship.svg",
-  timeline: "/icons/timeline.svg",
+  "nav-overview": "/icons/overview.svg",
+  "nav-write": "/icons/write.svg",
+  "nav-world": "/icons/world.svg",
+  "nav-relationships": "/icons/relationship.svg",
+  "nav-timeline": "/icons/timeline.svg",
 };
 
 export function Icon({

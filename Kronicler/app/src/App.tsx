@@ -59,13 +59,13 @@ async function sendPendingNote(item: PendingNote): Promise<void> {
 // IA v2 §1: exactly five destinations. Notes is no longer a rail item — it's an
 // anchored object reached through the Write/World panels and Overview.
 const RAIL_CORE: [Scope, string, IconName][] = [
-  ["overview", "Overview", "overview"],
-  ["manuscript", "Write", "manuscript"],
-  ["library", "World", "library"],
+  ["overview", "Overview", "nav-overview"],
+  ["manuscript", "Write", "nav-write"],
+  ["library", "World", "nav-world"],
 ];
 const RAIL_MORE: [Scope, string, IconName][] = [
-  ["relationships", "Relationships", "relationships"],
-  ["timeline", "Timeline", "timeline"],
+  ["relationships", "Relationships", "nav-relationships"],
+  ["timeline", "Timeline", "nav-timeline"],
 ];
 
 // Label + icon per scope, for the breadcrumb trail (settings isn't in the rail).

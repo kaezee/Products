@@ -71,6 +71,13 @@ const REGISTRY = {
   manuscript: FileText,
   timeline: CalendarClock,
   relationships: Share2,
+  // Custom nav art — used ONLY by the rail (see CUSTOM_ICON). The Lucide values
+  // here are just type/fallback placeholders; the mask always wins.
+  "nav-overview": LayoutDashboard,
+  "nav-write": FileText,
+  "nav-world": LibraryIcon,
+  "nav-relationships": Share2,
+  "nav-timeline": CalendarClock,
   notes: NotebookPen,
   settings: Settings,
   // appearance cycle (paper → white → dark → system)
@@ -136,6 +143,18 @@ export type IconName = keyof typeof REGISTRY;
 // Sizes are role-based, not ad hoc. Callers pick a role; the module owns the px.
 export const ICON_SIZE = { sm: 14, md: 16, lg: 18, xl: 20 } as const;
 
+// Custom nav art (user-supplied SVGs in /public/icons). Rendered via CSS mask so
+// the filled shapes still inherit currentColor and theme exactly like the Lucide
+// set — active state, dark mode, hover all just work. mask-size:contain fits each
+// (non-square) icon into the square slot, preserving its aspect ratio.
+const CUSTOM_ICON: Partial<Record<IconName, string>> = {
+  "nav-overview": "/icons/overview.svg",
+  "nav-write": "/icons/write.svg",
+  "nav-world": "/icons/world.svg",
+  "nav-relationships": "/icons/relationship.svg",
+  "nav-timeline": "/icons/timeline.svg",
+};
+
 export function Icon({
   name,
   size = ICON_SIZE.md,
@@ -149,6 +168,25 @@ export function Icon({
   className?: string;
   style?: CSSProperties;
 }) {
+  const custom = CUSTOM_ICON[name];
+  if (custom) {
+    return (
+      <span
+        aria-hidden
+        className={className}
+        style={{
+          display: "inline-block", flex: "0 0 auto",
+          width: size, height: size,
+          background: "currentColor",
+          WebkitMaskImage: `url(${custom})`, maskImage: `url(${custom})`,
+          WebkitMaskRepeat: "no-repeat", maskRepeat: "no-repeat",
+          WebkitMaskPosition: "center", maskPosition: "center",
+          WebkitMaskSize: "contain", maskSize: "contain",
+          ...style,
+        }}
+      />
+    );
+  }
   const Glyph = REGISTRY[name];
   return <Glyph size={size} strokeWidth={strokeWidth} className={className} style={style} aria-hidden />;
 }

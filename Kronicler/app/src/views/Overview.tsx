@@ -373,8 +373,10 @@ export function Overview({ worldId, go }: { worldId: string; go: (n: Nav) => voi
       )}
 
       {/* §3 demonstration checklist — each done step reports what it bought, in
-          real data. No locks. Retires at 4/4 and never returns. */}
-      {!ckRetired && (
+          real data. No locks. Only shown while there's a step left to do, so a
+          pre-populated world (the example a new guest opens) never lands on a
+          fully-checked list. Retires at 4/4 and never returns. */}
+      {!ckRetired && ckCount < 4 && (
         <div className="checklist">
           <div className="checklist-head">
             <span className="checklist-title">Getting started</span>

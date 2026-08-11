@@ -196,6 +196,20 @@ export function Overview({ worldId, go }: { worldId: string; go: (n: Nav) => voi
     });
   }
 
+  // Dismissing a "Worth a look" observation — these aren't errors, and several
+  // are intentional (dramatic irony you meant). Acknowledged ones shouldn't nag,
+  // so hide them per-id. A genuinely new observation is a new id and returns.
+  const [lookHidden, setLookHidden] = useState<Set<string>>(() => {
+    try { return new Set<string>(JSON.parse(localStorage.getItem(`k.look.${worldId}`) || "[]")); } catch { return new Set<string>(); }
+  });
+  function dismissLook(id: string) {
+    setLookHidden((prev) => {
+      const n = new Set(prev); n.add(id);
+      localStorage.setItem(`k.look.${worldId}`, JSON.stringify([...n]));
+      return n;
+    });
+  }
+
   if (err) return <p className="err">{err}</p>;
   if (!stream) return <OverviewSkeleton />;
 
@@ -203,8 +217,11 @@ export function Overview({ worldId, go }: { worldId: string; go: (n: Nav) => voi
   // dormant threads. Reopened moves to Recently; lost anchors become one quiet
   // aggregate line; unconnected entities are not flagged pre-composer at all.
   const dupList = duplicates.filter((d) => !dupKept.has(d.key));
+  const ironyList = ironies.filter((c) => !lookHidden.has("iro:" + c.relId));
+  const dormantList = dormant.filter((s) => !lookHidden.has("dor:" + s.state_id));
+  const absentList = mentions.absent.filter(({ e }) => !lookHidden.has("abs:" + e.id));
   const typeWord = (e: Entity, n: number) => { const t = (e.type || "thing").toLowerCase(); return n === 1 ? t : `${t}s`; };
-  const lookItems = dupList.length + ironies.length + dormant.length + mentions.absent.length;
+  const lookItems = dupList.length + ironyList.length + dormantList.length + absentList.length;
   const LOOK_CAP = lookExpanded ? 99 : 3;
   let lookShown = 0;
   const nextLook = () => (lookShown < LOOK_CAP ? (lookShown++, true) : false);
@@ -453,19 +470,22 @@ export function Overview({ worldId, go }: { worldId: string; go: (n: Nav) => voi
                   <button className="ghost" style={{ fontSize: 11.5, padding: "3px 8px" }} onClick={() => keepBoth(d.key)}>Keep both</button>
                 </div>
               ))}
-              {ironies.map((c) => nextLook() && (
+              {ironyList.map((c) => nextLook() && (
                 <div className="chron-row click" key={"i" + c.relId} onClick={() => go(c.entityId ? { scope: "library", entityId: c.entityId } : { scope: "relationships" })}>
-                  <span>{refsM(c.believerRefs)} see{c.believerRefs.length > 1 ? "" : "s"} it as <span className="iro-tag" style={{ color: "var(--obligation)" }}>{c.belief}</span> — the reader knows it as <span className="iro-tag" style={{ color: "var(--hostile)" }}>{c.truth}</span>.</span>
+                  <span style={{ flex: 1, minWidth: 0 }}>{refsM(c.believerRefs)} see{c.believerRefs.length > 1 ? "" : "s"} it as <span className="iro-tag" style={{ color: "var(--obligation)" }}>{c.belief}</span> — the reader knows it as <span className="iro-tag" style={{ color: "var(--hostile)" }}>{c.truth}</span>.</span>
+                  <button className="chron-x" title="Got it — hide this" onClick={(ev) => { ev.stopPropagation(); dismissLook("iro:" + c.relId); }}>×</button>
                 </div>
               ))}
-              {dormant.map((s) => nextLook() && (
+              {dormantList.map((s) => nextLook() && (
                 <div className="chron-row click" key={"d" + s.state_id} onClick={() => go(s.participants[0]?.entity_id ? { scope: "library", entityId: s.participants[0].entity_id } : { scope: "relationships" })}>
-                  <span>{whoM(s)} · {s.type_label} — untouched for a while.</span>
+                  <span style={{ flex: 1, minWidth: 0 }}>{whoM(s)} · {s.type_label} — untouched for a while.</span>
+                  <button className="chron-x" title="Got it — hide this" onClick={(ev) => { ev.stopPropagation(); dismissLook("dor:" + s.state_id); }}>×</button>
                 </div>
               ))}
-              {mentions.absent.map(({ e, since }) => nextLook() && (
+              {absentList.map(({ e, since }) => nextLook() && (
                 <div className="chron-row click" key={"ab" + e.id} onClick={() => go({ scope: "library", entityId: e.id })}>
-                  <span><Mention name={e.title} swatch={swatchOf(e.id)} /> hasn't appeared since chapter {since}.</span>
+                  <span style={{ flex: 1, minWidth: 0 }}><Mention name={e.title} swatch={swatchOf(e.id)} /> hasn't appeared since chapter {since}.</span>
+                  <button className="chron-x" title="Got it — hide this" onClick={(ev) => { ev.stopPropagation(); dismissLook("abs:" + e.id); }}>×</button>
                 </div>
               ))}
               {!lookExpanded && lookItems > LOOK_CAP && (
@@ -512,32 +532,39 @@ export function Overview({ worldId, go }: { worldId: string; go: (n: Nav) => voi
         </div>
       )}
 
-      {/* Recently — moments in reverse order; reopened threads read as chronicle here (§9) */}
+      {/* Recent moments — recorded changes in reverse order; reopened threads read
+          as chronicle here (§9). Each row opens the chapter it was recorded in. */}
       <div style={{ marginBottom: 18 }}>
-        <div className="label" style={{ marginTop: 0 }}>Recently</div>
+        <div className="label" style={{ marginTop: 0 }}>Recent moments</div>
         <div className="card">
           {recent.length === 0 && contradictions.length === 0 && <div className="row"><span className="muted">No moments yet — select a line in a chapter and record what changes.</span></div>}
-          {contradictions.map((c) => (
-            <div className="row click" key={"re" + c.relId} onClick={() => c.entityId && go({ scope: "library", entityId: c.entityId })}>
+          {contradictions.map((c) => {
+            const chId = chapters.find((ch) => ch.manuscript_order === c.laterCh)?.id;
+            return (
+            <div className="row click" key={"re" + c.relId} onClick={() => go(chId ? { scope: "manuscript", chapterId: chId } : c.entityId ? { scope: "library", entityId: c.entityId } : { scope: "relationships" })}>
               <span className="dot" style={{ background: "var(--hostile)" }} />
               <span style={{ fontWeight: 500 }}>
                 {refsM(c.whoRefs, " · ")} are <span style={{ color: "var(--hostile)", fontWeight: 600 }}>{c.laterLabel}</span> again — they were {c.termLabel} in ch. {c.termCh}.
               </span>
             </div>
-          ))}
-          {recent.slice(0, 3).map((s) => (
-            <div className="row click" key={s.state_id} onClick={() => go(s.participants[0]?.entity_id ? { scope: "library", entityId: s.participants[0].entity_id } : { scope: "relationships" })}>
+            );
+          })}
+          {recent.slice(0, 3).map((s) => {
+            const chId = s.manuscript_order != null ? chapters.find((ch) => ch.manuscript_order === s.manuscript_order)?.id : undefined;
+            return (
+            <div className="row click" key={s.state_id} onClick={() => go(chId ? { scope: "manuscript", chapterId: chId } : s.participants[0]?.entity_id ? { scope: "library", entityId: s.participants[0].entity_id } : { scope: "relationships" })}>
               <span className="dot" style={{ background: VALENCE_COLOR[s.valence] }} />
               <span style={{ fontWeight: 500 }}>
                 {whoM(s)} <span style={{ color: VALENCE_COLOR[s.valence], fontWeight: 600 }}>{s.type_label}</span>
               </span>
               <span className="spacer" />
-              <span className="muted">{s.manuscript_order != null ? `ch. ${s.manuscript_order}` : "—"}</span>
+              <span className="muted">{s.manuscript_order != null ? `ch. ${s.manuscript_order} →` : "—"}</span>
             </div>
-          ))}
+            );
+          })}
           {stream.length > 3 && (
-            <div className="row click" onClick={() => go({ scope: "timeline" })}>
-              <span className="chron-more">See all activity →</span>
+            <div className="row click" onClick={() => go({ scope: "relationships" })}>
+              <span className="chron-more">See all moments →</span>
             </div>
           )}
         </div>

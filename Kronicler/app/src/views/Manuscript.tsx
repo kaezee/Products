@@ -187,6 +187,14 @@ export function Manuscript({ worldId, focusChapterId, openImport, go, onLeaf }: 
 
   const open = openId ? chapters.find((c) => c.id === openId) : null;
 
+  // "Where you stopped" — the furthest-along written chapter, marked in the tree
+  // with the amber marker so the same "you are here" reads across the Overview
+  // grid, this tree, and the Timeline (redesign §7).
+  const resumeId = (() => {
+    const byOrder = [...chapters].sort((a, b) => b.manuscript_order - a.manuscript_order);
+    return (byOrder.find((c) => !c.planned && (c.body || "").trim().length > 0) ?? byOrder.find((c) => !c.planned) ?? byOrder[0])?.id ?? null;
+  })();
+
   const segIds = new Set(segments.map((s) => s.id));
   const chaptersOf = (segId: string) => chapters.filter((c) => c.segment_id === segId);
   const unfiled = chapters.filter((c) => !(c.segment_id && segIds.has(c.segment_id)));
@@ -209,8 +217,9 @@ export function Manuscript({ worldId, focusChapterId, openImport, go, onLeaf }: 
   const chNode = (c: Chapter, depth: number) => {
     const i = gi.get(c.id)!;
     return (
-      <div className={"wt-ch" + (openId === c.id ? " on" : "") + (overIndex === i && dragIndex !== null && dragIndex !== i ? " wt-drop" : "")} key={c.id}
+      <div className={"wt-ch" + (openId === c.id ? " on" : "") + (c.id === resumeId ? " resume" : "") + (overIndex === i && dragIndex !== null && dragIndex !== i ? " wt-drop" : "")} key={c.id}
         draggable
+        title={c.id === resumeId ? "Where you stopped" : undefined}
         onClick={() => setOpenId(c.id)}
         onDragStart={(e) => { setDragIndex(i); e.dataTransfer.effectAllowed = "move"; }}
         onDragEnd={() => { setDragIndex(null); setOverIndex(null); }}

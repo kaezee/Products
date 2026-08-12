@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { getStream, getEntities, getEntityTypes, getRelationshipTypes, getChapters, getNotes, getWorldComments, getWorld } from "../lib/api";
-import type { StreamRow, Entity, EntityType, RelationshipType, Chapter, Note, Comment } from "../lib/types";
+import { useEffect, useMemo, useState, type ReactNode, type CSSProperties } from "react";
+import { getStream, getEntities, getEntityTypes, getRelationshipTypes, getChapters, getNotes, getWorldComments, getWorld, getBands } from "../lib/api";
+import type { StreamRow, Entity, EntityType, RelationshipType, Chapter, Note, Comment, Band } from "../lib/types";
 import { buildTypeSwatches, plural } from "../lib/entityTypes";
 import { Mention } from "../components/Mention";
 import { Explain } from "../components/Explain";
@@ -27,6 +27,7 @@ export function Overview({ worldId, go }: { worldId: string; go: (n: Nav) => voi
   const [entityTypes, setEntityTypes] = useState<EntityType[]>([]);
   const [types, setTypes] = useState<RelationshipType[]>([]);
   const [chapters, setChapters] = useState<Chapter[]>([]);
+  const [bands, setBands] = useState<Band[]>([]);
   const [notes, setNotes] = useState<Note[]>([]);
   const [comments, setComments] = useState<Comment[]>([]);
   const [err, setErr] = useState<string | null>(null);
@@ -46,8 +47,8 @@ export function Overview({ worldId, go }: { worldId: string; go: (n: Nav) => voi
 
   useEffect(() => {
     let alive = true;
-    Promise.all([getStream(worldId), getEntities(worldId), getRelationshipTypes(worldId), getChapters(worldId), getNotes(worldId), getWorldComments(worldId), getWorld(worldId), getEntityTypes(worldId)])
-      .then(([s, e, t, c, n, cm, w, et]) => { if (!alive) return; setStream(s); setEntities(e); setTypes(t); setChapters(c); setNotes(n); setComments(cm); setWorldName(w.name); setEntityTypes(et); })
+    Promise.all([getStream(worldId), getEntities(worldId), getRelationshipTypes(worldId), getChapters(worldId), getNotes(worldId), getWorldComments(worldId), getWorld(worldId), getEntityTypes(worldId), getBands(worldId)])
+      .then(([s, e, t, c, n, cm, w, et, bd]) => { if (!alive) return; setStream(s); setEntities(e); setTypes(t); setChapters(c); setNotes(n); setComments(cm); setWorldName(w.name); setEntityTypes(et); setBands(bd); })
       .catch((x) => alive && setErr(String(x)));
     return () => { alive = false; };
   }, [worldId]);
@@ -169,6 +170,43 @@ export function Overview({ worldId, go }: { worldId: string; go: (n: Nav) => voi
     return { typeBreakdown, entities: entities.length,
       written, total: chapters.length, planned: chapters.length - written, words, relCount, dated };
   }, [entities, chapters, stream]);
+
+  // Manuscript grid (§2): one cell per chapter, shaded by length; books wrap;
+  // the current chapter wears the marker ring. Length banding is percentile-
+  // based — the shade scale only splits into more steps when chapter lengths
+  // actually vary (spread = p90/p10), so an even manuscript stays calm and a
+  // lopsided one shows its peaks. Shades are color-mixes of the ink over the
+  // sunken surface, so the whole grid themes across paper / white / dark.
+  const msGrid = useMemo(() => {
+    const ordered = [...chapters].sort((a, b) => a.manuscript_order - b.manuscript_order);
+    const counts = ordered.filter((c) => !c.planned && (c.body || "").trim())
+      .map((c) => wordsOf(c.body)).sort((a, b) => a - b);
+    const n = counts.length;
+    const q = (p: number) => (n ? counts[Math.min(n - 1, Math.max(0, Math.round(p * (n - 1))))] : 0);
+    const p10 = Math.max(1, q(0.1) || counts.find((x) => x > 0) || 1);
+    const p90 = Math.max(1, q(0.9));
+    const spread = p90 / p10;
+    const nBands = n < 3 || spread < 1.6 ? 1 : spread < 4 ? 3 : 6;
+    const strengths = nBands === 1 ? [0.5] : nBands === 3 ? [0.30, 0.54, 0.80] : [0.16, 0.30, 0.44, 0.58, 0.72, 0.86];
+    const shadeAt = (i: number) => `color-mix(in srgb, var(--ink) ${Math.round(strengths[i] * 100)}%, var(--inset))`;
+    const shadeOf = (w: number) => {
+      let below = 0; for (const c of counts) if (c < w) below++;
+      const idx = nBands === 1 ? 0 : Math.min(nBands - 1, Math.floor((below / Math.max(1, n)) * nBands));
+      return shadeAt(idx);
+    };
+    // Group into books in manuscript order; unbanded chapters trail last.
+    const bookMap = new Map<string, { name: string | null; order: number; chapters: Chapter[] }>();
+    for (const c of ordered) {
+      const key = c.band_id ?? "__none";
+      if (!bookMap.has(key)) {
+        const b = c.band_id ? bands.find((x) => x.id === c.band_id) : null;
+        bookMap.set(key, { name: b?.name ?? null, order: b ? b.band_order : 999, chapters: [] });
+      }
+      bookMap.get(key)!.chapters.push(c);
+    }
+    const books = [...bookMap.values()].sort((a, b) => a.order - b.order);
+    return { books, nBands, strengths, shadeAt, shadeOf, total: ordered.length };
+  }, [chapters, bands]);
 
   // Pick up where you left off: the furthest-along written chapter.
   const continueCh = useMemo(() => {
@@ -413,6 +451,51 @@ export function Overview({ worldId, go }: { worldId: string; go: (n: Nav) => voi
       )}
 
       {<>
+      {/* Manuscript grid (§2): the whole book at a glance. Below 5 chapters it
+          isn't worth drawing — the chapter list already fits in the head. */}
+      {msGrid.total >= 5 && (
+        <section className="ms-grid">
+          <div className="ms-grid-head">
+            <span className="ms-grid-title">Your manuscript</span>
+            <span className="ms-grid-stat">
+              <b>{fmt(stats.written)}</b> chapter{stats.written === 1 ? "" : "s"}{stats.planned > 0 ? ` · ${stats.planned} planned` : ""} · <b>{fmt(stats.words)}</b> words
+            </span>
+            <span className="ms-grid-legend">
+              {msGrid.nBands > 1 && (
+                <>shorter
+                  <span className="ms-legend-scale">
+                    {msGrid.strengths.map((_, i) => <i key={i} style={{ background: msGrid.shadeAt(i) }} />)}
+                  </span>
+                  longer<span aria-hidden> · </span>
+                </>
+              )}
+              <span className="ms-legend-here" /> you are here
+            </span>
+          </div>
+          {msGrid.books.map((bk, bi) => (
+            <div className="ms-book" key={bi}>
+              {msGrid.books.length > 1 && <div className="ms-book-lab">{bk.name ?? "Unsorted"}</div>}
+              <div className="ms-cells">
+                {bk.chapters.map((c) => {
+                  const empty = c.planned || !(c.body || "").trim();
+                  const here = continueCh?.id === c.id;
+                  const w = wordsOf(c.body);
+                  return (
+                    <button
+                      key={c.id}
+                      className={"ms-cell" + (empty ? " empty" : "") + (here ? " here" : "")}
+                      style={empty ? undefined : ({ "--sh": msGrid.shadeOf(w) } as CSSProperties)}
+                      title={`Ch. ${c.manuscript_order} · ${c.title}` + (empty ? " · planned" : ` · ${fmt(w)} words`)}
+                      onClick={() => go({ scope: "manuscript", chapterId: c.id })}
+                    />
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+        </section>
+      )}
+
       {/* World at a glance — cards appear only when earned (§5) */}
       {tiles.length > 0 && <div className="dash-stats">
         {tiles.map((t) => (

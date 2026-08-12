@@ -25,6 +25,8 @@ svg.lucide { display: inline-block; vertical-align: -0.15em; flex: none; }
      Bg = tonal container for selected states — visibly selected now (§5.2). */
   --bond: var(--k-action-text); --bondBg: var(--k-action-container); --bondLine: var(--k-action-ring);
   --bondFill: var(--k-action-fill); --onBondFill: var(--k-on-action-fill); --onBondBg: var(--k-on-action-container);
+  /* "you are here" marker — current chapter across grid / Write tree / Timeline */
+  --marker: var(--k-marker);
   /* Valence: colour is the meaning (text + a derived border). Fills belong to
      the theme — the *Bg here is a canvas-derived tint (no fixed cream), used
      only by non-badge callouts; text-bearing badges take *Line + text, no fill.
@@ -528,6 +530,30 @@ h2.ed-canvas-title, .ed-canvas-input { margin: 0; }
 .dash-continue-lab { font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--bond); }
 .dash-continue-title { font-family: var(--serif); font-size: 18px; font-weight: 600; color: var(--ink); margin: 1px 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .dash-continue-sub { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+/* ── Manuscript grid (Overview redesign §2) — one cell per chapter, shaded by
+   length. The whole book at a glance: where the long chapters are, where the
+   thin ones are, and where you are (the marker ring). Cells inherit the ink
+   scale via color-mix so they theme across paper / white / dark. */
+.ms-grid { margin: 28px 0 20px; }
+.ms-grid-head { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+.ms-grid-title { font-family: var(--serif); font-size: 17px; font-weight: 600; color: var(--ink); }
+.ms-grid-stat { font-size: 12.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.ms-grid-stat b { color: var(--sub); font-weight: 600; }
+.ms-grid-legend { margin-left: auto; display: inline-flex; align-items: center; gap: 8px; font-size: 11px; color: var(--muted); }
+.ms-legend-scale { display: inline-flex; gap: 2px; }
+.ms-legend-scale i { width: 12px; height: 12px; border-radius: 2px; display: inline-block; }
+.ms-legend-here { position: relative; width: 12px; height: 12px; border-radius: 2px; background: var(--inset); box-shadow: 0 0 0 1.5px var(--marker); }
+.ms-book + .ms-book { margin-top: 14px; }
+.ms-book-lab { font-size: 10.5px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); margin-bottom: 7px; }
+.ms-cells { display: flex; flex-wrap: wrap; gap: 4px; }
+.ms-cell { width: 20px; height: 20px; border-radius: 3px; border: none; padding: 0; cursor: pointer; background: var(--sh, var(--inset)); position: relative; transition: transform var(--k-duration-fast,120ms) var(--k-ease,ease), box-shadow var(--k-duration-fast,120ms) var(--k-ease,ease); }
+.ms-cell:hover { transform: translateY(-1px); box-shadow: var(--shadow); }
+.ms-cell:focus-visible { outline: 2px solid var(--bondFill); outline-offset: 2px; }
+/* planned / not-yet-written: an empty slot, structure without ink */
+.ms-cell.empty { background: transparent; border: 1px dashed var(--lineStrong); }
+/* the marker: a ring with a gap, sitting outside the cell so it never recolors
+   the shade it wraps. Distinct in FORM (outline, not fill) from every entity. */
+.ms-cell.here::after { content: ""; position: absolute; inset: -3px; border-radius: 5px; border: 2px solid var(--marker); }
 .dash-cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(340px, 100%), 1fr)); gap: 18px; }
 .dash-count { font-family: var(--k-font-mono); font-size: 11px; font-weight: 600; color: var(--k-on-action-fill); background: var(--k-action-fill); border-radius: 999px; padding: 0 7px; line-height: 17px; }
 

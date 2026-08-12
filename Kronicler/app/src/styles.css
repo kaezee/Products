@@ -25,6 +25,8 @@ svg.lucide { display: inline-block; vertical-align: -0.15em; flex: none; }
      Bg = tonal container for selected states — visibly selected now (§5.2). */
   --bond: var(--k-action-text); --bondBg: var(--k-action-container); --bondLine: var(--k-action-ring);
   --bondFill: var(--k-action-fill); --onBondFill: var(--k-on-action-fill); --onBondBg: var(--k-on-action-container);
+  /* "you are here" marker — current chapter across grid / Write tree / Timeline */
+  --marker: var(--k-marker);
   /* Valence: colour is the meaning (text + a derived border). Fills belong to
      the theme — the *Bg here is a canvas-derived tint (no fixed cream), used
      only by non-badge callouts; text-bearing badges take *Line + text, no fill.
@@ -447,6 +449,9 @@ h2.ed-canvas-title, .ed-canvas-input { margin: 0; }
 .wt-ch { display: flex; align-items: center; gap: 6px; padding: 6px 8px; border-radius: 6px; cursor: pointer; color: var(--sub); font-size: 13px; }
 .wt-ch:hover { background: var(--wash); }
 .wt-ch.on { background: var(--bondBg); color: var(--bond); font-weight: 600; }
+/* "Where you stopped" — an amber left accent, the same marker the Overview grid
+   and Timeline use. Layers over the open/selected state via inset shadow. */
+.wt-ch.resume { box-shadow: inset 2.5px 0 0 var(--marker); }
 /* Drag-to-reorder: highlight the drop target as a soft zone, not a hairline stroke. */
 .wt-ch.wt-drop { background: color-mix(in srgb, var(--bond) 14%, transparent); color: var(--bond); }
 .wt-ch > svg { color: var(--faint); flex: 0 0 auto; }
@@ -528,6 +533,58 @@ h2.ed-canvas-title, .ed-canvas-input { margin: 0; }
 .dash-continue-lab { font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--bond); }
 .dash-continue-title { font-family: var(--serif); font-size: 18px; font-weight: 600; color: var(--ink); margin: 1px 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .dash-continue-sub { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+/* ── Manuscript grid (Overview redesign §2) — one cell per chapter, shaded by
+   length. The whole book at a glance: where the long chapters are, where the
+   thin ones are, and where you are (the marker ring). Cells inherit the ink
+   scale via color-mix so they theme across paper / white / dark. */
+/* Alert strip (§5) — orphaned moments, capped. A quiet warning tint, full-width
+   and clickable, sitting above the grid. */
+.ms-alert { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; margin: 0 0 18px; padding: 11px 14px; border-radius: 12px; cursor: pointer; font-size: 13px; font-weight: 500; color: var(--k-on-system-error-container); background: var(--k-system-error-container); border: 1px solid color-mix(in srgb, var(--k-system-error) 26%, transparent); transition: border-color var(--k-duration-fast,120ms) var(--k-ease,ease); }
+.ms-alert:hover { border-color: color-mix(in srgb, var(--k-system-error) 44%, transparent); }
+.ms-alert > .icon, .ms-alert svg { color: var(--k-system-error); flex: 0 0 auto; }
+.ms-alert-fix { font-weight: 600; text-decoration: underline; text-underline-offset: 2px; flex: 0 0 auto; }
+/* The grid lives inside a card on the canvas. Cells are tints of the woad
+   action colour (the brand blue) — the manuscript IS the point, so it wears the
+   primary hue; the marker is amber, its complement. */
+.ms-grid { margin: 0 0 18px; padding: 18px 20px 16px; }
+.ms-grid-head { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+.ms-grid-title { display: inline-flex; align-items: center; gap: 5px; font: 700 11px/1.4 var(--sans); letter-spacing: .09em; text-transform: uppercase; color: var(--muted); }
+.ms-grid-stat { font-size: 12.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.ms-grid-stat b { color: var(--sub); font-weight: 600; }
+.ms-grid-tools { margin-left: auto; display: inline-flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.ms-lens { display: inline-flex; padding: 2px; gap: 2px; background: var(--inset); border: 1px solid var(--line); border-radius: 8px; }
+.ms-lens-btn { font-size: 11.5px; font-weight: 600; color: var(--muted); background: none; border: none; border-radius: 6px; padding: 3px 9px; cursor: pointer; transition: background var(--k-duration-fast,120ms) var(--k-ease,ease), color var(--k-duration-fast,120ms) var(--k-ease,ease); }
+.ms-lens-btn:hover { color: var(--sub); }
+.ms-lens-btn.on { background: var(--bondBg); color: var(--bond); box-shadow: var(--shadow); }
+.ms-book + .ms-book { margin-top: 16px; }
+.ms-book-lab { font-size: 10.5px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); margin-bottom: 8px; }
+.ms-book-lab b { color: var(--sub); font-weight: 700; }
+.ms-book-lab .ms-book-meta { color: var(--muted); font-weight: 600; letter-spacing: 0; }
+.ms-cells { display: flex; flex-wrap: wrap; gap: 5px; }
+.ms-cell { width: 22px; height: 22px; border-radius: 4px; border: none; padding: 0; cursor: pointer; background: var(--sh, var(--bondBg)); position: relative; transition: transform var(--k-duration-fast,120ms) var(--k-ease,ease), box-shadow var(--k-duration-fast,120ms) var(--k-ease,ease); }
+.ms-cell:hover { transform: translateY(-1px); box-shadow: var(--shadow); }
+.ms-cell:focus-visible { outline: 2px solid var(--bondFill); outline-offset: 2px; }
+/* planned / not-yet-written: an empty slot, structure without ink */
+.ms-cell.empty { background: transparent; border: 1px dashed var(--lineStrong); }
+/* a moment that no longer matches its chapter — a small warning dot in the corner */
+.ms-cell.flag::before { content: ""; position: absolute; top: -2px; right: -2px; width: 7px; height: 7px; border-radius: 50%; background: var(--k-system-error); box-shadow: 0 0 0 1.5px var(--surface); z-index: 1; }
+/* the marker: an amber ring outside the cell so it never recolors the shade it
+   wraps — the complement of the blue cells, distinct in form (outline) too. */
+.ms-cell.here::after { content: ""; position: absolute; inset: -3px; border-radius: 6px; border: 2px solid var(--marker); }
+/* legend along the bottom of the grid card */
+.ms-legend { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--line); font-size: 11px; color: var(--muted); }
+.ms-legend-item { display: inline-flex; align-items: center; gap: 6px; }
+.ms-legend-scale { display: inline-flex; gap: 2px; }
+.ms-legend-scale i { width: 12px; height: 12px; border-radius: 2px; display: inline-block; }
+.ms-legend-planned { width: 12px; height: 12px; border-radius: 2px; border: 1px dashed var(--lineStrong); }
+.ms-legend-here { position: relative; width: 12px; height: 12px; border-radius: 3px; background: var(--bondBg); box-shadow: 0 0 0 1.5px var(--marker); }
+/* hover/tap card (§3) — one popover for the whole grid, portaled to <body> */
+.ms-card { min-width: 168px; max-width: 240px; background: var(--raised); border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--pop); padding: 11px 13px 11px; }
+.ms-card-ch { font-size: 10.5px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.ms-card-title { font-family: var(--serif); font-size: 15px; font-weight: 600; color: var(--ink); margin: 1px 0 3px; line-height: 1.25; }
+.ms-card-meta { font-size: 12px; color: var(--sub); font-variant-numeric: tabular-nums; }
+.ms-card-open { margin-top: 9px; display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 600; color: var(--bond); background: none; border: none; padding: 0; cursor: pointer; }
+.ms-card-open:hover { text-decoration: underline; }
 .dash-cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(340px, 100%), 1fr)); gap: 18px; }
 .dash-count { font-family: var(--k-font-mono); font-size: 11px; font-weight: 600; color: var(--k-on-action-fill); background: var(--k-action-fill); border-radius: 999px; padding: 0 7px; line-height: 17px; }
 
@@ -933,6 +990,9 @@ button.danger:hover:not(:disabled) { filter: brightness(0.93); background: var(-
 .wt2-chband:hover { filter: brightness(0.97); box-shadow: 0 0 0 2px color-mix(in srgb, var(--sw) 30%, transparent); }
 .wt2-chband.hatch { background-image: repeating-linear-gradient(45deg, transparent 0 3px, color-mix(in srgb, var(--sw) 20%, transparent) 3px 5px); }
 .wt2-chband.planned { border-style: dashed; background-color: color-mix(in srgb, var(--sw) 6%, var(--surface)); }
+/* "Where you stopped" — the amber marker, as an outline so it survives the
+   band's overflow-hidden and coexists with the hover ring. */
+.wt2-chband.resume { outline: 2px solid var(--marker); outline-offset: 1px; }
 .wt2-chlab { font-size: 9px; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .wt2-knownedge { position: absolute; top: 32px; bottom: 0; width: 0; border-left: 2px dashed color-mix(in srgb, var(--hostile) 45%, transparent); z-index: 4; pointer-events: none; }
 .wt2-loose-lab { position: absolute; left: 6px; font-size: 9px; text-transform: uppercase; letter-spacing: .05em; color: var(--faint); z-index: 2; }

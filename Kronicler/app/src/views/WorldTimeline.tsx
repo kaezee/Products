@@ -460,6 +460,15 @@ export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) =
     animRef.current = requestAnimationFrame(step);
   }
 
+  // "Where you stopped" — the furthest-along written chapter, marked with the
+  // amber marker so it reads the same on the Overview grid, the Write tree, and
+  // here (redesign §7).
+  const resumeId = (() => {
+    if (!chapters.length) return null;
+    const byOrder = [...chapters].sort((x, y) => y.manuscript_order - x.manuscript_order);
+    return (byOrder.find((c) => !c.planned && (c.body || "").trim().length > 0) ?? byOrder.find((c) => !c.planned) ?? byOrder[0])?.id ?? null;
+  })();
+
   // A dated chapter's band. Year/month precision → hatched band across its whole
   // span; day precision → a solid mark. Colour from its segment's swatch.
   const chapterBand = (c: Chapter, sw: string, top: number, showTitle: boolean) => {
@@ -469,9 +478,9 @@ export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) =
     const hatched = !ms && c.time_precision !== "day";
     const num = c.planned ? "✎" : String(c.manuscript_order).padStart(2, "0");
     return (
-      <div key={c.id} className={"wt2-chband" + (hatched ? " hatch" : "") + (c.planned ? " planned" : "")}
+      <div key={c.id} className={"wt2-chband" + (hatched ? " hatch" : "") + (c.planned ? " planned" : "") + (c.id === resumeId ? " resume" : "")}
         style={{ left: x1, width: w, top, ["--sw" as string]: `var(--k-entity-${sw})` }}
-        title={`${c.planned ? "planned · " : ""}${c.title}${c.story_time_label ? " · " + c.story_time_label : ""}`}
+        title={`${c.id === resumeId ? "where you stopped · " : ""}${c.planned ? "planned · " : ""}${c.title}${c.story_time_label ? " · " + c.story_time_label : ""}`}
         onClick={() => go({ scope: "manuscript", chapterId: c.id })}>
         <span className="wt2-chlab">{showTitle ? `${num} ${trunc(c.title, 14)}` : num}</span>
       </div>

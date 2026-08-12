@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { getStream, getEntities, getEntityTypes, getRelationshipTypes, getChapters, getNotes, getWorldComments, getWorld } from "../lib/api";
-import type { StreamRow, Entity, EntityType, RelationshipType, Chapter, Note, Comment } from "../lib/types";
-import { buildTypeSwatches, plural } from "../lib/entityTypes";
+import { useEffect, useMemo, useRef, useState, type ReactNode, type CSSProperties } from "react";
+import { createPortal } from "react-dom";
+import { getStream, getEntities, getEntityTypes, getRelationshipTypes, getChapters, getNotes, getWorldComments, getWorld, getBands } from "../lib/api";
+import type { StreamRow, Entity, EntityType, RelationshipType, Chapter, Note, Comment, Band } from "../lib/types";
+import { buildTypeSwatches } from "../lib/entityTypes";
 import { Mention } from "../components/Mention";
 import { Explain } from "../components/Explain";
 import { detectMentions } from "../lib/mentions";
@@ -10,13 +11,17 @@ import { findIssues } from "../lib/continuity";
 import { findDuplicates } from "../lib/dedupe";
 import type { Nav } from "../App";
 import { VALENCE_COLOR } from "../lib/valence";
-import { Icon, type IconName } from "../components/icons";
+import { Icon } from "../components/icons";
 import { Skeleton } from "../components/Skeleton";
 
 const DORMANT_GAP = 5;
 
 const wordsOf = (body: string) => (body || "").replace(/<[^>]*>/g, " ").trim().split(/\s+/).filter(Boolean).length;
 const fmt = (n: number) => n.toLocaleString();
+// Spell small counts (the alert reads "Two moments…", not "2 moments…"); numbers
+// past twelve stay numeric — but the alert caps at twelve anyway.
+const WORDS = ["Zero", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine", "Ten", "Eleven", "Twelve"];
+const cap = (n: number) => WORDS[n] ?? String(n);
 
 // Overview — the world's home. Orients (a row of at-a-glance stats), launches
 // (pick up where you left off), and flags what needs attention. Owns nothing,
@@ -27,11 +32,11 @@ export function Overview({ worldId, go }: { worldId: string; go: (n: Nav) => voi
   const [entityTypes, setEntityTypes] = useState<EntityType[]>([]);
   const [types, setTypes] = useState<RelationshipType[]>([]);
   const [chapters, setChapters] = useState<Chapter[]>([]);
+  const [bands, setBands] = useState<Band[]>([]);
   const [notes, setNotes] = useState<Note[]>([]);
   const [comments, setComments] = useState<Comment[]>([]);
   const [err, setErr] = useState<string | null>(null);
   const [worldName, setWorldName] = useState("");
-  const [lookExpanded, setLookExpanded] = useState(false); // §Overview: "Show more" in Worth a look
   // §3 demonstration checklist: retires permanently at 4/4 and never returns.
   const [ckRetired] = useState(() => localStorage.getItem(`k.checklist.${worldId}`) === "1");
 
@@ -46,8 +51,8 @@ export function Overview({ worldId, go }: { worldId: string; go: (n: Nav) => voi
 
   useEffect(() => {
     let alive = true;
-    Promise.all([getStream(worldId), getEntities(worldId), getRelationshipTypes(worldId), getChapters(worldId), getNotes(worldId), getWorldComments(worldId), getWorld(worldId), getEntityTypes(worldId)])
-      .then(([s, e, t, c, n, cm, w, et]) => { if (!alive) return; setStream(s); setEntities(e); setTypes(t); setChapters(c); setNotes(n); setComments(cm); setWorldName(w.name); setEntityTypes(et); })
+    Promise.all([getStream(worldId), getEntities(worldId), getRelationshipTypes(worldId), getChapters(worldId), getNotes(worldId), getWorldComments(worldId), getWorld(worldId), getEntityTypes(worldId), getBands(worldId)])
+      .then(([s, e, t, c, n, cm, w, et, bd]) => { if (!alive) return; setStream(s); setEntities(e); setTypes(t); setChapters(c); setNotes(n); setComments(cm); setWorldName(w.name); setEntityTypes(et); setBands(bd); })
       .catch((x) => alive && setErr(String(x)));
     return () => { alive = false; };
   }, [worldId]);
@@ -144,7 +149,6 @@ export function Overview({ worldId, go }: { worldId: string; go: (n: Nav) => voi
     const nameOf = (id: string) => entities.find((e) => e.id === id)?.title ?? "someone";
     return findIssues(stream, types, nameOf);
   }, [stream, types, entities]);
-  const contradictions = useMemo(() => issues.flatMap((i) => i.kind === "reopened" ? [i] : []), [issues]);
   const orphaned = useMemo(() => issues.flatMap((i) => i.kind === "orphaned-anchor" ? [i] : []), [issues]);
   const ironies = useMemo(() => issues.flatMap((i) => i.kind === "belief-clash" ? [i] : []), [issues]);
   const duplicates = useMemo(() => findDuplicates(entities), [entities]);
@@ -169,6 +173,111 @@ export function Overview({ worldId, go }: { worldId: string; go: (n: Nav) => voi
     return { typeBreakdown, entities: entities.length,
       written, total: chapters.length, planned: chapters.length - written, words, relCount, dated };
   }, [entities, chapters, stream]);
+
+  // Moments recorded in each chapter, keyed by manuscript order — powers the
+  // Moments lens (§4) and the hover/tap card's count (§3).
+  const momentsByOrder = useMemo(() => {
+    const m = new Map<number, number>();
+    for (const s of stream ?? []) if (s.manuscript_order != null) m.set(s.manuscript_order, (m.get(s.manuscript_order) ?? 0) + 1);
+    return m;
+  }, [stream]);
+
+  // Problems — moments that no longer match the prose (§5/§7). Two kinds: a
+  // moment recorded in a chapter that's since been blanked or set back to
+  // planned (locatable → a red dot on that cell), and orphaned anchors whose
+  // chapter was deleted (not locatable). The alert strip counts both; the grid
+  // dots only the locatable ones.
+  const problems = useMemo(() => {
+    const chByOrder = new Map<number, Chapter>();
+    for (const c of chapters) chByOrder.set(c.manuscript_order, c);
+    const driftOrders = new Set<number>();
+    let count = 0;
+    for (const s of stream ?? []) {
+      if (s.manuscript_order == null) continue;
+      const ch = chByOrder.get(s.manuscript_order);
+      if (ch && (ch.planned || !(ch.body || "").trim())) { driftOrders.add(s.manuscript_order); count++; }
+    }
+    return { driftOrders, count: count + orphaned.length };
+  }, [stream, chapters, orphaned]);
+
+  // Which metric colours the grid (§4). Length = how much is written; Moments =
+  // how much happens (recorded changes). A personal default per world.
+  const [lens, setLens] = useState<"length" | "moments">(() =>
+    (localStorage.getItem(`k.lens.${worldId}`) as "length" | "moments") || "length");
+  useEffect(() => { localStorage.setItem(`k.lens.${worldId}`, lens); }, [lens, worldId]);
+
+  // Manuscript grid (§2/§4): one cell per chapter, shaded by the active lens;
+  // books wrap; the current chapter wears the marker ring. Banding is
+  // percentile-based — the shade scale only splits into more steps (1 / 3 / 6)
+  // when values actually vary (spread = p90/p10), so an even manuscript stays
+  // calm and a lopsided one shows its peaks. Shades are tints of the woad action
+  // colour over the card surface, so the manuscript wears the brand blue and the
+  // amber marker reads as its complement; the whole grid themes across themes.
+  const msGrid = useMemo(() => {
+    const ordered = [...chapters].sort((a, b) => a.manuscript_order - b.manuscript_order);
+    const written = ordered.filter((c) => !c.planned && (c.body || "").trim());
+    const shadeAt = (strengths: number[], i: number) => `color-mix(in srgb, var(--k-action-fill) ${Math.round(strengths[i] * 100)}%, var(--surface))`;
+    // Build a banded shade function from a set of per-chapter values.
+    const band = (valueOf: (c: Chapter) => number) => {
+      const counts = written.map(valueOf).sort((a, b) => a - b);
+      const n = counts.length;
+      const q = (p: number) => (n ? counts[Math.min(n - 1, Math.max(0, Math.round(p * (n - 1))))] : 0);
+      const p10 = Math.max(1, q(0.1) || counts.find((x) => x > 0) || 1);
+      const p90 = Math.max(1, q(0.9));
+      const spread = p90 / p10;
+      const nBands = n < 3 || spread < 1.6 ? 1 : spread < 4 ? 3 : 6;
+      const strengths = nBands === 1 ? [0.55] : nBands === 3 ? [0.28, 0.52, 0.82] : [0.16, 0.30, 0.45, 0.61, 0.78, 0.92];
+      const shadeOf = (c: Chapter) => {
+        const v = valueOf(c);
+        let below = 0; for (const x of counts) if (x < v) below++;
+        const idx = nBands === 1 ? 0 : Math.min(nBands - 1, Math.floor((below / Math.max(1, n)) * nBands));
+        return shadeAt(strengths, idx);
+      };
+      return { nBands, strengths, shadeOf, shadeAt: (i: number) => shadeAt(strengths, i) };
+    };
+    const byLens = {
+      length: band((c) => wordsOf(c.body)),
+      moments: band((c) => momentsByOrder.get(c.manuscript_order) ?? 0),
+    };
+    // Group into books in manuscript order; unbanded chapters trail last.
+    const bookMap = new Map<string, { name: string | null; order: number; chapters: Chapter[] }>();
+    for (const c of ordered) {
+      const key = c.band_id ?? "__none";
+      if (!bookMap.has(key)) {
+        const b = c.band_id ? bands.find((x) => x.id === c.band_id) : null;
+        bookMap.set(key, { name: b?.name ?? null, order: b ? b.band_order : 999, chapters: [] });
+      }
+      bookMap.get(key)!.chapters.push(c);
+    }
+    const books = [...bookMap.values()].sort((a, b) => a.order - b.order).map((bk) => {
+      const written = bk.chapters.filter((c) => !c.planned && (c.body || "").trim());
+      const words = written.reduce((n, c) => n + wordsOf(c.body), 0);
+      return { ...bk, count: bk.chapters.length, words, started: written.length > 0 };
+    });
+    return { books, byLens, total: ordered.length };
+  }, [chapters, bands, momentsByOrder]);
+  const activeBand = msGrid.byLens[lens];
+
+  // Grid hover/tap card (§3): one popover for the whole grid. Hover a cell to
+  // peek; click to pin (so touch works too); the card carries the way in. Same
+  // hover-grace + pin model as the Explain dot.
+  const [card, setCard] = useState<{ ch: Chapter; x: number; y: number } | null>(null);
+  const cardPin = useRef(false);
+  const cardHideT = useRef<number | undefined>(undefined);
+  const openCard = (ch: Chapter, el: HTMLElement) => {
+    window.clearTimeout(cardHideT.current);
+    const r = el.getBoundingClientRect();
+    setCard({ ch, x: r.left + r.width / 2, y: r.top });
+  };
+  const hideCard = () => { if (!cardPin.current) cardHideT.current = window.setTimeout(() => setCard(null), 120); };
+  useEffect(() => {
+    if (!card) return;
+    const onDown = (e: MouseEvent) => { if (!(e.target as HTMLElement).closest(".ms-cell,.ms-card")) { cardPin.current = false; setCard(null); } };
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") { cardPin.current = false; setCard(null); } };
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => { document.removeEventListener("mousedown", onDown); document.removeEventListener("keydown", onKey); };
+  }, [card]);
 
   // Pick up where you left off: the furthest-along written chapter.
   const continueCh = useMemo(() => {
@@ -213,45 +322,27 @@ export function Overview({ worldId, go }: { worldId: string; go: (n: Nav) => voi
   if (err) return <p className="err">{err}</p>;
   if (!stream) return <OverviewSkeleton />;
 
-  // Worth a look (§9 rulings): honest duplicate questions, dramatic irony, and
-  // dormant threads. Reopened moves to Recently; lost anchors become one quiet
-  // aggregate line; unconnected entities are not flagged pre-composer at all.
+  // Worth a look (§6): narrowed to the two observations that are genuinely about
+  // the story and worth interrupting for — honest duplicate questions and
+  // dramatic irony. Dormant threads and absent cast move to the World view's
+  // dormancy lens (§7); reopened threads read as Recently; orphaned anchors are
+  // the alert strip (§5). Capped at three, no "show more".
+  const LOOK_CAP = 3;
   const dupList = duplicates.filter((d) => !dupKept.has(d.key));
   const ironyList = ironies.filter((c) => !lookHidden.has("iro:" + c.relId));
-  const dormantList = dormant.filter((s) => !lookHidden.has("dor:" + s.state_id));
-  const absentList = mentions.absent.filter(({ e }) => !lookHidden.has("abs:" + e.id));
+  const dupShow = dupList.slice(0, LOOK_CAP);
+  const ironyShow = ironyList.slice(0, Math.max(0, LOOK_CAP - dupShow.length));
+  const lookItems = dupShow.length + ironyShow.length;
   const typeWord = (e: Entity, n: number) => { const t = (e.type || "thing").toLowerCase(); return n === 1 ? t : `${t}s`; };
-  const lookItems = dupList.length + ironyList.length + dormantList.length + absentList.length;
-  const LOOK_CAP = lookExpanded ? 99 : 3;
-  let lookShown = 0;
-  const nextLook = () => (lookShown < LOOK_CAP ? (lookShown++, true) : false);
 
-  // Subtitle = the cast. Chapters, words, and moments live in the stat cards
-  // below, so keeping them out of the subtitle avoids echoing the cards. Only
-  // when there's no cast yet does it fall back to the manuscript's size.
-  const castBits: string[] = [];
-  for (const [type, n] of stats.typeBreakdown) castBits.push(`${n} ${n === 1 ? type : plural(type)}`);
+  // Subtitle = the manuscript's size, and only when the grid isn't drawn (§7).
+  // Cast and world shape move to the World view; chapters/words/moments live in
+  // the grid header, so once the grid is present the subtitle would just echo it.
   const sizeBits = [
     stats.written ? (stats.planned > 0 ? `${stats.written} of ${stats.total} chapters` : `${stats.written} chapter${stats.written === 1 ? "" : "s"}`) : null,
     stats.words ? `${fmt(stats.words)} words` : null,
   ].filter(Boolean) as string[];
-  const shape = castBits.length ? castBits.join(" · ")
-    : sizeBits.length ? sizeBits.join(" · ")
-    : "A new world — nothing in it yet. Start below.";
-
-  // §5 cards: each appears only when it has something to report (never a zero,
-  // never a denominator). A new project earns them one at a time.
-  const planned = chapters.filter((c) => c.planned).length;
-  type Tile = { key: string; icon: IconName; label: string; value: string; sub?: string; nav: Nav };
-  const tiles: Tile[] = ([
-    stats.words   && { key: "words", icon: "words", label: "Words", value: fmt(stats.words), nav: { scope: "manuscript" } },
-    // Chapter status lives on the Chapters card — "N written · M planned" — not
-    // as a stray subtext line under the story observations.
-    stats.written && { key: "chapters", icon: "manuscript", label: "Chapters", value: fmt(stats.written), sub: planned > 0 ? `written · ${planned} planned` : "written", nav: { scope: "manuscript" } },
-    stream.length && { key: "moments", icon: "asterisk", label: "Moments", value: fmt(stream.length), sub: "recorded", nav: { scope: "relationships" } },
-    // "Your world" is dropped: the subtitle already states cast + places, so a
-    // fourth stat card just repeats it. Three cards, per the settled composition.
-  ] as (Tile | 0 | "")[]).filter(Boolean) as Tile[];
+  const shape = sizeBits.length ? sizeBits.join(" · ") : "A new world — nothing in it yet. Start below.";
 
 
   // A brand-new world has nothing to orient, continue, or flag — so the stats,
@@ -382,7 +473,7 @@ export function Overview({ worldId, go }: { worldId: string; go: (n: Nav) => voi
   return (
     <div className="fi">
       <h2 className="scope-title">Overview</h2>
-      <p className="scope-sub">{shape}</p>
+      {msGrid.total < 5 && <p className="scope-sub">{shape}</p>}
 
       {/* §4.1 one orientation sentence after 1–3 weeks away */}
       {away === "orient" && continueCh && (
@@ -413,29 +504,21 @@ export function Overview({ worldId, go }: { worldId: string; go: (n: Nav) => voi
       )}
 
       {<>
-      {/* World at a glance — cards appear only when earned (§5) */}
-      {tiles.length > 0 && <div className="dash-stats">
-        {tiles.map((t) => (
-          <button key={t.key} className="stat" onClick={() => go(t.nav)}>
-            <span className="stat-top"><Icon name={t.icon} size={13} /><span className="stat-lab">{t.label}</span></span>
-            <span className="stat-num">{t.value}</span>
-            {t.sub && <span className="stat-sub">{t.sub}</span>}
-          </button>
-        ))}
-      </div>}
-
-      {/* Continue writing / launchpad */}
+      {/* Resume card sits at the very top (§5): the one thing a returning writer
+          most wants is the way back into their prose. */}
       <div className="dash-continue">
-        <span className="dash-continue-ic"><Icon name="write" size={20} /></span>
+        <span className="dash-continue-ic"><Icon name="feather" size={20} /></span>
         {continueCh ? (
           <>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div className="dash-continue-lab">Pick up where you left off<Explain term="Pick up where you left off">A shortcut back to the furthest chapter you’ve been writing, so you can resume in one click.</Explain></div>
               <div className="dash-continue-title">{continueCh.title}</div>
-              <div className="dash-continue-sub">ch. {continueCh.manuscript_order} · {fmt(wordsOf(continueCh.body))} words</div>
+              <div className="dash-continue-sub">
+                {(() => { const bn = continueCh.band_id ? bands.find((b) => b.id === continueCh.band_id)?.name : null; return bn ? `${bn} · ` : ""; })()}
+                chapter {continueCh.manuscript_order} · {fmt(wordsOf(continueCh.body))} words
+              </div>
             </div>
-            <button className="primary" onClick={() => go({ scope: "manuscript", chapterId: continueCh.id })}
-              style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>Open chapter <Icon name="arrow" size={14} /></button>
+            <button className="primary" onClick={() => go({ scope: "manuscript", chapterId: continueCh.id })}>Keep writing</button>
           </>
         ) : (
           <>
@@ -450,125 +533,171 @@ export function Overview({ worldId, go }: { worldId: string; go: (n: Nav) => voi
         )}
       </div>
 
-      {/* The chronicle — ONE card holding the observations (Worth a look) and the
-          writer's own notes (What you left yourself), divided by a rule, with the
-          notes as wells recessed inside the card (§4 ladder: canvas → card → well;
-          §9 cards on canvas, one container per group). */}
-      {(lookItems > 0 || planned > 0 || orphaned.length > 0 || openComments.length > 0 || recentNotes.length > 0) && (
-        <div className="card chronicle" style={{ marginBottom: 18 }}>
-          {(lookItems > 0 || planned > 0 || orphaned.length > 0) && (
-            <div className="chron-sec">
-              <div className="chron-lab">Worth a look<Explain term="Worth a look">Things Kronicler noticed in your story that might want attention — dramatic irony, gaps, duplicate names. Observations, not errors.</Explain></div>
-              {dupList.map((d) => nextLook() && (
-                <div className="chron-row" key={"dup" + d.key}>
-                  <span style={{ flex: 1, minWidth: 0 }}>
-                    {d.reason === "same-name"
-                      ? <>{d.entities.length === 2 ? "Two" : d.entities.length} {typeWord(d.entities[0], d.entities.length)} are called <Mention name={d.entities[0].title} swatch={swatchOf(d.entities[0].id)} />. Same {typeWord(d.entities[0], 1)}, or {d.entities.length === 2 ? "two" : "separate"}?</>
-                      : <><Mention name={d.entities[0].title} swatch={swatchOf(d.entities[0].id)} /> is a {typeWord(d.entities[0], 1)} of its own, and also an alias of <Mention name={d.entities[1].title} swatch={swatchOf(d.entities[1].id)} />. Same thing, or two?</>}
-                  </span>
-                  <button className="ghost" style={{ fontSize: 11.5, padding: "3px 8px" }} onClick={() => go({ scope: "library", entityId: d.entities[0].id })}>Merge</button>
-                  <button className="ghost" style={{ fontSize: 11.5, padding: "3px 8px" }} onClick={() => keepBoth(d.key)}>Keep both</button>
+      {/* Alert strip (§5): moments that no longer match the prose — a chapter
+          blanked, set back to planned, or deleted. Capped at 12 — past that the
+          exact number stops helping and would only alarm, so it reads "Some". */}
+      {problems.count > 0 && (
+        <button className="ms-alert" onClick={() => go({ scope: "relationships" })}>
+          <Icon name="alert" size={15} />
+          <span>{problems.count <= 12 ? `${cap(problems.count)} moment${problems.count === 1 ? "" : "s"} no longer match your writing.` : "Some moments no longer match your writing."}</span>
+          <span className="spacer" style={{ flex: 1 }} />
+          <span className="ms-alert-fix">Fix</span>
+        </button>
+      )}
+
+      {/* Manuscript grid (§2): the whole book at a glance. Below 5 chapters it
+          isn't worth drawing — the chapter list already fits in the head. */}
+      {msGrid.total >= 5 && (
+        <section className="card ms-grid">
+          <div className="ms-grid-head">
+            <span className="ms-grid-title">The manuscript<Explain term="The manuscript">Every chapter, as one cell — shaded by how long it is (or, on the Moments lens, by how much happens in it). Books wrap; the amber ring is where you stopped.</Explain></span>
+            <span className="ms-grid-stat">
+              <b>{fmt(stats.written)}</b> chapter{stats.written === 1 ? "" : "s"}{stats.planned > 0 ? ` · ${stats.planned} planned` : ""} · <b>{fmt(stats.words)}</b> words{stream.length > 0 ? <> · <b>{fmt(stream.length)}</b> moment{stream.length === 1 ? "" : "s"}</> : null}
+            </span>
+            {/* Lens toggle (§4) — colour by how much is written, or by how much
+                happens. Only offered once there are moments to show. */}
+            {stream.length > 0 && (
+              <span className="ms-grid-tools">
+                <span className="ms-lens" role="tablist" aria-label="Colour the grid by">
+                  <button role="tab" aria-selected={lens === "length"} className={"ms-lens-btn" + (lens === "length" ? " on" : "")} onClick={() => setLens("length")}>Length</button>
+                  <button role="tab" aria-selected={lens === "moments"} className={"ms-lens-btn" + (lens === "moments" ? " on" : "")} onClick={() => setLens("moments")}>Moments</button>
+                </span>
+              </span>
+            )}
+          </div>
+          {msGrid.books.map((bk, bi) => (
+            <div className="ms-book" key={bi}>
+              {msGrid.books.length > 1 && (
+                <div className="ms-book-lab">
+                  {bk.name ?? "Unsorted"} <span className="ms-book-meta">{bk.count}{bk.started ? ` · ${fmt(bk.words)}w` : " · not started"}</span>
                 </div>
-              ))}
-              {ironyList.map((c) => nextLook() && (
-                <div className="chron-row click" key={"i" + c.relId} onClick={() => go(c.entityId ? { scope: "library", entityId: c.entityId } : { scope: "relationships" })}>
-                  <span style={{ flex: 1, minWidth: 0 }}>{refsM(c.believerRefs)} see{c.believerRefs.length > 1 ? "" : "s"} it as <span className="iro-tag" style={{ color: "var(--obligation)" }}>{c.belief}</span> — the reader knows it as <span className="iro-tag" style={{ color: "var(--hostile)" }}>{c.truth}</span>.</span>
-                  <button className="chron-x" title="Got it — hide this" onClick={(ev) => { ev.stopPropagation(); dismissLook("iro:" + c.relId); }}>×</button>
-                </div>
-              ))}
-              {dormantList.map((s) => nextLook() && (
-                <div className="chron-row click" key={"d" + s.state_id} onClick={() => go(s.participants[0]?.entity_id ? { scope: "library", entityId: s.participants[0].entity_id } : { scope: "relationships" })}>
-                  <span style={{ flex: 1, minWidth: 0 }}>{whoM(s)} · {s.type_label} — untouched for a while.</span>
-                  <button className="chron-x" title="Got it — hide this" onClick={(ev) => { ev.stopPropagation(); dismissLook("dor:" + s.state_id); }}>×</button>
-                </div>
-              ))}
-              {absentList.map(({ e, since }) => nextLook() && (
-                <div className="chron-row click" key={"ab" + e.id} onClick={() => go({ scope: "library", entityId: e.id })}>
-                  <span style={{ flex: 1, minWidth: 0 }}><Mention name={e.title} swatch={swatchOf(e.id)} /> hasn't appeared since chapter {since}.</span>
-                  <button className="chron-x" title="Got it — hide this" onClick={(ev) => { ev.stopPropagation(); dismissLook("abs:" + e.id); }}>×</button>
-                </div>
-              ))}
-              {!lookExpanded && lookItems > LOOK_CAP && (
-                <button className="chron-more" onClick={() => setLookExpanded(true)}>Show {lookItems - LOOK_CAP} more</button>
               )}
-              {lookExpanded && lookItems > 3 && (
-                <button className="chron-more" onClick={() => setLookExpanded(false)}>Show fewer</button>
-              )}
-              {orphaned.length > 0 && (
-                <div className="chron-row"><span className="chron-meta">
-                  {orphaned.length} moment{orphaned.length === 1 ? "" : "s"} no longer point at any text — fix from the chapter's Continuity panel.
-                </span></div>
-              )}
+              <div className="ms-cells">
+                {bk.chapters.map((c) => {
+                  const empty = c.planned || !(c.body || "").trim();
+                  const here = continueCh?.id === c.id;
+                  const flag = problems.driftOrders.has(c.manuscript_order);
+                  const w = wordsOf(c.body);
+                  return (
+                    <button
+                      key={c.id}
+                      className={"ms-cell" + (empty ? " empty" : "") + (here ? " here" : "") + (flag ? " flag" : "")}
+                      style={empty ? undefined : ({ "--sh": activeBand.shadeOf(c) } as CSSProperties)}
+                      aria-label={`Chapter ${c.manuscript_order}, ${c.title}` + (empty ? ", planned" : `, ${fmt(w)} words`) + (flag ? ", a moment no longer matches" : "")}
+                      onMouseEnter={(e) => openCard(c, e.currentTarget)}
+                      onMouseLeave={hideCard}
+                      onClick={(e) => { cardPin.current = true; openCard(c, e.currentTarget); }}
+                    />
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+          {/* Legend along the bottom of the card (§2 mock) */}
+          <div className="ms-legend">
+            {activeBand.nBands > 1 && (
+              <span className="ms-legend-item">
+                <span className="ms-legend-scale">{activeBand.strengths.map((_, i) => <i key={i} style={{ background: activeBand.shadeAt(i) }} />)}</span>
+                {lens === "length" ? "shorter → longer" : "fewer → more"}
+              </span>
+            )}
+            {stats.planned > 0 && <span className="ms-legend-item"><span className="ms-legend-planned" /> planned</span>}
+            <span className="ms-legend-item"><span className="ms-legend-here" /> where you stopped</span>
+          </div>
+          {card && createPortal(
+            <div
+              className="ms-card"
+              style={{ position: "fixed", left: Math.min(Math.max(card.x, 120), window.innerWidth - 120), top: card.y - 10, transform: "translate(-50%, -100%)", zIndex: 320 }}
+              onMouseEnter={() => window.clearTimeout(cardHideT.current)}
+              onMouseLeave={hideCard}
+            >
+              {(() => {
+                const empty = card.ch.planned || !(card.ch.body || "").trim();
+                const w = wordsOf(card.ch.body);
+                const moments = momentsByOrder.get(card.ch.manuscript_order) ?? 0;
+                return (
+                  <>
+                    <div className="ms-card-ch">Chapter {card.ch.manuscript_order}</div>
+                    <div className="ms-card-title">{card.ch.title || "Untitled"}</div>
+                    <div className="ms-card-meta">
+                      {empty ? "Planned — not written yet"
+                        : `${fmt(w)} word${w === 1 ? "" : "s"}` + (moments ? ` · ${moments} moment${moments === 1 ? "" : "s"}` : "")}
+                    </div>
+                    <button className="ms-card-open" onClick={() => { cardPin.current = false; setCard(null); go({ scope: "manuscript", chapterId: card.ch.id }); }}>
+                      {empty ? "Start this chapter" : "Open chapter"} <Icon name="arrow" size={13} />
+                    </button>
+                  </>
+                );
+              })()}
+            </div>,
+            document.body,
+          )}
+        </section>
+      )}
+
+      {/* Two-card row (§6): the story observations (Worth a look) and the writer's
+          own notes (What you left yourself) as two cards side by side on the
+          canvas, wrapping to one column on narrow widths. Worth a look is now
+          just irony + duplicate questions, capped at three. */}
+      {(lookItems > 0 || openComments.length > 0 || recentNotes.length > 0) && (
+        <div className="dash-cols" style={{ marginBottom: 18 }}>
+          {lookItems > 0 && (
+            <div className="card">
+              <div className="chron-sec">
+                <div className="chron-lab">Worth a look<Explain term="Worth a look">Things Kronicler noticed in your story that might want attention — dramatic irony, duplicate names. Observations, not errors.</Explain></div>
+                {dupShow.map((d) => (
+                  <div className="chron-row" key={"dup" + d.key}>
+                    <span style={{ flex: 1, minWidth: 0 }}>
+                      {d.reason === "same-name"
+                        ? <>{d.entities.length === 2 ? "Two" : d.entities.length} {typeWord(d.entities[0], d.entities.length)} are called <Mention name={d.entities[0].title} swatch={swatchOf(d.entities[0].id)} />. Same {typeWord(d.entities[0], 1)}, or {d.entities.length === 2 ? "two" : "separate"}?</>
+                        : <><Mention name={d.entities[0].title} swatch={swatchOf(d.entities[0].id)} /> is a {typeWord(d.entities[0], 1)} of its own, and also an alias of <Mention name={d.entities[1].title} swatch={swatchOf(d.entities[1].id)} />. Same thing, or two?</>}
+                    </span>
+                    <button className="ghost" style={{ fontSize: 11.5, padding: "3px 8px" }} onClick={() => go({ scope: "library", entityId: d.entities[0].id })}>Merge</button>
+                    <button className="ghost" style={{ fontSize: 11.5, padding: "3px 8px" }} onClick={() => keepBoth(d.key)}>Keep both</button>
+                  </div>
+                ))}
+                {ironyShow.map((c) => (
+                  <div className="chron-row click" key={"i" + c.relId} onClick={() => go(c.entityId ? { scope: "library", entityId: c.entityId } : { scope: "relationships" })}>
+                    <span style={{ flex: 1, minWidth: 0 }}>{refsM(c.believerRefs)} see{c.believerRefs.length > 1 ? "" : "s"} it as <span className="iro-tag" style={{ color: "var(--obligation)" }}>{c.belief}</span> — the reader knows it as <span className="iro-tag" style={{ color: "var(--hostile)" }}>{c.truth}</span>.</span>
+                    <button className="chron-x" title="Got it — hide this" onClick={(ev) => { ev.stopPropagation(); dismissLook("iro:" + c.relId); }}>×</button>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
           {(openComments.length > 0 || recentNotes.length > 0) && (
-            <div className="chron-sec">
-              <div className="chron-lab">What you left yourself<Explain term="What you left yourself">Your own project notes — quick captures and reminders, gathered in one place. Nothing here is part of the manuscript.</Explain></div>
-              {openComments.length > 0 && (
-                <div className="trail-well click" style={{ flexDirection: "row", alignItems: "center" }}
-                  onClick={() => go({ scope: "manuscript", chapterId: openComments[0].chapter_id })}>
-                  <span style={{ fontSize: 12.5 }}>
-                    <b>{openComments.length}</b> unresolved comment{openComments.length === 1 ? "" : "s"} across {commentChapters.size} chapter{commentChapters.size === 1 ? "" : "s"}
-                  </span>
-                  <span className="spacer" />
-                  <Icon name="arrow" size={14} style={{ color: "var(--faint)" }} />
-                </div>
-              )}
-              {recentNotes.map((n) => {
-                const ch = (n.chapter_ids ?? []).map((id) => chById.get(id)).find(Boolean);
-                const ent = !ch && (n.entity_ids ?? []).length ? entities.find((e) => e.id === n.entity_ids[0]) : null;
-                const nav: Nav = ch ? { scope: "manuscript", chapterId: ch.id } : ent ? { scope: "library", entityId: ent.id } : { scope: "overview" };
-                return (
-                  <div className="trail-well click" key={n.id} onClick={() => go(nav)}>
-                    <div className="trail-body">{n.body.trim().slice(0, 180) || <span className="muted">(empty note)</span>}</div>
-                    <div className="trail-meta">
-                      {ch ? `in chapter ${ch.manuscript_order}` : ent ? <>pinned to <Mention name={ent.title} swatch={swatchOf(ent.id)} /></> : "in this world"}
-                    </div>
+            <div className="card">
+              <div className="chron-sec">
+                <div className="chron-lab">What you left yourself<Explain term="What you left yourself">Your own project notes — quick captures and reminders, gathered in one place. Nothing here is part of the manuscript.</Explain></div>
+                {openComments.length > 0 && (
+                  <div className="trail-well click" style={{ flexDirection: "row", alignItems: "center" }}
+                    onClick={() => go({ scope: "manuscript", chapterId: openComments[0].chapter_id })}>
+                    <span style={{ fontSize: 12.5 }}>
+                      <b>{openComments.length}</b> unresolved comment{openComments.length === 1 ? "" : "s"} across {commentChapters.size} chapter{commentChapters.size === 1 ? "" : "s"}
+                    </span>
+                    <span className="spacer" />
+                    <Icon name="arrow" size={14} style={{ color: "var(--faint)" }} />
                   </div>
-                );
-              })}
+                )}
+                {recentNotes.map((n) => {
+                  const ch = (n.chapter_ids ?? []).map((id) => chById.get(id)).find(Boolean);
+                  const ent = !ch && (n.entity_ids ?? []).length ? entities.find((e) => e.id === n.entity_ids[0]) : null;
+                  const nav: Nav = ch ? { scope: "manuscript", chapterId: ch.id } : ent ? { scope: "library", entityId: ent.id } : { scope: "overview" };
+                  return (
+                    <div className="trail-well click" key={n.id} onClick={() => go(nav)}>
+                      <div className="trail-body">{n.body.trim().slice(0, 180) || <span className="muted">(empty note)</span>}</div>
+                      <div className="trail-meta">
+                        {ch ? `in chapter ${ch.manuscript_order}` : ent ? <>pinned to <Mention name={ent.title} swatch={swatchOf(ent.id)} /></> : "in this world"}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           )}
         </div>
       )}
 
-      {/* Recent moments — recorded changes in reverse order; reopened threads read
-          as chronicle here (§9). Each row opens the chapter it was recorded in. */}
-      <div style={{ marginBottom: 18 }}>
-        <div className="label" style={{ marginTop: 0 }}>Recent moments</div>
-        <div className="card">
-          {recent.length === 0 && contradictions.length === 0 && <div className="row"><span className="muted">No moments yet — select a line in a chapter and record what changes.</span></div>}
-          {contradictions.map((c) => {
-            const chId = chapters.find((ch) => ch.manuscript_order === c.laterCh)?.id;
-            return (
-            <div className="row click" key={"re" + c.relId} onClick={() => go(chId ? { scope: "manuscript", chapterId: chId } : c.entityId ? { scope: "library", entityId: c.entityId } : { scope: "relationships" })}>
-              <span className="dot" style={{ background: "var(--hostile)" }} />
-              <span style={{ fontWeight: 500 }}>
-                {refsM(c.whoRefs, " · ")} are <span style={{ color: "var(--hostile)", fontWeight: 600 }}>{c.laterLabel}</span> again — they were {c.termLabel} in ch. {c.termCh}.
-              </span>
-            </div>
-            );
-          })}
-          {recent.slice(0, 3).map((s) => {
-            const chId = s.manuscript_order != null ? chapters.find((ch) => ch.manuscript_order === s.manuscript_order)?.id : undefined;
-            return (
-            <div className="row click" key={s.state_id} onClick={() => go(chId ? { scope: "manuscript", chapterId: chId } : s.participants[0]?.entity_id ? { scope: "library", entityId: s.participants[0].entity_id } : { scope: "relationships" })}>
-              <span className="dot" style={{ background: VALENCE_COLOR[s.valence] }} />
-              <span style={{ fontWeight: 500 }}>
-                {whoM(s)} <span style={{ color: VALENCE_COLOR[s.valence], fontWeight: 600 }}>{s.type_label}</span>
-              </span>
-              <span className="spacer" />
-              <span className="muted">{s.manuscript_order != null ? `ch. ${s.manuscript_order} →` : "—"}</span>
-            </div>
-            );
-          })}
-          {stream.length > 3 && (
-            <div className="row click" onClick={() => go({ scope: "relationships" })}>
-              <span className="chron-more">See all moments →</span>
-            </div>
-          )}
-        </div>
-      </div>
       </>}
     </div>
   );
@@ -578,17 +707,8 @@ export function Overview({ worldId, go }: { worldId: string; go: (n: Nav) => voi
 function OverviewSkeleton() {
   return (
     <div className="fi">
-      <Skeleton w={150} h={26} r={7} style={{ marginBottom: 8 }} />
-      <Skeleton w={320} h={13} style={{ marginBottom: 18 }} />
-      <div className="dash-stats">
-        {Array.from({ length: 6 }).map((_, i) => (
-          <div key={i} className="stat" style={{ cursor: "default" }}>
-            <Skeleton w={70} h={11} />
-            <Skeleton w={54} h={24} r={7} style={{ margin: "2px 0" }} />
-            <Skeleton w={84} h={11} />
-          </div>
-        ))}
-      </div>
+      <Skeleton w={150} h={26} r={7} style={{ marginBottom: 18 }} />
+      {/* resume card */}
       <div className="dash-continue" style={{ background: "var(--surface)", borderColor: "var(--line)" }}>
         <Skeleton w={40} h={40} r={11} style={{ flex: "0 0 auto" }} />
         <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 6 }}>
@@ -598,7 +718,18 @@ function OverviewSkeleton() {
         </div>
         <Skeleton w={120} h={34} r={8} style={{ flex: "0 0 auto" }} />
       </div>
-      <div className="dash-cols">
+      {/* manuscript grid */}
+      <div className="ms-grid">
+        <div className="ms-grid-head" style={{ marginBottom: 12 }}>
+          <Skeleton w={130} h={17} r={6} />
+          <Skeleton w={200} h={12} />
+        </div>
+        <Skeleton w={90} h={10} style={{ margin: "0 0 7px" }} />
+        <div className="ms-cells">
+          {Array.from({ length: 16 }).map((_, i) => <Skeleton key={i} w={20} h={20} r={3} style={{ flex: "0 0 auto" }} />)}
+        </div>
+      </div>
+      <div className="dash-cols" style={{ marginTop: 20 }}>
         {Array.from({ length: 2 }).map((_, c) => (
           <div key={c}>
             <Skeleton w={130} h={11} style={{ margin: "0 0 8px" }} />

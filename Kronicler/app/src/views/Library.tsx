@@ -1,15 +1,21 @@
 import { useEffect, useMemo, useState } from "react";
-import { getEntities, getEntityTypes, createEntity, softDeleteEntity, renameEntityType, updateEntity } from "../lib/api";
-import type { Entity, EntityType } from "../lib/types";
+import { getEntities, getEntityTypes, createEntity, softDeleteEntity, renameEntityType, updateEntity, getStream, getRelationshipTypes, getChapters } from "../lib/api";
+import type { Entity, EntityType, StreamRow, RelationshipType, Chapter } from "../lib/types";
 import { CANONICAL_ENTITY_TYPES, CUSTOM_TYPE, plural, buildTypeSwatches } from "../lib/entityTypes";
+import { isBelief } from "../lib/knowledge";
+import { detectMentions } from "../lib/mentions";
 import { EntityPage } from "./EntityPage";
 import { ImportDocx } from "./ImportDocx";
 import { TypeStyleEditor } from "./TypeStyleEditor";
 import { Icon } from "../components/icons";
+import { Explain } from "../components/Explain";
 import { confirmDialog } from "../components/confirm";
 import { SkeletonRows } from "../components/Skeleton";
 import { EmptyState } from "../components/EmptyState";
 import type { LeafCrumb } from "../App";
+
+const DORMANT_GAP = 5; // chapters a thread can go untouched before it's "quiet"
+const ABSENT_GAP = 3;  // chapters a cast member can be off-page before it's noted
 
 export function Library({ worldId, focusEntityId, onLeaf }: { worldId: string; focusEntityId?: string; onLeaf?: (l: LeafCrumb | null) => void }) {
   const [entities, setEntities] = useState<Entity[] | null>(null);
@@ -45,10 +51,25 @@ export function Library({ worldId, focusEntityId, onLeaf }: { worldId: string; f
   const [importing, setImporting] = useState(false);
 
   const [entityTypes, setEntityTypes] = useState<EntityType[]>([]);
+  // For the "Gone quiet" section — the dormancy signals that moved off the
+  // Overview (§7). Loaded alongside the cast.
+  const [stream, setStream] = useState<StreamRow[]>([]);
+  const [relTypes, setRelTypes] = useState<RelationshipType[]>([]);
+  const [chapters, setChapters] = useState<Chapter[]>([]);
+  const [quietHidden, setQuietHidden] = useState<Set<string>>(() => {
+    try { return new Set<string>(JSON.parse(localStorage.getItem(`k.quiet.${worldId}`) || "[]")); } catch { return new Set<string>(); }
+  });
+  function dismissQuiet(id: string) {
+    setQuietHidden((prev) => {
+      const n = new Set(prev); n.add(id);
+      localStorage.setItem(`k.quiet.${worldId}`, JSON.stringify([...n]));
+      return n;
+    });
+  }
   async function reload() {
     try {
-      const [ents, ets] = await Promise.all([getEntities(worldId), getEntityTypes(worldId)]);
-      setEntities(ents); setEntityTypes(ets);
+      const [ents, ets, st, rt, chs] = await Promise.all([getEntities(worldId), getEntityTypes(worldId), getStream(worldId), getRelationshipTypes(worldId), getChapters(worldId)]);
+      setEntities(ents); setEntityTypes(ets); setStream(st); setRelTypes(rt); setChapters(chs);
     } catch (x) { setErr(String(x)); }
   }
   useEffect(() => { void reload(); /* eslint-disable-next-line */ }, [worldId]);
@@ -68,6 +89,54 @@ export function Library({ worldId, focusEntityId, onLeaf }: { worldId: string; f
     const custom = [...present].filter((t) => !CANONICAL_ENTITY_TYPES.includes(t as never)).sort();
     return [...canon, ...custom];
   }, [entities]);
+
+  // Cast at a glance — "12 characters · 8 places · 3 factions", canonical
+  // families first then anything custom by count (mirrors the old Overview
+  // subtitle, now rehomed here per §7).
+  const cast = useMemo(() => {
+    if (!entities || entities.length === 0) return "";
+    const counts = new Map<string, number>();
+    for (const e of entities) { const t = (e.type || "").toLowerCase(); if (t) counts.set(t, (counts.get(t) ?? 0) + 1); }
+    const ORDER = ["character", "place", "faction", "item"];
+    return [...counts.entries()]
+      .sort((a, b) => { const ia = ORDER.indexOf(a[0]), ib = ORDER.indexOf(b[0]); return (ia !== ib ? (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib) : b[1] - a[1] || a[0].localeCompare(b[0])); })
+      .map(([t, n]) => `${n} ${n === 1 ? t : plural(t)}`).join(" · ");
+  }, [entities]);
+
+  // Threads that have gone quiet — the latest truth of each live relationship,
+  // untouched for DORMANT_GAP chapters (ambient/terminal ones don't count).
+  const dormant = useMemo(() => {
+    if (!stream.length) return [];
+    const now = stream.reduce((m, s) => Math.max(m, s.manuscript_order ?? 0), 0);
+    const typesById = new Map(relTypes.map((t) => [t.id, t]));
+    const latest = new Map<string, StreamRow>();
+    for (const s of stream) {
+      if (isBelief(s)) continue;
+      const cur = latest.get(s.relationship_id);
+      if (!cur || (s.manuscript_order ?? -1) > (cur.manuscript_order ?? -1)) latest.set(s.relationship_id, s);
+    }
+    return [...latest.values()].filter((s) => {
+      const t = typesById.get(s.type_id);
+      if (t?.is_ambient || t?.is_terminal) return false;
+      return s.manuscript_order != null && now - s.manuscript_order >= DORMANT_GAP;
+    });
+  }, [stream, relTypes]);
+
+  // Cast who have dropped off the page — last mentioned ABSENT_GAP+ chapters ago.
+  const absent = useMemo(() => {
+    const written = (chapters ?? []).filter((c) => !c.planned && (c.body || "").trim()).sort((a, b) => a.manuscript_order - b.manuscript_order);
+    const lastSeen = new Map<string, number>();
+    for (const c of written) for (const e of detectMentions(c.body, entities ?? [])) lastSeen.set(e.id, Math.max(lastSeen.get(e.id) ?? 0, c.manuscript_order));
+    const maxOrder = written.length ? written[written.length - 1].manuscript_order : 0;
+    return (entities ?? [])
+      .filter((e) => lastSeen.has(e.id) && maxOrder - lastSeen.get(e.id)! >= ABSENT_GAP)
+      .map((e) => ({ e, since: lastSeen.get(e.id)! }))
+      .sort((a, b) => a.since - b.since);
+  }, [chapters, entities]);
+
+  const dormantList = dormant.filter((s) => !quietHidden.has("dor:" + s.state_id));
+  const absentList = absent.filter(({ e }) => !quietHidden.has("abs:" + e.id));
+  const quietCount = dormantList.length + absentList.length;
 
   const currentType = (activeType && types.includes(activeType)) ? activeType : (types[0] ?? "Character");
   const isCanon = (t: string) => CANONICAL_ENTITY_TYPES.includes(t as never);
@@ -171,12 +240,38 @@ export function Library({ worldId, focusEntityId, onLeaf }: { worldId: string; f
 
   return (
     <div className="fi">
-      <div className="row" style={{ borderBottom: "none", padding: 0, marginBottom: 12 }}>
+      <div className="row" style={{ borderBottom: "none", padding: 0, marginBottom: cast ? 4 : 12 }}>
         <h2 className="scope-title">World</h2>
         <span className="spacer" />
         <button onClick={() => setImporting(true)}>Import .docx</button>
         {addMode !== "full" && <button onClick={openFull}>+ New</button>}
       </div>
+      {/* The cast at a glance (redesign §7): the type breakdown that used to sit
+          in the Overview subtitle now lives where the cast does. */}
+      {cast && <p className="scope-sub" style={{ marginBottom: 14 }}>{cast}</p>}
+
+      {/* Gone quiet (§7): threads and cast that have dropped out of the recent
+          chapters — the dormancy signals rehomed from the Overview. Not errors,
+          just a nudge; dismissable per item. Hidden while searching. */}
+      {!query && quietCount > 0 && (
+        <div className="card" style={{ marginBottom: 14 }}>
+          <div className="chron-sec">
+            <div className="chron-lab">Gone quiet<Explain term="Gone quiet">Threads and cast that have dropped out of your recent chapters. Not errors — just a nudge, in case you meant to keep them alive.</Explain></div>
+            {dormantList.slice(0, 6).map((s) => (
+              <div className="chron-row click" key={"dor" + s.state_id} onClick={() => s.participants[0]?.entity_id && setOpenId(s.participants[0].entity_id)}>
+                <span style={{ flex: 1, minWidth: 0 }}>{s.participants.map((p) => p.title).join(" · ")} · {s.type_label} — untouched for a while.</span>
+                <button className="chron-x" title="Got it — hide this" onClick={(ev) => { ev.stopPropagation(); dismissQuiet("dor:" + s.state_id); }}>×</button>
+              </div>
+            ))}
+            {absentList.slice(0, Math.max(0, 6 - dormantList.slice(0, 6).length)).map(({ e, since }) => (
+              <div className="chron-row click" key={"abs" + e.id} onClick={() => setOpenId(e.id)}>
+                <span style={{ flex: 1, minWidth: 0 }}>{e.title} hasn't appeared since chapter {since}.</span>
+                <button className="chron-x" title="Got it — hide this" onClick={(ev) => { ev.stopPropagation(); dismissQuiet("abs:" + e.id); }}>×</button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {importing && (
         <ImportDocx worldId={worldId} mode="entities" startOrder={1}

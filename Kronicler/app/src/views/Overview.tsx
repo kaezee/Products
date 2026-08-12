@@ -33,7 +33,6 @@ export function Overview({ worldId, go }: { worldId: string; go: (n: Nav) => voi
   const [comments, setComments] = useState<Comment[]>([]);
   const [err, setErr] = useState<string | null>(null);
   const [worldName, setWorldName] = useState("");
-  const [lookExpanded, setLookExpanded] = useState(false); // §Overview: "Show more" in Worth a look
   // §3 demonstration checklist: retires permanently at 4/4 and never returns.
   const [ckRetired] = useState(() => localStorage.getItem(`k.checklist.${worldId}`) === "1");
 
@@ -297,18 +296,18 @@ export function Overview({ worldId, go }: { worldId: string; go: (n: Nav) => voi
   if (err) return <p className="err">{err}</p>;
   if (!stream) return <OverviewSkeleton />;
 
-  // Worth a look (§9 rulings): honest duplicate questions, dramatic irony, and
-  // dormant threads. Reopened moves to Recently; lost anchors become one quiet
-  // aggregate line; unconnected entities are not flagged pre-composer at all.
+  // Worth a look (§6): narrowed to the two observations that are genuinely about
+  // the story and worth interrupting for — honest duplicate questions and
+  // dramatic irony. Dormant threads and absent cast move to the World view's
+  // dormancy lens (§7); reopened threads read as Recently; orphaned anchors are
+  // the alert strip (§5). Capped at three, no "show more".
+  const LOOK_CAP = 3;
   const dupList = duplicates.filter((d) => !dupKept.has(d.key));
   const ironyList = ironies.filter((c) => !lookHidden.has("iro:" + c.relId));
-  const dormantList = dormant.filter((s) => !lookHidden.has("dor:" + s.state_id));
-  const absentList = mentions.absent.filter(({ e }) => !lookHidden.has("abs:" + e.id));
+  const dupShow = dupList.slice(0, LOOK_CAP);
+  const ironyShow = ironyList.slice(0, Math.max(0, LOOK_CAP - dupShow.length));
+  const lookItems = dupShow.length + ironyShow.length;
   const typeWord = (e: Entity, n: number) => { const t = (e.type || "thing").toLowerCase(); return n === 1 ? t : `${t}s`; };
-  const lookItems = dupList.length + ironyList.length + dormantList.length + absentList.length;
-  const LOOK_CAP = lookExpanded ? 99 : 3;
-  let lookShown = 0;
-  const nextLook = () => (lookShown < LOOK_CAP ? (lookShown++, true) : false);
 
   // Subtitle = the cast. Chapters, words, and moments live in the stat cards
   // below, so keeping them out of the subtitle avoids echoing the cards. Only
@@ -632,78 +631,64 @@ export function Overview({ worldId, go }: { worldId: string; go: (n: Nav) => voi
         ))}
       </div>}
 
-      {/* The chronicle — ONE card holding the observations (Worth a look) and the
-          writer's own notes (What you left yourself), divided by a rule, with the
-          notes as wells recessed inside the card (§4 ladder: canvas → card → well;
-          §9 cards on canvas, one container per group). */}
+      {/* Two-card row (§6): the story observations (Worth a look) and the writer's
+          own notes (What you left yourself) as two cards side by side on the
+          canvas, wrapping to one column on narrow widths. Worth a look is now
+          just irony + duplicate questions, capped at three. */}
       {(lookItems > 0 || openComments.length > 0 || recentNotes.length > 0) && (
-        <div className="card chronicle" style={{ marginBottom: 18 }}>
+        <div className="dash-cols" style={{ marginBottom: 18 }}>
           {lookItems > 0 && (
-            <div className="chron-sec">
-              <div className="chron-lab">Worth a look<Explain term="Worth a look">Things Kronicler noticed in your story that might want attention — dramatic irony, gaps, duplicate names. Observations, not errors.</Explain></div>
-              {dupList.map((d) => nextLook() && (
-                <div className="chron-row" key={"dup" + d.key}>
-                  <span style={{ flex: 1, minWidth: 0 }}>
-                    {d.reason === "same-name"
-                      ? <>{d.entities.length === 2 ? "Two" : d.entities.length} {typeWord(d.entities[0], d.entities.length)} are called <Mention name={d.entities[0].title} swatch={swatchOf(d.entities[0].id)} />. Same {typeWord(d.entities[0], 1)}, or {d.entities.length === 2 ? "two" : "separate"}?</>
-                      : <><Mention name={d.entities[0].title} swatch={swatchOf(d.entities[0].id)} /> is a {typeWord(d.entities[0], 1)} of its own, and also an alias of <Mention name={d.entities[1].title} swatch={swatchOf(d.entities[1].id)} />. Same thing, or two?</>}
-                  </span>
-                  <button className="ghost" style={{ fontSize: 11.5, padding: "3px 8px" }} onClick={() => go({ scope: "library", entityId: d.entities[0].id })}>Merge</button>
-                  <button className="ghost" style={{ fontSize: 11.5, padding: "3px 8px" }} onClick={() => keepBoth(d.key)}>Keep both</button>
-                </div>
-              ))}
-              {ironyList.map((c) => nextLook() && (
-                <div className="chron-row click" key={"i" + c.relId} onClick={() => go(c.entityId ? { scope: "library", entityId: c.entityId } : { scope: "relationships" })}>
-                  <span style={{ flex: 1, minWidth: 0 }}>{refsM(c.believerRefs)} see{c.believerRefs.length > 1 ? "" : "s"} it as <span className="iro-tag" style={{ color: "var(--obligation)" }}>{c.belief}</span> — the reader knows it as <span className="iro-tag" style={{ color: "var(--hostile)" }}>{c.truth}</span>.</span>
-                  <button className="chron-x" title="Got it — hide this" onClick={(ev) => { ev.stopPropagation(); dismissLook("iro:" + c.relId); }}>×</button>
-                </div>
-              ))}
-              {dormantList.map((s) => nextLook() && (
-                <div className="chron-row click" key={"d" + s.state_id} onClick={() => go(s.participants[0]?.entity_id ? { scope: "library", entityId: s.participants[0].entity_id } : { scope: "relationships" })}>
-                  <span style={{ flex: 1, minWidth: 0 }}>{whoM(s)} · {s.type_label} — untouched for a while.</span>
-                  <button className="chron-x" title="Got it — hide this" onClick={(ev) => { ev.stopPropagation(); dismissLook("dor:" + s.state_id); }}>×</button>
-                </div>
-              ))}
-              {absentList.map(({ e, since }) => nextLook() && (
-                <div className="chron-row click" key={"ab" + e.id} onClick={() => go({ scope: "library", entityId: e.id })}>
-                  <span style={{ flex: 1, minWidth: 0 }}><Mention name={e.title} swatch={swatchOf(e.id)} /> hasn't appeared since chapter {since}.</span>
-                  <button className="chron-x" title="Got it — hide this" onClick={(ev) => { ev.stopPropagation(); dismissLook("abs:" + e.id); }}>×</button>
-                </div>
-              ))}
-              {!lookExpanded && lookItems > LOOK_CAP && (
-                <button className="chron-more" onClick={() => setLookExpanded(true)}>Show {lookItems - LOOK_CAP} more</button>
-              )}
-              {lookExpanded && lookItems > 3 && (
-                <button className="chron-more" onClick={() => setLookExpanded(false)}>Show fewer</button>
-              )}
+            <div className="card">
+              <div className="chron-sec">
+                <div className="chron-lab">Worth a look<Explain term="Worth a look">Things Kronicler noticed in your story that might want attention — dramatic irony, duplicate names. Observations, not errors.</Explain></div>
+                {dupShow.map((d) => (
+                  <div className="chron-row" key={"dup" + d.key}>
+                    <span style={{ flex: 1, minWidth: 0 }}>
+                      {d.reason === "same-name"
+                        ? <>{d.entities.length === 2 ? "Two" : d.entities.length} {typeWord(d.entities[0], d.entities.length)} are called <Mention name={d.entities[0].title} swatch={swatchOf(d.entities[0].id)} />. Same {typeWord(d.entities[0], 1)}, or {d.entities.length === 2 ? "two" : "separate"}?</>
+                        : <><Mention name={d.entities[0].title} swatch={swatchOf(d.entities[0].id)} /> is a {typeWord(d.entities[0], 1)} of its own, and also an alias of <Mention name={d.entities[1].title} swatch={swatchOf(d.entities[1].id)} />. Same thing, or two?</>}
+                    </span>
+                    <button className="ghost" style={{ fontSize: 11.5, padding: "3px 8px" }} onClick={() => go({ scope: "library", entityId: d.entities[0].id })}>Merge</button>
+                    <button className="ghost" style={{ fontSize: 11.5, padding: "3px 8px" }} onClick={() => keepBoth(d.key)}>Keep both</button>
+                  </div>
+                ))}
+                {ironyShow.map((c) => (
+                  <div className="chron-row click" key={"i" + c.relId} onClick={() => go(c.entityId ? { scope: "library", entityId: c.entityId } : { scope: "relationships" })}>
+                    <span style={{ flex: 1, minWidth: 0 }}>{refsM(c.believerRefs)} see{c.believerRefs.length > 1 ? "" : "s"} it as <span className="iro-tag" style={{ color: "var(--obligation)" }}>{c.belief}</span> — the reader knows it as <span className="iro-tag" style={{ color: "var(--hostile)" }}>{c.truth}</span>.</span>
+                    <button className="chron-x" title="Got it — hide this" onClick={(ev) => { ev.stopPropagation(); dismissLook("iro:" + c.relId); }}>×</button>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
           {(openComments.length > 0 || recentNotes.length > 0) && (
-            <div className="chron-sec">
-              <div className="chron-lab">What you left yourself<Explain term="What you left yourself">Your own project notes — quick captures and reminders, gathered in one place. Nothing here is part of the manuscript.</Explain></div>
-              {openComments.length > 0 && (
-                <div className="trail-well click" style={{ flexDirection: "row", alignItems: "center" }}
-                  onClick={() => go({ scope: "manuscript", chapterId: openComments[0].chapter_id })}>
-                  <span style={{ fontSize: 12.5 }}>
-                    <b>{openComments.length}</b> unresolved comment{openComments.length === 1 ? "" : "s"} across {commentChapters.size} chapter{commentChapters.size === 1 ? "" : "s"}
-                  </span>
-                  <span className="spacer" />
-                  <Icon name="arrow" size={14} style={{ color: "var(--faint)" }} />
-                </div>
-              )}
-              {recentNotes.map((n) => {
-                const ch = (n.chapter_ids ?? []).map((id) => chById.get(id)).find(Boolean);
-                const ent = !ch && (n.entity_ids ?? []).length ? entities.find((e) => e.id === n.entity_ids[0]) : null;
-                const nav: Nav = ch ? { scope: "manuscript", chapterId: ch.id } : ent ? { scope: "library", entityId: ent.id } : { scope: "overview" };
-                return (
-                  <div className="trail-well click" key={n.id} onClick={() => go(nav)}>
-                    <div className="trail-body">{n.body.trim().slice(0, 180) || <span className="muted">(empty note)</span>}</div>
-                    <div className="trail-meta">
-                      {ch ? `in chapter ${ch.manuscript_order}` : ent ? <>pinned to <Mention name={ent.title} swatch={swatchOf(ent.id)} /></> : "in this world"}
-                    </div>
+            <div className="card">
+              <div className="chron-sec">
+                <div className="chron-lab">What you left yourself<Explain term="What you left yourself">Your own project notes — quick captures and reminders, gathered in one place. Nothing here is part of the manuscript.</Explain></div>
+                {openComments.length > 0 && (
+                  <div className="trail-well click" style={{ flexDirection: "row", alignItems: "center" }}
+                    onClick={() => go({ scope: "manuscript", chapterId: openComments[0].chapter_id })}>
+                    <span style={{ fontSize: 12.5 }}>
+                      <b>{openComments.length}</b> unresolved comment{openComments.length === 1 ? "" : "s"} across {commentChapters.size} chapter{commentChapters.size === 1 ? "" : "s"}
+                    </span>
+                    <span className="spacer" />
+                    <Icon name="arrow" size={14} style={{ color: "var(--faint)" }} />
                   </div>
-                );
-              })}
+                )}
+                {recentNotes.map((n) => {
+                  const ch = (n.chapter_ids ?? []).map((id) => chById.get(id)).find(Boolean);
+                  const ent = !ch && (n.entity_ids ?? []).length ? entities.find((e) => e.id === n.entity_ids[0]) : null;
+                  const nav: Nav = ch ? { scope: "manuscript", chapterId: ch.id } : ent ? { scope: "library", entityId: ent.id } : { scope: "overview" };
+                  return (
+                    <div className="trail-well click" key={n.id} onClick={() => go(nav)}>
+                      <div className="trail-body">{n.body.trim().slice(0, 180) || <span className="muted">(empty note)</span>}</div>
+                      <div className="trail-meta">
+                        {ch ? `in chapter ${ch.manuscript_order}` : ent ? <>pinned to <Mention name={ent.title} swatch={swatchOf(ent.id)} /></> : "in this world"}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           )}
         </div>

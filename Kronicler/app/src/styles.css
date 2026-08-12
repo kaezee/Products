@@ -534,6 +534,11 @@ h2.ed-canvas-title, .ed-canvas-input { margin: 0; }
    length. The whole book at a glance: where the long chapters are, where the
    thin ones are, and where you are (the marker ring). Cells inherit the ink
    scale via color-mix so they theme across paper / white / dark. */
+/* Alert strip (§5) — orphaned moments, capped. A quiet warning tint, full-width
+   and clickable, sitting above the grid. */
+.ms-alert { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; margin: 0 0 18px; padding: 11px 14px; border-radius: 12px; cursor: pointer; font-size: 13px; font-weight: 500; color: var(--k-on-system-error-container); background: var(--k-system-error-container); border: 1px solid color-mix(in srgb, var(--k-system-error) 26%, transparent); transition: border-color var(--k-duration-fast,120ms) var(--k-ease,ease); }
+.ms-alert:hover { border-color: color-mix(in srgb, var(--k-system-error) 44%, transparent); }
+.ms-alert > .icon, .ms-alert svg { color: var(--k-system-error); flex: 0 0 auto; }
 .ms-grid { margin: 28px 0 20px; }
 .ms-grid-head { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
 .ms-grid-title { font-family: var(--serif); font-size: 17px; font-weight: 600; color: var(--ink); }

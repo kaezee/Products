@@ -497,6 +497,45 @@ export function Overview({ worldId, go }: { worldId: string; go: (n: Nav) => voi
       )}
 
       {<>
+      {/* Resume card sits at the very top (§5): the one thing a returning writer
+          most wants is the way back into their prose. */}
+      <div className="dash-continue">
+        <span className="dash-continue-ic"><Icon name="write" size={20} /></span>
+        {continueCh ? (
+          <>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div className="dash-continue-lab">Pick up where you left off<Explain term="Pick up where you left off">A shortcut back to the furthest chapter you’ve been writing, so you can resume in one click.</Explain></div>
+              <div className="dash-continue-title">{continueCh.title}</div>
+              <div className="dash-continue-sub">ch. {continueCh.manuscript_order} · {fmt(wordsOf(continueCh.body))} words</div>
+            </div>
+            <button className="primary" onClick={() => go({ scope: "manuscript", chapterId: continueCh.id })}
+              style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>Open chapter <Icon name="arrow" size={14} /></button>
+          </>
+        ) : (
+          <>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div className="dash-continue-lab">Your manuscript is empty</div>
+              <div className="dash-continue-title">Start chapter one</div>
+              <div className="dash-continue-sub">Write, and known names light up as you type.</div>
+            </div>
+            <button className="primary" onClick={() => go({ scope: "manuscript" })}
+              style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>Open Manuscript <Icon name="arrow" size={14} /></button>
+          </>
+        )}
+      </div>
+
+      {/* Alert strip (§5): moments whose chapter was deleted, so they no longer
+          point at any prose. The count is capped at 12 — past that the exact
+          number stops being useful and would only alarm, so it reads "Some". */}
+      {orphaned.length > 0 && (
+        <button className="ms-alert" onClick={() => go({ scope: "relationships" })}>
+          <Icon name="alert" size={15} />
+          <span>{orphaned.length <= 12 ? `${orphaned.length} moment${orphaned.length === 1 ? "" : "s"} no longer match your writing.` : "Some moments no longer match your writing."}</span>
+          <span className="spacer" style={{ flex: 1 }} />
+          <Icon name="arrow" size={13} />
+        </button>
+      )}
+
       {/* Manuscript grid (§2): the whole book at a glance. Below 5 chapters it
           isn't worth drawing — the chapter list already fits in the head. */}
       {msGrid.total >= 5 && (
@@ -593,39 +632,13 @@ export function Overview({ worldId, go }: { worldId: string; go: (n: Nav) => voi
         ))}
       </div>}
 
-      {/* Continue writing / launchpad */}
-      <div className="dash-continue">
-        <span className="dash-continue-ic"><Icon name="write" size={20} /></span>
-        {continueCh ? (
-          <>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div className="dash-continue-lab">Pick up where you left off<Explain term="Pick up where you left off">A shortcut back to the furthest chapter you’ve been writing, so you can resume in one click.</Explain></div>
-              <div className="dash-continue-title">{continueCh.title}</div>
-              <div className="dash-continue-sub">ch. {continueCh.manuscript_order} · {fmt(wordsOf(continueCh.body))} words</div>
-            </div>
-            <button className="primary" onClick={() => go({ scope: "manuscript", chapterId: continueCh.id })}
-              style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>Open chapter <Icon name="arrow" size={14} /></button>
-          </>
-        ) : (
-          <>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div className="dash-continue-lab">Your manuscript is empty</div>
-              <div className="dash-continue-title">Start chapter one</div>
-              <div className="dash-continue-sub">Write, and known names light up as you type.</div>
-            </div>
-            <button className="primary" onClick={() => go({ scope: "manuscript" })}
-              style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>Open Manuscript <Icon name="arrow" size={14} /></button>
-          </>
-        )}
-      </div>
-
       {/* The chronicle — ONE card holding the observations (Worth a look) and the
           writer's own notes (What you left yourself), divided by a rule, with the
           notes as wells recessed inside the card (§4 ladder: canvas → card → well;
           §9 cards on canvas, one container per group). */}
-      {(lookItems > 0 || planned > 0 || orphaned.length > 0 || openComments.length > 0 || recentNotes.length > 0) && (
+      {(lookItems > 0 || openComments.length > 0 || recentNotes.length > 0) && (
         <div className="card chronicle" style={{ marginBottom: 18 }}>
-          {(lookItems > 0 || planned > 0 || orphaned.length > 0) && (
+          {lookItems > 0 && (
             <div className="chron-sec">
               <div className="chron-lab">Worth a look<Explain term="Worth a look">Things Kronicler noticed in your story that might want attention — dramatic irony, gaps, duplicate names. Observations, not errors.</Explain></div>
               {dupList.map((d) => nextLook() && (
@@ -662,11 +675,6 @@ export function Overview({ worldId, go }: { worldId: string; go: (n: Nav) => voi
               )}
               {lookExpanded && lookItems > 3 && (
                 <button className="chron-more" onClick={() => setLookExpanded(false)}>Show fewer</button>
-              )}
-              {orphaned.length > 0 && (
-                <div className="chron-row"><span className="chron-meta">
-                  {orphaned.length} moment{orphaned.length === 1 ? "" : "s"} no longer point at any text — fix from the chapter's Continuity panel.
-                </span></div>
               )}
             </div>
           )}

@@ -69,6 +69,19 @@ export function Library({ worldId, focusEntityId, onLeaf }: { worldId: string; f
     return [...canon, ...custom];
   }, [entities]);
 
+  // Cast at a glance — "12 characters · 8 places · 3 factions", canonical
+  // families first then anything custom by count (mirrors the old Overview
+  // subtitle, now rehomed here per §7).
+  const cast = useMemo(() => {
+    if (!entities || entities.length === 0) return "";
+    const counts = new Map<string, number>();
+    for (const e of entities) { const t = (e.type || "").toLowerCase(); if (t) counts.set(t, (counts.get(t) ?? 0) + 1); }
+    const ORDER = ["character", "place", "faction", "item"];
+    return [...counts.entries()]
+      .sort((a, b) => { const ia = ORDER.indexOf(a[0]), ib = ORDER.indexOf(b[0]); return (ia !== ib ? (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib) : b[1] - a[1] || a[0].localeCompare(b[0])); })
+      .map(([t, n]) => `${n} ${n === 1 ? t : plural(t)}`).join(" · ");
+  }, [entities]);
+
   const currentType = (activeType && types.includes(activeType)) ? activeType : (types[0] ?? "Character");
   const isCanon = (t: string) => CANONICAL_ENTITY_TYPES.includes(t as never);
 
@@ -171,12 +184,15 @@ export function Library({ worldId, focusEntityId, onLeaf }: { worldId: string; f
 
   return (
     <div className="fi">
-      <div className="row" style={{ borderBottom: "none", padding: 0, marginBottom: 12 }}>
+      <div className="row" style={{ borderBottom: "none", padding: 0, marginBottom: cast ? 4 : 12 }}>
         <h2 className="scope-title">World</h2>
         <span className="spacer" />
         <button onClick={() => setImporting(true)}>Import .docx</button>
         {addMode !== "full" && <button onClick={openFull}>+ New</button>}
       </div>
+      {/* The cast at a glance (redesign §7): the type breakdown that used to sit
+          in the Overview subtitle now lives where the cast does. */}
+      {cast && <p className="scope-sub" style={{ marginBottom: 14 }}>{cast}</p>}
 
       {importing && (
         <ImportDocx worldId={worldId} mode="entities" startOrder={1}

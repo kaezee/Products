@@ -67,6 +67,10 @@
 
 /* ── Paper (default) ───────────────────────────────────────────────────── */
 :root, [data-theme="paper"] {
+  /* "you are here" marker — the current chapter on the Overview grid, Write tree,
+     and Timeline. Deliberately outside the 12 entity hues (nearest is magenta,
+     ΔE 20) so it never reads as an entity; rendered as a ring, not a fill. */
+  --k-marker: #801C74;
   --k-bg-canvas:  var(--k-warm-50);
   --k-bg-surface: #FFFFFF;
   --k-bg-sunken:  #F7F6F1;              /* well — lightened from #F5F4EF (§4) */
@@ -136,6 +140,7 @@
 /* ── White ─────────────────────────────────────────────────────────────── */
 [data-theme="white"] {
   color-scheme: light;
+  --k-marker: #801C74;   /* "you are here" — see paper block */
   /* Crisp office-white — cool axis (~hue 210), flat: borders and tonal steps
      lift, not shadows. Canvas + well lightened per §4. */
   --k-bg-canvas:      #F7F8FA;          /* lightened from #F3F5F7 (§4) */
@@ -201,6 +206,7 @@
 
 /* ── Dark ──────────────────────────────────────────────────────────────── */
 [data-theme="dark"] {
+  --k-marker: #B885AE;   /* "you are here" — muted aubergine tint, see paper block */
   --k-bg-canvas:  #080A11;
   --k-bg-surface: #101321;
   --k-bg-sunken:  #05060B;

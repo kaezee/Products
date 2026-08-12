@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState, type ReactNode, type CSSProperties } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode, type CSSProperties } from "react";
+import { createPortal } from "react-dom";
 import { getStream, getEntities, getEntityTypes, getRelationshipTypes, getChapters, getNotes, getWorldComments, getWorld, getBands } from "../lib/api";
 import type { StreamRow, Entity, EntityType, RelationshipType, Chapter, Note, Comment, Band } from "../lib/types";
 import { buildTypeSwatches, plural } from "../lib/entityTypes";
@@ -207,6 +208,35 @@ export function Overview({ worldId, go }: { worldId: string; go: (n: Nav) => voi
     const books = [...bookMap.values()].sort((a, b) => a.order - b.order);
     return { books, nBands, strengths, shadeAt, shadeOf, total: ordered.length };
   }, [chapters, bands]);
+
+  // Moments recorded in each chapter, keyed by manuscript order — the count the
+  // grid's hover/tap card reports (§3).
+  const momentsByOrder = useMemo(() => {
+    const m = new Map<number, number>();
+    for (const s of stream ?? []) if (s.manuscript_order != null) m.set(s.manuscript_order, (m.get(s.manuscript_order) ?? 0) + 1);
+    return m;
+  }, [stream]);
+
+  // Grid hover/tap card (§3): one popover for the whole grid. Hover a cell to
+  // peek; click to pin (so touch works too); the card carries the way in. Same
+  // hover-grace + pin model as the Explain dot.
+  const [card, setCard] = useState<{ ch: Chapter; x: number; y: number } | null>(null);
+  const cardPin = useRef(false);
+  const cardHideT = useRef<number | undefined>(undefined);
+  const openCard = (ch: Chapter, el: HTMLElement) => {
+    window.clearTimeout(cardHideT.current);
+    const r = el.getBoundingClientRect();
+    setCard({ ch, x: r.left + r.width / 2, y: r.top });
+  };
+  const hideCard = () => { if (!cardPin.current) cardHideT.current = window.setTimeout(() => setCard(null), 120); };
+  useEffect(() => {
+    if (!card) return;
+    const onDown = (e: MouseEvent) => { if (!(e.target as HTMLElement).closest(".ms-cell,.ms-card")) { cardPin.current = false; setCard(null); } };
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") { cardPin.current = false; setCard(null); } };
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => { document.removeEventListener("mousedown", onDown); document.removeEventListener("keydown", onKey); };
+  }, [card]);
 
   // Pick up where you left off: the furthest-along written chapter.
   const continueCh = useMemo(() => {
@@ -485,14 +515,44 @@ export function Overview({ worldId, go }: { worldId: string; go: (n: Nav) => voi
                       key={c.id}
                       className={"ms-cell" + (empty ? " empty" : "") + (here ? " here" : "")}
                       style={empty ? undefined : ({ "--sh": msGrid.shadeOf(w) } as CSSProperties)}
-                      title={`Ch. ${c.manuscript_order} · ${c.title}` + (empty ? " · planned" : ` · ${fmt(w)} words`)}
-                      onClick={() => go({ scope: "manuscript", chapterId: c.id })}
+                      aria-label={`Chapter ${c.manuscript_order}, ${c.title}` + (empty ? ", planned" : `, ${fmt(w)} words`)}
+                      onMouseEnter={(e) => openCard(c, e.currentTarget)}
+                      onMouseLeave={hideCard}
+                      onClick={(e) => { cardPin.current = true; openCard(c, e.currentTarget); }}
                     />
                   );
                 })}
               </div>
             </div>
           ))}
+          {card && createPortal(
+            <div
+              className="ms-card"
+              style={{ position: "fixed", left: Math.min(Math.max(card.x, 120), window.innerWidth - 120), top: card.y - 10, transform: "translate(-50%, -100%)", zIndex: 320 }}
+              onMouseEnter={() => window.clearTimeout(cardHideT.current)}
+              onMouseLeave={hideCard}
+            >
+              {(() => {
+                const empty = card.ch.planned || !(card.ch.body || "").trim();
+                const w = wordsOf(card.ch.body);
+                const moments = momentsByOrder.get(card.ch.manuscript_order) ?? 0;
+                return (
+                  <>
+                    <div className="ms-card-ch">Chapter {card.ch.manuscript_order}</div>
+                    <div className="ms-card-title">{card.ch.title || "Untitled"}</div>
+                    <div className="ms-card-meta">
+                      {empty ? "Planned — not written yet"
+                        : `${fmt(w)} word${w === 1 ? "" : "s"}` + (moments ? ` · ${moments} moment${moments === 1 ? "" : "s"}` : "")}
+                    </div>
+                    <button className="ms-card-open" onClick={() => { cardPin.current = false; setCard(null); go({ scope: "manuscript", chapterId: card.ch.id }); }}>
+                      {empty ? "Start this chapter" : "Open chapter"} <Icon name="arrow" size={13} />
+                    </button>
+                  </>
+                );
+              })()}
+            </div>,
+            document.body,
+          )}
         </section>
       )}
 

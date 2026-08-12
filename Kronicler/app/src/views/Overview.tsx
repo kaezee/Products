@@ -518,7 +518,8 @@ export function Overview({ worldId, go }: { worldId: string; go: (n: Nav) => voi
                 chapter {continueCh.manuscript_order} · {fmt(wordsOf(continueCh.body))} words
               </div>
             </div>
-            <button className="primary" onClick={() => go({ scope: "manuscript", chapterId: continueCh.id })}>Keep writing</button>
+            <button className="primary" onClick={() => go({ scope: "manuscript", chapterId: continueCh.id })}
+              style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>Keep writing <Icon name="arrow" size={14} /></button>
           </>
         ) : (
           <>

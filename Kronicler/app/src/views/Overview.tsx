@@ -18,6 +18,10 @@ const DORMANT_GAP = 5;
 
 const wordsOf = (body: string) => (body || "").replace(/<[^>]*>/g, " ").trim().split(/\s+/).filter(Boolean).length;
 const fmt = (n: number) => n.toLocaleString();
+// Spell small counts (the alert reads "Two moments…", not "2 moments…"); numbers
+// past twelve stay numeric — but the alert caps at twelve anyway.
+const WORDS = ["Zero", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine", "Ten", "Eleven", "Twelve"];
+const cap = (n: number) => WORDS[n] ?? String(n);
 
 // Overview — the world's home. Orients (a row of at-a-glance stats), launches
 // (pick up where you left off), and flags what needs attention. Owns nothing,
@@ -178,6 +182,24 @@ export function Overview({ worldId, go }: { worldId: string; go: (n: Nav) => voi
     return m;
   }, [stream]);
 
+  // Problems — moments that no longer match the prose (§5/§7). Two kinds: a
+  // moment recorded in a chapter that's since been blanked or set back to
+  // planned (locatable → a red dot on that cell), and orphaned anchors whose
+  // chapter was deleted (not locatable). The alert strip counts both; the grid
+  // dots only the locatable ones.
+  const problems = useMemo(() => {
+    const chByOrder = new Map<number, Chapter>();
+    for (const c of chapters) chByOrder.set(c.manuscript_order, c);
+    const driftOrders = new Set<number>();
+    let count = 0;
+    for (const s of stream ?? []) {
+      if (s.manuscript_order == null) continue;
+      const ch = chByOrder.get(s.manuscript_order);
+      if (ch && (ch.planned || !(ch.body || "").trim())) { driftOrders.add(s.manuscript_order); count++; }
+    }
+    return { driftOrders, count: count + orphaned.length };
+  }, [stream, chapters, orphaned]);
+
   // Which metric colours the grid (§4). Length = how much is written; Moments =
   // how much happens (recorded changes). A personal default per world.
   const [lens, setLens] = useState<"length" | "moments">(() =>
@@ -188,12 +210,13 @@ export function Overview({ worldId, go }: { worldId: string; go: (n: Nav) => voi
   // books wrap; the current chapter wears the marker ring. Banding is
   // percentile-based — the shade scale only splits into more steps (1 / 3 / 6)
   // when values actually vary (spread = p90/p10), so an even manuscript stays
-  // calm and a lopsided one shows its peaks. Shades are color-mixes of the ink
-  // over the sunken surface, so the whole grid themes across paper/white/dark.
+  // calm and a lopsided one shows its peaks. Shades are tints of the woad action
+  // colour over the card surface, so the manuscript wears the brand blue and the
+  // amber marker reads as its complement; the whole grid themes across themes.
   const msGrid = useMemo(() => {
     const ordered = [...chapters].sort((a, b) => a.manuscript_order - b.manuscript_order);
     const written = ordered.filter((c) => !c.planned && (c.body || "").trim());
-    const shadeAt = (strengths: number[], i: number) => `color-mix(in srgb, var(--ink) ${Math.round(strengths[i] * 100)}%, var(--inset))`;
+    const shadeAt = (strengths: number[], i: number) => `color-mix(in srgb, var(--k-action-fill) ${Math.round(strengths[i] * 100)}%, var(--surface))`;
     // Build a banded shade function from a set of per-chapter values.
     const band = (valueOf: (c: Chapter) => number) => {
       const counts = written.map(valueOf).sort((a, b) => a - b);
@@ -203,7 +226,7 @@ export function Overview({ worldId, go }: { worldId: string; go: (n: Nav) => voi
       const p90 = Math.max(1, q(0.9));
       const spread = p90 / p10;
       const nBands = n < 3 || spread < 1.6 ? 1 : spread < 4 ? 3 : 6;
-      const strengths = nBands === 1 ? [0.5] : nBands === 3 ? [0.30, 0.54, 0.80] : [0.16, 0.30, 0.44, 0.58, 0.72, 0.86];
+      const strengths = nBands === 1 ? [0.55] : nBands === 3 ? [0.28, 0.52, 0.82] : [0.16, 0.30, 0.45, 0.61, 0.78, 0.92];
       const shadeOf = (c: Chapter) => {
         const v = valueOf(c);
         let below = 0; for (const x of counts) if (x < v) below++;
@@ -226,7 +249,11 @@ export function Overview({ worldId, go }: { worldId: string; go: (n: Nav) => voi
       }
       bookMap.get(key)!.chapters.push(c);
     }
-    const books = [...bookMap.values()].sort((a, b) => a.order - b.order);
+    const books = [...bookMap.values()].sort((a, b) => a.order - b.order).map((bk) => {
+      const written = bk.chapters.filter((c) => !c.planned && (c.body || "").trim());
+      const words = written.reduce((n, c) => n + wordsOf(c.body), 0);
+      return { ...bk, count: bk.chapters.length, words, started: written.length > 0 };
+    });
     return { books, byLens, total: ordered.length };
   }, [chapters, bands, momentsByOrder]);
   const activeBand = msGrid.byLens[lens];
@@ -480,16 +507,18 @@ export function Overview({ worldId, go }: { worldId: string; go: (n: Nav) => voi
       {/* Resume card sits at the very top (§5): the one thing a returning writer
           most wants is the way back into their prose. */}
       <div className="dash-continue">
-        <span className="dash-continue-ic"><Icon name="write" size={20} /></span>
+        <span className="dash-continue-ic"><Icon name="feather" size={20} /></span>
         {continueCh ? (
           <>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div className="dash-continue-lab">Pick up where you left off<Explain term="Pick up where you left off">A shortcut back to the furthest chapter you’ve been writing, so you can resume in one click.</Explain></div>
               <div className="dash-continue-title">{continueCh.title}</div>
-              <div className="dash-continue-sub">ch. {continueCh.manuscript_order} · {fmt(wordsOf(continueCh.body))} words</div>
+              <div className="dash-continue-sub">
+                {(() => { const bn = continueCh.band_id ? bands.find((b) => b.id === continueCh.band_id)?.name : null; return bn ? `${bn} · ` : ""; })()}
+                chapter {continueCh.manuscript_order} · {fmt(wordsOf(continueCh.body))} words
+              </div>
             </div>
-            <button className="primary" onClick={() => go({ scope: "manuscript", chapterId: continueCh.id })}
-              style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>Open chapter <Icon name="arrow" size={14} /></button>
+            <button className="primary" onClick={() => go({ scope: "manuscript", chapterId: continueCh.id })}>Keep writing</button>
           </>
         ) : (
           <>
@@ -504,63 +533,57 @@ export function Overview({ worldId, go }: { worldId: string; go: (n: Nav) => voi
         )}
       </div>
 
-      {/* Alert strip (§5): moments whose chapter was deleted, so they no longer
-          point at any prose. The count is capped at 12 — past that the exact
-          number stops being useful and would only alarm, so it reads "Some". */}
-      {orphaned.length > 0 && (
+      {/* Alert strip (§5): moments that no longer match the prose — a chapter
+          blanked, set back to planned, or deleted. Capped at 12 — past that the
+          exact number stops helping and would only alarm, so it reads "Some". */}
+      {problems.count > 0 && (
         <button className="ms-alert" onClick={() => go({ scope: "relationships" })}>
           <Icon name="alert" size={15} />
-          <span>{orphaned.length <= 12 ? `${orphaned.length} moment${orphaned.length === 1 ? "" : "s"} no longer match your writing.` : "Some moments no longer match your writing."}</span>
+          <span>{problems.count <= 12 ? `${cap(problems.count)} moment${problems.count === 1 ? "" : "s"} no longer match your writing.` : "Some moments no longer match your writing."}</span>
           <span className="spacer" style={{ flex: 1 }} />
-          <Icon name="arrow" size={13} />
+          <span className="ms-alert-fix">Fix</span>
         </button>
       )}
 
       {/* Manuscript grid (§2): the whole book at a glance. Below 5 chapters it
           isn't worth drawing — the chapter list already fits in the head. */}
       {msGrid.total >= 5 && (
-        <section className="ms-grid">
+        <section className="card ms-grid">
           <div className="ms-grid-head">
-            <span className="ms-grid-title">Your manuscript</span>
+            <span className="ms-grid-title">The manuscript<Explain term="The manuscript">Every chapter, as one cell — shaded by how long it is (or, on the Moments lens, by how much happens in it). Books wrap; the amber ring is where you stopped.</Explain></span>
             <span className="ms-grid-stat">
               <b>{fmt(stats.written)}</b> chapter{stats.written === 1 ? "" : "s"}{stats.planned > 0 ? ` · ${stats.planned} planned` : ""} · <b>{fmt(stats.words)}</b> words{stream.length > 0 ? <> · <b>{fmt(stream.length)}</b> moment{stream.length === 1 ? "" : "s"}</> : null}
             </span>
-            <span className="ms-grid-tools">
-              {/* Lens toggle (§4) — colour by how much is written, or by how much
-                  happens. Only offered once there are moments to show. */}
-              {stream.length > 0 && (
+            {/* Lens toggle (§4) — colour by how much is written, or by how much
+                happens. Only offered once there are moments to show. */}
+            {stream.length > 0 && (
+              <span className="ms-grid-tools">
                 <span className="ms-lens" role="tablist" aria-label="Colour the grid by">
                   <button role="tab" aria-selected={lens === "length"} className={"ms-lens-btn" + (lens === "length" ? " on" : "")} onClick={() => setLens("length")}>Length</button>
                   <button role="tab" aria-selected={lens === "moments"} className={"ms-lens-btn" + (lens === "moments" ? " on" : "")} onClick={() => setLens("moments")}>Moments</button>
                 </span>
-              )}
-              <span className="ms-grid-legend">
-                {activeBand.nBands > 1 && (
-                  <>{lens === "length" ? "shorter" : "fewer"}
-                    <span className="ms-legend-scale">
-                      {activeBand.strengths.map((_, i) => <i key={i} style={{ background: activeBand.shadeAt(i) }} />)}
-                    </span>
-                    {lens === "length" ? "longer" : "more"}<span aria-hidden> · </span>
-                  </>
-                )}
-                <span className="ms-legend-here" /> you are here
               </span>
-            </span>
+            )}
           </div>
           {msGrid.books.map((bk, bi) => (
             <div className="ms-book" key={bi}>
-              {msGrid.books.length > 1 && <div className="ms-book-lab">{bk.name ?? "Unsorted"}</div>}
+              {msGrid.books.length > 1 && (
+                <div className="ms-book-lab">
+                  {bk.name ?? "Unsorted"} <span className="ms-book-meta">{bk.count}{bk.started ? ` · ${fmt(bk.words)}w` : " · not started"}</span>
+                </div>
+              )}
               <div className="ms-cells">
                 {bk.chapters.map((c) => {
                   const empty = c.planned || !(c.body || "").trim();
                   const here = continueCh?.id === c.id;
+                  const flag = problems.driftOrders.has(c.manuscript_order);
                   const w = wordsOf(c.body);
                   return (
                     <button
                       key={c.id}
-                      className={"ms-cell" + (empty ? " empty" : "") + (here ? " here" : "")}
+                      className={"ms-cell" + (empty ? " empty" : "") + (here ? " here" : "") + (flag ? " flag" : "")}
                       style={empty ? undefined : ({ "--sh": activeBand.shadeOf(c) } as CSSProperties)}
-                      aria-label={`Chapter ${c.manuscript_order}, ${c.title}` + (empty ? ", planned" : `, ${fmt(w)} words`)}
+                      aria-label={`Chapter ${c.manuscript_order}, ${c.title}` + (empty ? ", planned" : `, ${fmt(w)} words`) + (flag ? ", a moment no longer matches" : "")}
                       onMouseEnter={(e) => openCard(c, e.currentTarget)}
                       onMouseLeave={hideCard}
                       onClick={(e) => { cardPin.current = true; openCard(c, e.currentTarget); }}
@@ -570,6 +593,17 @@ export function Overview({ worldId, go }: { worldId: string; go: (n: Nav) => voi
               </div>
             </div>
           ))}
+          {/* Legend along the bottom of the card (§2 mock) */}
+          <div className="ms-legend">
+            {activeBand.nBands > 1 && (
+              <span className="ms-legend-item">
+                <span className="ms-legend-scale">{activeBand.strengths.map((_, i) => <i key={i} style={{ background: activeBand.shadeAt(i) }} />)}</span>
+                {lens === "length" ? "shorter → longer" : "fewer → more"}
+              </span>
+            )}
+            {stats.planned > 0 && <span className="ms-legend-item"><span className="ms-legend-planned" /> planned</span>}
+            <span className="ms-legend-item"><span className="ms-legend-here" /> where you stopped</span>
+          </div>
           {card && createPortal(
             <div
               className="ms-card"

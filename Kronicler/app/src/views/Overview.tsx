@@ -550,7 +550,7 @@ export function Overview({ worldId, go }: { worldId: string; go: (n: Nav) => voi
       {msGrid.total >= 5 && (
         <section className="card ms-grid">
           <div className="ms-grid-head">
-            <span className="ms-grid-title">The manuscript<Explain term="The manuscript">Every chapter, as one cell — shaded by how long it is (or, on the Moments lens, by how much happens in it). Books wrap; the amber ring is where you stopped.</Explain></span>
+            <span className="ms-grid-title">What you've written<Explain term="What you've written">Every chapter, as one cell — shaded by how long it is (or, on the Moments lens, by how much happens in it). Books wrap; the amber ring is where you stopped.</Explain></span>
             <span className="ms-grid-stat">
               <b>{fmt(stats.written)}</b> chapter{stats.written === 1 ? "" : "s"}{stats.planned > 0 ? ` · ${stats.planned} planned` : ""} · <b>{fmt(stats.words)}</b> words{stream.length > 0 ? <> · <b>{fmt(stream.length)}</b> moment{stream.length === 1 ? "" : "s"}</> : null}
             </span>

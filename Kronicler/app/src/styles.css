@@ -528,8 +528,10 @@ h2.ed-canvas-title, .ed-canvas-input { margin: 0; }
 .stat-lab { font-size: 10.5px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
 .stat-num { font-family: var(--k-font-mono); font-size: var(--k-type-metric-size); line-height: var(--k-type-metric-lh); font-weight: var(--k-type-metric-weight); color: var(--ink); font-variant-numeric: tabular-nums; }
 .stat-sub { font-size: 11.5px; color: var(--muted); }
-.dash-continue { display: flex; align-items: center; gap: 15px; padding: 16px 18px; margin-bottom: 20px; background: var(--bondBg); border: 1px solid var(--bondLine); border-radius: 14px; }
-.dash-continue-ic { display: inline-flex; align-items: center; justify-content: center; width: 40px; height: 40px; flex: 0 0 auto; border-radius: 11px; background: var(--surface); color: var(--bond); border: 1px solid var(--bondLine); }
+/* A neutral card — the primary colour is reserved for the "Keep writing" button
+   so it stands out rather than blending into a monochrome blue block. */
+.dash-continue { display: flex; align-items: center; gap: 15px; padding: 16px 18px; margin-bottom: 20px; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; }
+.dash-continue-ic { display: inline-flex; align-items: center; justify-content: center; width: 40px; height: 40px; flex: 0 0 auto; border-radius: 11px; background: var(--inset); color: var(--bond); border: 1px solid var(--line); }
 .dash-continue-lab { font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--bond); }
 .dash-continue-title { font-family: var(--serif); font-size: 18px; font-weight: 600; color: var(--ink); margin: 1px 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .dash-continue-sub { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
@@ -1139,7 +1141,10 @@ button.ghost:hover:not(:disabled) { background: var(--wash); border-color: var(-
 .chron-sec { padding: 18px 20px; }
 .chron-sec + .chron-sec { border-top: 1px solid var(--line); }
 .chron-lab { display: block; font: 700 11px/1.4 var(--sans); letter-spacing: .09em; text-transform: uppercase; color: var(--muted); margin: 0 0 10px; }
-.chron-row { display: flex; gap: 10px; align-items: center; margin: 0 -10px; padding: 7px 10px; border-radius: 8px; font-family: var(--serif); font-size: 15px; line-height: 1.6; color: var(--ink); }
+/* Each observation sits in its own well, the same grounding the notes get, so a
+   single item never floats in empty card space. */
+.chron-row { display: flex; gap: 10px; align-items: center; background: var(--inset); border-radius: var(--k-radius-container, 8px); padding: 12px 14px; margin-bottom: 8px; font-family: var(--serif); font-size: 15px; line-height: 1.55; color: var(--ink); }
+.chron-row:last-child { margin-bottom: 0; }
 .chron-row.click { cursor: pointer; }
 .chron-row.click:hover { background: var(--wash); }
 .chron-meta { font-family: var(--sans); font-size: 12px; color: var(--muted); }

@@ -539,7 +539,12 @@ h2.ed-canvas-title, .ed-canvas-input { margin: 0; }
 .ms-grid-title { font-family: var(--serif); font-size: 17px; font-weight: 600; color: var(--ink); }
 .ms-grid-stat { font-size: 12.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
 .ms-grid-stat b { color: var(--sub); font-weight: 600; }
-.ms-grid-legend { margin-left: auto; display: inline-flex; align-items: center; gap: 8px; font-size: 11px; color: var(--muted); }
+.ms-grid-tools { margin-left: auto; display: inline-flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.ms-lens { display: inline-flex; padding: 2px; gap: 2px; background: var(--inset); border: 1px solid var(--line); border-radius: 8px; }
+.ms-lens-btn { font-size: 11.5px; font-weight: 600; color: var(--muted); background: none; border: none; border-radius: 6px; padding: 3px 9px; cursor: pointer; transition: background var(--k-duration-fast,120ms) var(--k-ease,ease), color var(--k-duration-fast,120ms) var(--k-ease,ease); }
+.ms-lens-btn:hover { color: var(--sub); }
+.ms-lens-btn.on { background: var(--surface); color: var(--ink); box-shadow: var(--shadow); }
+.ms-grid-legend { display: inline-flex; align-items: center; gap: 8px; font-size: 11px; color: var(--muted); }
 .ms-legend-scale { display: inline-flex; gap: 2px; }
 .ms-legend-scale i { width: 12px; height: 12px; border-radius: 2px; display: inline-block; }
 .ms-legend-here { position: relative; width: 12px; height: 12px; border-radius: 2px; background: var(--inset); box-shadow: 0 0 0 1.5px var(--marker); }

@@ -172,28 +172,51 @@ export function Overview({ worldId, go }: { worldId: string; go: (n: Nav) => voi
       written, total: chapters.length, planned: chapters.length - written, words, relCount, dated };
   }, [entities, chapters, stream]);
 
-  // Manuscript grid (§2): one cell per chapter, shaded by length; books wrap;
-  // the current chapter wears the marker ring. Length banding is percentile-
-  // based — the shade scale only splits into more steps when chapter lengths
-  // actually vary (spread = p90/p10), so an even manuscript stays calm and a
-  // lopsided one shows its peaks. Shades are color-mixes of the ink over the
-  // sunken surface, so the whole grid themes across paper / white / dark.
+  // Moments recorded in each chapter, keyed by manuscript order — powers the
+  // Moments lens (§4) and the hover/tap card's count (§3).
+  const momentsByOrder = useMemo(() => {
+    const m = new Map<number, number>();
+    for (const s of stream ?? []) if (s.manuscript_order != null) m.set(s.manuscript_order, (m.get(s.manuscript_order) ?? 0) + 1);
+    return m;
+  }, [stream]);
+
+  // Which metric colours the grid (§4). Length = how much is written; Moments =
+  // how much happens (recorded changes). A personal default per world.
+  const [lens, setLens] = useState<"length" | "moments">(() =>
+    (localStorage.getItem(`k.lens.${worldId}`) as "length" | "moments") || "length");
+  useEffect(() => { localStorage.setItem(`k.lens.${worldId}`, lens); }, [lens, worldId]);
+
+  // Manuscript grid (§2/§4): one cell per chapter, shaded by the active lens;
+  // books wrap; the current chapter wears the marker ring. Banding is
+  // percentile-based — the shade scale only splits into more steps (1 / 3 / 6)
+  // when values actually vary (spread = p90/p10), so an even manuscript stays
+  // calm and a lopsided one shows its peaks. Shades are color-mixes of the ink
+  // over the sunken surface, so the whole grid themes across paper/white/dark.
   const msGrid = useMemo(() => {
     const ordered = [...chapters].sort((a, b) => a.manuscript_order - b.manuscript_order);
-    const counts = ordered.filter((c) => !c.planned && (c.body || "").trim())
-      .map((c) => wordsOf(c.body)).sort((a, b) => a - b);
-    const n = counts.length;
-    const q = (p: number) => (n ? counts[Math.min(n - 1, Math.max(0, Math.round(p * (n - 1))))] : 0);
-    const p10 = Math.max(1, q(0.1) || counts.find((x) => x > 0) || 1);
-    const p90 = Math.max(1, q(0.9));
-    const spread = p90 / p10;
-    const nBands = n < 3 || spread < 1.6 ? 1 : spread < 4 ? 3 : 6;
-    const strengths = nBands === 1 ? [0.5] : nBands === 3 ? [0.30, 0.54, 0.80] : [0.16, 0.30, 0.44, 0.58, 0.72, 0.86];
-    const shadeAt = (i: number) => `color-mix(in srgb, var(--ink) ${Math.round(strengths[i] * 100)}%, var(--inset))`;
-    const shadeOf = (w: number) => {
-      let below = 0; for (const c of counts) if (c < w) below++;
-      const idx = nBands === 1 ? 0 : Math.min(nBands - 1, Math.floor((below / Math.max(1, n)) * nBands));
-      return shadeAt(idx);
+    const written = ordered.filter((c) => !c.planned && (c.body || "").trim());
+    const shadeAt = (strengths: number[], i: number) => `color-mix(in srgb, var(--ink) ${Math.round(strengths[i] * 100)}%, var(--inset))`;
+    // Build a banded shade function from a set of per-chapter values.
+    const band = (valueOf: (c: Chapter) => number) => {
+      const counts = written.map(valueOf).sort((a, b) => a - b);
+      const n = counts.length;
+      const q = (p: number) => (n ? counts[Math.min(n - 1, Math.max(0, Math.round(p * (n - 1))))] : 0);
+      const p10 = Math.max(1, q(0.1) || counts.find((x) => x > 0) || 1);
+      const p90 = Math.max(1, q(0.9));
+      const spread = p90 / p10;
+      const nBands = n < 3 || spread < 1.6 ? 1 : spread < 4 ? 3 : 6;
+      const strengths = nBands === 1 ? [0.5] : nBands === 3 ? [0.30, 0.54, 0.80] : [0.16, 0.30, 0.44, 0.58, 0.72, 0.86];
+      const shadeOf = (c: Chapter) => {
+        const v = valueOf(c);
+        let below = 0; for (const x of counts) if (x < v) below++;
+        const idx = nBands === 1 ? 0 : Math.min(nBands - 1, Math.floor((below / Math.max(1, n)) * nBands));
+        return shadeAt(strengths, idx);
+      };
+      return { nBands, strengths, shadeOf, shadeAt: (i: number) => shadeAt(strengths, i) };
+    };
+    const byLens = {
+      length: band((c) => wordsOf(c.body)),
+      moments: band((c) => momentsByOrder.get(c.manuscript_order) ?? 0),
     };
     // Group into books in manuscript order; unbanded chapters trail last.
     const bookMap = new Map<string, { name: string | null; order: number; chapters: Chapter[] }>();
@@ -206,16 +229,9 @@ export function Overview({ worldId, go }: { worldId: string; go: (n: Nav) => voi
       bookMap.get(key)!.chapters.push(c);
     }
     const books = [...bookMap.values()].sort((a, b) => a.order - b.order);
-    return { books, nBands, strengths, shadeAt, shadeOf, total: ordered.length };
-  }, [chapters, bands]);
-
-  // Moments recorded in each chapter, keyed by manuscript order — the count the
-  // grid's hover/tap card reports (§3).
-  const momentsByOrder = useMemo(() => {
-    const m = new Map<number, number>();
-    for (const s of stream ?? []) if (s.manuscript_order != null) m.set(s.manuscript_order, (m.get(s.manuscript_order) ?? 0) + 1);
-    return m;
-  }, [stream]);
+    return { books, byLens, total: ordered.length };
+  }, [chapters, bands, momentsByOrder]);
+  const activeBand = msGrid.byLens[lens];
 
   // Grid hover/tap card (§3): one popover for the whole grid. Hover a cell to
   // peek; click to pin (so touch works too); the card carries the way in. Same
@@ -490,16 +506,26 @@ export function Overview({ worldId, go }: { worldId: string; go: (n: Nav) => voi
             <span className="ms-grid-stat">
               <b>{fmt(stats.written)}</b> chapter{stats.written === 1 ? "" : "s"}{stats.planned > 0 ? ` · ${stats.planned} planned` : ""} · <b>{fmt(stats.words)}</b> words
             </span>
-            <span className="ms-grid-legend">
-              {msGrid.nBands > 1 && (
-                <>shorter
-                  <span className="ms-legend-scale">
-                    {msGrid.strengths.map((_, i) => <i key={i} style={{ background: msGrid.shadeAt(i) }} />)}
-                  </span>
-                  longer<span aria-hidden> · </span>
-                </>
+            <span className="ms-grid-tools">
+              {/* Lens toggle (§4) — colour by how much is written, or by how much
+                  happens. Only offered once there are moments to show. */}
+              {stream.length > 0 && (
+                <span className="ms-lens" role="tablist" aria-label="Colour the grid by">
+                  <button role="tab" aria-selected={lens === "length"} className={"ms-lens-btn" + (lens === "length" ? " on" : "")} onClick={() => setLens("length")}>Length</button>
+                  <button role="tab" aria-selected={lens === "moments"} className={"ms-lens-btn" + (lens === "moments" ? " on" : "")} onClick={() => setLens("moments")}>Moments</button>
+                </span>
               )}
-              <span className="ms-legend-here" /> you are here
+              <span className="ms-grid-legend">
+                {activeBand.nBands > 1 && (
+                  <>{lens === "length" ? "shorter" : "fewer"}
+                    <span className="ms-legend-scale">
+                      {activeBand.strengths.map((_, i) => <i key={i} style={{ background: activeBand.shadeAt(i) }} />)}
+                    </span>
+                    {lens === "length" ? "longer" : "more"}<span aria-hidden> · </span>
+                  </>
+                )}
+                <span className="ms-legend-here" /> you are here
+              </span>
             </span>
           </div>
           {msGrid.books.map((bk, bi) => (
@@ -514,7 +540,7 @@ export function Overview({ worldId, go }: { worldId: string; go: (n: Nav) => voi
                     <button
                       key={c.id}
                       className={"ms-cell" + (empty ? " empty" : "") + (here ? " here" : "")}
-                      style={empty ? undefined : ({ "--sh": msGrid.shadeOf(w) } as CSSProperties)}
+                      style={empty ? undefined : ({ "--sh": activeBand.shadeOf(c) } as CSSProperties)}
                       aria-label={`Chapter ${c.manuscript_order}, ${c.title}` + (empty ? ", planned" : `, ${fmt(w)} words`)}
                       onMouseEnter={(e) => openCard(c, e.currentTarget)}
                       onMouseLeave={hideCard}

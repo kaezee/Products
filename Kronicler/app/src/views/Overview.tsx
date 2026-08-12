@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode, type CSSPropertie
 import { createPortal } from "react-dom";
 import { getStream, getEntities, getEntityTypes, getRelationshipTypes, getChapters, getNotes, getWorldComments, getWorld, getBands } from "../lib/api";
 import type { StreamRow, Entity, EntityType, RelationshipType, Chapter, Note, Comment, Band } from "../lib/types";
-import { buildTypeSwatches, plural } from "../lib/entityTypes";
+import { buildTypeSwatches } from "../lib/entityTypes";
 import { Mention } from "../components/Mention";
 import { Explain } from "../components/Explain";
 import { detectMentions } from "../lib/mentions";
@@ -11,7 +11,7 @@ import { findIssues } from "../lib/continuity";
 import { findDuplicates } from "../lib/dedupe";
 import type { Nav } from "../App";
 import { VALENCE_COLOR } from "../lib/valence";
-import { Icon, type IconName } from "../components/icons";
+import { Icon } from "../components/icons";
 import { Skeleton } from "../components/Skeleton";
 
 const DORMANT_GAP = 5;
@@ -145,7 +145,6 @@ export function Overview({ worldId, go }: { worldId: string; go: (n: Nav) => voi
     const nameOf = (id: string) => entities.find((e) => e.id === id)?.title ?? "someone";
     return findIssues(stream, types, nameOf);
   }, [stream, types, entities]);
-  const contradictions = useMemo(() => issues.flatMap((i) => i.kind === "reopened" ? [i] : []), [issues]);
   const orphaned = useMemo(() => issues.flatMap((i) => i.kind === "orphaned-anchor" ? [i] : []), [issues]);
   const ironies = useMemo(() => issues.flatMap((i) => i.kind === "belief-clash" ? [i] : []), [issues]);
   const duplicates = useMemo(() => findDuplicates(entities), [entities]);
@@ -309,32 +308,14 @@ export function Overview({ worldId, go }: { worldId: string; go: (n: Nav) => voi
   const lookItems = dupShow.length + ironyShow.length;
   const typeWord = (e: Entity, n: number) => { const t = (e.type || "thing").toLowerCase(); return n === 1 ? t : `${t}s`; };
 
-  // Subtitle = the cast. Chapters, words, and moments live in the stat cards
-  // below, so keeping them out of the subtitle avoids echoing the cards. Only
-  // when there's no cast yet does it fall back to the manuscript's size.
-  const castBits: string[] = [];
-  for (const [type, n] of stats.typeBreakdown) castBits.push(`${n} ${n === 1 ? type : plural(type)}`);
+  // Subtitle = the manuscript's size, and only when the grid isn't drawn (§7).
+  // Cast and world shape move to the World view; chapters/words/moments live in
+  // the grid header, so once the grid is present the subtitle would just echo it.
   const sizeBits = [
     stats.written ? (stats.planned > 0 ? `${stats.written} of ${stats.total} chapters` : `${stats.written} chapter${stats.written === 1 ? "" : "s"}`) : null,
     stats.words ? `${fmt(stats.words)} words` : null,
   ].filter(Boolean) as string[];
-  const shape = castBits.length ? castBits.join(" · ")
-    : sizeBits.length ? sizeBits.join(" · ")
-    : "A new world — nothing in it yet. Start below.";
-
-  // §5 cards: each appears only when it has something to report (never a zero,
-  // never a denominator). A new project earns them one at a time.
-  const planned = chapters.filter((c) => c.planned).length;
-  type Tile = { key: string; icon: IconName; label: string; value: string; sub?: string; nav: Nav };
-  const tiles: Tile[] = ([
-    stats.words   && { key: "words", icon: "words", label: "Words", value: fmt(stats.words), nav: { scope: "manuscript" } },
-    // Chapter status lives on the Chapters card — "N written · M planned" — not
-    // as a stray subtext line under the story observations.
-    stats.written && { key: "chapters", icon: "manuscript", label: "Chapters", value: fmt(stats.written), sub: planned > 0 ? `written · ${planned} planned` : "written", nav: { scope: "manuscript" } },
-    stream.length && { key: "moments", icon: "asterisk", label: "Moments", value: fmt(stream.length), sub: "recorded", nav: { scope: "relationships" } },
-    // "Your world" is dropped: the subtitle already states cast + places, so a
-    // fourth stat card just repeats it. Three cards, per the settled composition.
-  ] as (Tile | 0 | "")[]).filter(Boolean) as Tile[];
+  const shape = sizeBits.length ? sizeBits.join(" · ") : "A new world — nothing in it yet. Start below.";
 
 
   // A brand-new world has nothing to orient, continue, or flag — so the stats,
@@ -465,7 +446,7 @@ export function Overview({ worldId, go }: { worldId: string; go: (n: Nav) => voi
   return (
     <div className="fi">
       <h2 className="scope-title">Overview</h2>
-      <p className="scope-sub">{shape}</p>
+      {msGrid.total < 5 && <p className="scope-sub">{shape}</p>}
 
       {/* §4.1 one orientation sentence after 1–3 weeks away */}
       {away === "orient" && continueCh && (
@@ -542,7 +523,7 @@ export function Overview({ worldId, go }: { worldId: string; go: (n: Nav) => voi
           <div className="ms-grid-head">
             <span className="ms-grid-title">Your manuscript</span>
             <span className="ms-grid-stat">
-              <b>{fmt(stats.written)}</b> chapter{stats.written === 1 ? "" : "s"}{stats.planned > 0 ? ` · ${stats.planned} planned` : ""} · <b>{fmt(stats.words)}</b> words
+              <b>{fmt(stats.written)}</b> chapter{stats.written === 1 ? "" : "s"}{stats.planned > 0 ? ` · ${stats.planned} planned` : ""} · <b>{fmt(stats.words)}</b> words{stream.length > 0 ? <> · <b>{fmt(stream.length)}</b> moment{stream.length === 1 ? "" : "s"}</> : null}
             </span>
             <span className="ms-grid-tools">
               {/* Lens toggle (§4) — colour by how much is written, or by how much
@@ -620,17 +601,6 @@ export function Overview({ worldId, go }: { worldId: string; go: (n: Nav) => voi
         </section>
       )}
 
-      {/* World at a glance — cards appear only when earned (§5) */}
-      {tiles.length > 0 && <div className="dash-stats">
-        {tiles.map((t) => (
-          <button key={t.key} className="stat" onClick={() => go(t.nav)}>
-            <span className="stat-top"><Icon name={t.icon} size={13} /><span className="stat-lab">{t.label}</span></span>
-            <span className="stat-num">{t.value}</span>
-            {t.sub && <span className="stat-sub">{t.sub}</span>}
-          </button>
-        ))}
-      </div>}
-
       {/* Two-card row (§6): the story observations (Worth a look) and the writer's
           own notes (What you left yourself) as two cards side by side on the
           canvas, wrapping to one column on narrow widths. Worth a look is now
@@ -694,43 +664,6 @@ export function Overview({ worldId, go }: { worldId: string; go: (n: Nav) => voi
         </div>
       )}
 
-      {/* Recent moments — recorded changes in reverse order; reopened threads read
-          as chronicle here (§9). Each row opens the chapter it was recorded in. */}
-      <div style={{ marginBottom: 18 }}>
-        <div className="label" style={{ marginTop: 0 }}>Recent moments</div>
-        <div className="card">
-          {recent.length === 0 && contradictions.length === 0 && <div className="row"><span className="muted">No moments yet — select a line in a chapter and record what changes.</span></div>}
-          {contradictions.map((c) => {
-            const chId = chapters.find((ch) => ch.manuscript_order === c.laterCh)?.id;
-            return (
-            <div className="row click" key={"re" + c.relId} onClick={() => go(chId ? { scope: "manuscript", chapterId: chId } : c.entityId ? { scope: "library", entityId: c.entityId } : { scope: "relationships" })}>
-              <span className="dot" style={{ background: "var(--hostile)" }} />
-              <span style={{ fontWeight: 500 }}>
-                {refsM(c.whoRefs, " · ")} are <span style={{ color: "var(--hostile)", fontWeight: 600 }}>{c.laterLabel}</span> again — they were {c.termLabel} in ch. {c.termCh}.
-              </span>
-            </div>
-            );
-          })}
-          {recent.slice(0, 3).map((s) => {
-            const chId = s.manuscript_order != null ? chapters.find((ch) => ch.manuscript_order === s.manuscript_order)?.id : undefined;
-            return (
-            <div className="row click" key={s.state_id} onClick={() => go(chId ? { scope: "manuscript", chapterId: chId } : s.participants[0]?.entity_id ? { scope: "library", entityId: s.participants[0].entity_id } : { scope: "relationships" })}>
-              <span className="dot" style={{ background: VALENCE_COLOR[s.valence] }} />
-              <span style={{ fontWeight: 500 }}>
-                {whoM(s)} <span style={{ color: VALENCE_COLOR[s.valence], fontWeight: 600 }}>{s.type_label}</span>
-              </span>
-              <span className="spacer" />
-              <span className="muted">{s.manuscript_order != null ? `ch. ${s.manuscript_order} →` : "—"}</span>
-            </div>
-            );
-          })}
-          {stream.length > 3 && (
-            <div className="row click" onClick={() => go({ scope: "relationships" })}>
-              <span className="chron-more">See all moments →</span>
-            </div>
-          )}
-        </div>
-      </div>
       </>}
     </div>
   );
@@ -740,17 +673,8 @@ export function Overview({ worldId, go }: { worldId: string; go: (n: Nav) => voi
 function OverviewSkeleton() {
   return (
     <div className="fi">
-      <Skeleton w={150} h={26} r={7} style={{ marginBottom: 8 }} />
-      <Skeleton w={320} h={13} style={{ marginBottom: 18 }} />
-      <div className="dash-stats">
-        {Array.from({ length: 6 }).map((_, i) => (
-          <div key={i} className="stat" style={{ cursor: "default" }}>
-            <Skeleton w={70} h={11} />
-            <Skeleton w={54} h={24} r={7} style={{ margin: "2px 0" }} />
-            <Skeleton w={84} h={11} />
-          </div>
-        ))}
-      </div>
+      <Skeleton w={150} h={26} r={7} style={{ marginBottom: 18 }} />
+      {/* resume card */}
       <div className="dash-continue" style={{ background: "var(--surface)", borderColor: "var(--line)" }}>
         <Skeleton w={40} h={40} r={11} style={{ flex: "0 0 auto" }} />
         <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 6 }}>
@@ -760,7 +684,18 @@ function OverviewSkeleton() {
         </div>
         <Skeleton w={120} h={34} r={8} style={{ flex: "0 0 auto" }} />
       </div>
-      <div className="dash-cols">
+      {/* manuscript grid */}
+      <div className="ms-grid">
+        <div className="ms-grid-head" style={{ marginBottom: 12 }}>
+          <Skeleton w={130} h={17} r={6} />
+          <Skeleton w={200} h={12} />
+        </div>
+        <Skeleton w={90} h={10} style={{ margin: "0 0 7px" }} />
+        <div className="ms-cells">
+          {Array.from({ length: 16 }).map((_, i) => <Skeleton key={i} w={20} h={20} r={3} style={{ flex: "0 0 auto" }} />)}
+        </div>
+      </div>
+      <div className="dash-cols" style={{ marginTop: 20 }}>
         {Array.from({ length: 2 }).map((_, c) => (
           <div key={c}>
             <Skeleton w={130} h={11} style={{ margin: "0 0 8px" }} />

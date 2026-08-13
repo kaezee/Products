@@ -382,6 +382,9 @@ export function BookCanvas(props: {
     try { await setStateAnchor(stateId, anchor); reloadStream(); } catch (x) { setErr(String(x)); }
   }
   async function deleteMoment(stateId: string) {
+    // Moments are part of the append-only stream and have no soft-delete — this
+    // is permanent, so it must ask first and say so plainly.
+    if (!(await confirmDialog({ title: "Delete moment", message: "Delete this moment? Moments aren't kept in the Trash — this can't be undone.", confirmLabel: "Delete", tone: "danger" }))) return;
     try { await deleteState(stateId); reloadStream(); } catch (x) { setErr(String(x)); }
   }
 

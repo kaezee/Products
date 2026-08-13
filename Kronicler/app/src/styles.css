@@ -592,6 +592,14 @@ h2.ed-canvas-title, .ed-canvas-input { margin: 0; }
 
 /* In-app confirmation dialog (replaces the native browser confirm). */
 .confirm-overlay { align-items: center; padding-top: 0; z-index: 90; }
+/* Toast / snackbar — transient, non-blocking action confirmation. The host is
+   click-through; only the pills themselves take pointer events. */
+.toast-host { position: fixed; left: 50%; bottom: 26px; transform: translateX(-50%); z-index: 200; display: flex; flex-direction: column; align-items: center; gap: 8px; pointer-events: none; }
+.toast { display: inline-flex; align-items: center; gap: 9px; pointer-events: auto; background: var(--raised); color: var(--ink); border: 1px solid var(--line); border-radius: 999px; padding: 9px 16px 9px 13px; font-size: 13px; font-weight: 500; box-shadow: var(--pop); animation: toast-in 180ms var(--k-ease, ease); }
+.toast-ic { color: var(--allied); flex: 0 0 auto; }
+.toast-info .toast-ic { color: var(--bond); }
+@keyframes toast-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+@media (prefers-reduced-motion: reduce) { .toast { animation: none; } }
 .confirm { width: 430px; max-width: calc(100vw - 32px); background: var(--surface); border: 1px solid var(--lineStrong); border-radius: 14px; padding: 20px 22px; box-shadow: var(--pop); }
 .confirm-title { font-family: var(--serif); font-weight: 600; font-size: 17px; color: var(--ink); margin-bottom: 8px; }
 .confirm-msg { color: var(--sub); font-size: 13.5px; line-height: 1.55; white-space: pre-line; }

@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { getStream, getEntities, getEntityTypes, getRelationshipTypes, getChapters, getNotes, getWorldComments, getWorld, getBands, updateNote, softDeleteNote } from "../lib/api";
 import { NotePad } from "../components/NotePad";
 import { confirmDialog } from "../components/confirm";
+import { toast } from "../components/toast";
 import type { StreamRow, Entity, EntityType, RelationshipType, Chapter, Note, Comment, Band } from "../lib/types";
 import { buildTypeSwatches } from "../lib/entityTypes";
 import { Mention } from "../components/Mention";
@@ -29,7 +30,7 @@ const cap = (n: number) => WORDS[n] ?? String(n);
 // Overview — the world's home. Orients (a row of at-a-glance stats), launches
 // (pick up where you left off), and flags what needs attention. Owns nothing,
 // links everywhere.
-export function Overview({ worldId, go }: { worldId: string; go: (n: Nav) => void }) {
+export function Overview({ worldId, go, refreshKey }: { worldId: string; go: (n: Nav) => void; refreshKey?: number }) {
   const [stream, setStream] = useState<StreamRow[] | null>(null);
   const [entities, setEntities] = useState<Entity[]>([]);
   const [entityTypes, setEntityTypes] = useState<EntityType[]>([]);
@@ -59,7 +60,7 @@ export function Overview({ worldId, go }: { worldId: string; go: (n: Nav) => voi
       .then(([s, e, t, c, n, cm, w, et, bd]) => { if (!alive) return; setStream(s); setEntities(e); setTypes(t); setChapters(c); setNotes(n); setComments(cm); setWorldName(w.name); setEntityTypes(et); setBands(bd); })
       .catch((x) => alive && setErr(String(x)));
     return () => { alive = false; };
-  }, [worldId]);
+  }, [worldId, refreshKey]);
 
   const typesById = useMemo(() => new Map(types.map((t) => [t.id, t])), [types]);
 
@@ -307,6 +308,7 @@ export function Overview({ worldId, go }: { worldId: string; go: (n: Nav) => voi
     if (!ok) return false;
     await softDeleteNote(id);
     setNotes((prev) => prev.filter((x) => x.id !== id));
+    toast("Note deleted");
     return true;
   }
 
@@ -738,7 +740,7 @@ export function Overview({ worldId, go }: { worldId: string; go: (n: Nav) => voi
             initial={openNote.body}
             saveLabel="Save"
             onClose={() => setOpenNote(null)}
-            onSave={async (body) => { await updateNote(openNote.id, { body }); setNotes((prev) => prev.map((x) => (x.id === openNote.id ? { ...x, body } : x))); }}
+            onSave={async (body) => { await updateNote(openNote.id, { body }); setNotes((prev) => prev.map((x) => (x.id === openNote.id ? { ...x, body } : x))); toast("Note saved"); }}
             onDelete={() => removeNote(openNote.id)}
             goto={nav ? { label: ch ? `Go to chapter ${ch.manuscript_order}` : `Go to ${ent!.title}`, onClick: () => { setOpenNote(null); go(nav); } } : undefined}
           />

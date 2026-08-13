@@ -3,6 +3,7 @@ import { getNotes, createNote, updateNote, softDeleteNote } from "../lib/api";
 import type { Note } from "../lib/types";
 import { Icon } from "../components/icons";
 import { confirmDialog } from "../components/confirm";
+import { toast } from "../components/toast";
 
 type Scope = "chapter" | "book" | "world";
 type ChapterRef = { id: string; manuscript_order: number; title: string };
@@ -53,7 +54,7 @@ export function ChapterNotes({ worldId, chapterId, chapters, bookIds, onNavigate
     try {
       const n = await createNote(worldId, 48, 48);
       await updateNote(n.id, { body, chapter_ids: [chapterId] });
-      reload();
+      reload(); toast("Note saved");
     } catch (x) { setErr(String(x)); }
     setDraft(""); setAdding(false);
   }
@@ -61,7 +62,7 @@ export function ChapterNotes({ worldId, chapterId, chapters, bookIds, onNavigate
     const body = editDraft.trim();
     setEditId(null);
     if (!body || body === n.body) return;
-    try { await updateNote(n.id, { body }); reload(); } catch (x) { setErr(String(x)); }
+    try { await updateNote(n.id, { body }); reload(); toast("Note saved"); } catch (x) { setErr(String(x)); }
   }
   async function unpin(n: Note) {
     const next = (n.chapter_ids ?? []).filter((c) => c !== chapterId);
@@ -69,7 +70,7 @@ export function ChapterNotes({ worldId, chapterId, chapters, bookIds, onNavigate
   }
   async function del(n: Note) {
     if (!(await confirmDialog({ title: "Delete note", message: "Delete this note? It moves to the Trash — recoverable from Settings → Trash.", confirmLabel: "Delete", tone: "danger" }))) return;
-    try { await softDeleteNote(n.id); reload(); } catch (x) { setErr(String(x)); }
+    try { await softDeleteNote(n.id); reload(); toast("Note deleted"); } catch (x) { setErr(String(x)); }
   }
 
   const row = (n: Note) => (

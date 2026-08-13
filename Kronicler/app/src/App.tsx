@@ -22,6 +22,7 @@ import { getStoredTheme, setTheme, type Theme } from "./lib/theme";
 import { PanelToggleIcon } from "./components/SidePanel";
 import { Icon, ICON_SIZE, type IconName } from "./components/icons";
 import { ConfirmHost, confirmDialog } from "./components/confirm";
+import { ToastHost, toast } from "./components/toast";
 import { Spinner } from "./components/Skeleton";
 import { Breadcrumb, type Crumb } from "./components/Breadcrumb";
 
@@ -34,6 +35,7 @@ export function App() {
     <>
       <AuthGate>{(session) => <Workspace session={session} />}</AuthGate>
       <ConfirmHost />
+      <ToastHost />
     </>
   );
 }
@@ -95,6 +97,7 @@ function Workspace({ session }: { session: Session }) {
   const [worlds, setWorlds] = useState<World[] | null>(null);
   const [worldId, setWorldId] = useState<string | null>(null);
   const [nav, setNav] = useState<Nav>({ scope: "overview" });
+  const [notesNonce, setNotesNonce] = useState(0); // bumped on quick-capture so the Overview refetches
   const [leaf, setLeaf] = useState<LeafCrumb | null>(null); // chapter/entity open inside a view
   const [query, setQuery] = useState("");
   const [paletteOpen, setPaletteOpen] = useState(false);
@@ -141,7 +144,8 @@ function Workspace({ session }: { session: Session }) {
     if (!worldId || !body.trim()) return;
     enqueueNote(worldId, body);                                  // durable locally first
     if (navigator.onLine) await flushQueue(sendPendingNote);     // sync now if we can
-    if (nav.scope === "overview") go({ scope: "overview" });     // reflect it if we're looking
+    setNotesNonce((n) => n + 1);                                 // make the Overview refetch its notes
+    toast("Note saved");
   }
 
   useEffect(() => {
@@ -538,7 +542,7 @@ function Workspace({ session }: { session: Session }) {
               ) : searching ? (
                 <SearchResults key={worldId} worldId={worldId} query={query} go={go} />
               ) : nav.scope === "overview" ? (
-                <Overview worldId={worldId} go={go} />
+                <Overview worldId={worldId} go={go} refreshKey={notesNonce} />
               ) : nav.scope === "library" ? (
                 <Library key={worldId + (nav.entityId ?? "")} worldId={worldId} focusEntityId={nav.entityId} onLeaf={setLeaf} />
               ) : nav.scope === "manuscript" ? (
@@ -548,7 +552,7 @@ function Workspace({ session }: { session: Session }) {
               ) : nav.scope === "notes" ? (
                 // §1: Notes is no longer a destination — anything routing here
                 // lands on Overview, where notes surface as an anchored object.
-                <Overview worldId={worldId} go={go} />
+                <Overview worldId={worldId} go={go} refreshKey={notesNonce} />
               ) : nav.scope === "settings" ? (
                 <Settings
                   worldId={worldId}

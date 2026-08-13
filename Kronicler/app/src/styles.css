@@ -1105,9 +1105,24 @@ button.ghost:hover:not(:disabled) { background: var(--wash); border-color: var(-
 .np-head { font-size: 16px; font-weight: 650; color: var(--ink); }
 .np-desc { font-size: 13px; color: var(--muted); margin-top: 4px; max-width: 48ch; }
 .np-actions { display: flex; gap: 10px; margin-top: 14px; flex-wrap: wrap; }
-.np-seq { list-style: none; padding: 0; margin: 16px 0 0; display: flex; flex-direction: column; gap: 8px; }
-.np-seq li { font-size: 13px; color: var(--sub); padding-left: 18px; position: relative; }
-.np-seq li::before { content: ""; position: absolute; left: 2px; top: 8px; width: 5px; height: 5px; border-radius: 50%; background: var(--faint); }
+/* Empty-state hero — illustration + copy in one card, nothing on bare canvas.
+   The art rides a fixed light panel (its ink is near-black, so it needs a light
+   ground to read in dark mode). */
+.np-hero { display: flex; align-items: stretch; gap: 0; margin: 20px 0 16px; padding: 0; overflow: hidden; }
+.np-hero-art { flex: 0 0 auto; display: flex; align-items: center; justify-content: center; padding: 18px 22px; background: #F2F2F8; border-right: 1px solid var(--line); }
+.np-hero-art img { display: block; width: 248px; max-width: 100%; height: auto; }
+.np-hero-body { flex: 1; min-width: 0; padding: 22px 24px; align-self: center; }
+/* The "then" steps, grounded as numbered wells rather than loose bullets. */
+.np-next { padding: 16px 18px; margin-bottom: 8px; }
+.np-next-lab { font: 700 11px/1.4 var(--sans); letter-spacing: .09em; text-transform: uppercase; color: var(--muted); margin: 0 0 12px; }
+.np-seq { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 8px; }
+.np-seq li { display: flex; align-items: center; gap: 12px; font-size: 13.5px; color: var(--sub); background: var(--inset); border-radius: var(--k-radius-container, 8px); padding: 11px 14px; }
+.np-seq-n { flex: 0 0 auto; width: 22px; height: 22px; border-radius: 50%; background: var(--bondBg); color: var(--bond); font: 700 12px/22px var(--k-font-mono); text-align: center; }
+@media (max-width: 640px) {
+  .np-hero { flex-direction: column; }
+  .np-hero-art { border-right: none; border-bottom: 1px solid var(--line); }
+  .np-hero-art img { width: 300px; }
+}
 
 .dash-orient { font-size: 13px; color: var(--sub); margin: 2px 0 14px; }
 

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { getNotes, createNote, updateNote, softDeleteNote } from "../lib/api";
 import type { Note } from "../lib/types";
 import { Icon } from "../components/icons";
+import { confirmDialog } from "../components/confirm";
 
 type Scope = "chapter" | "book" | "world";
 type ChapterRef = { id: string; manuscript_order: number; title: string };
@@ -67,6 +68,7 @@ export function ChapterNotes({ worldId, chapterId, chapters, bookIds, onNavigate
     try { await updateNote(n.id, { chapter_ids: next }); reload(); } catch (x) { setErr(String(x)); }
   }
   async function del(n: Note) {
+    if (!(await confirmDialog({ title: "Delete note", message: "Delete this note? It moves to the Trash — recoverable from Settings → Trash.", confirmLabel: "Delete", tone: "danger" }))) return;
     try { await softDeleteNote(n.id); reload(); } catch (x) { setErr(String(x)); }
   }
 

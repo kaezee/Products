@@ -164,7 +164,7 @@ export function Library({ worldId, focusEntityId, onLeaf }: { worldId: string; f
 
   async function del(e: Entity, ev: React.MouseEvent) {
     ev.stopPropagation();
-    if (!(await confirmDialog({ title: "Delete entity", message: `Delete "${e.title}"? It's soft-deleted — recoverable, nothing is truly lost.`, confirmLabel: "Delete", tone: "danger" }))) return;
+    if (!(await confirmDialog({ title: "Delete entity", message: `Delete "${e.title}"? It moves to the Trash — recoverable from Settings → Trash.`, confirmLabel: "Delete", tone: "danger" }))) return;
     try { await softDeleteEntity(e.id); await reload(); } catch (x) { setErr(String(x)); }
   }
 

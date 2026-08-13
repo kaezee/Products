@@ -210,7 +210,7 @@ export function EntityPage({ entity, onBack, onChanged, startEditing }: {
   }
 
   async function del() {
-    if (!(await confirmDialog({ title: "Delete entity", message: `Delete "${ent.title}"? It's soft-deleted — recoverable, nothing is truly lost.`, confirmLabel: "Delete", tone: "danger" }))) return;
+    if (!(await confirmDialog({ title: "Delete entity", message: `Delete "${ent.title}"? It moves to the Trash — recoverable from Settings → Trash.`, confirmLabel: "Delete", tone: "danger" }))) return;
     try { await softDeleteEntity(ent.id); onChanged?.(); onBack(); } catch (x) { setErr(String(x)); }
   }
 
@@ -228,7 +228,7 @@ export function EntityPage({ entity, onBack, onChanged, startEditing }: {
   }
 
   async function removeConnection(relId: string, label: string) {
-    if (!(await confirmDialog({ title: "Remove connection", message: `Remove the "${label}" connection? It's soft-deleted — recoverable, nothing is truly lost.`, confirmLabel: "Remove", tone: "danger" }))) return;
+    if (!(await confirmDialog({ title: "Remove connection", message: `Remove the "${label}" connection? It moves to the Trash — recoverable from Settings → Trash.`, confirmLabel: "Remove", tone: "danger" }))) return;
     try { await softDeleteRelationship(relId); loadConnections(); } catch (x) { setErr(String(x)); }
   }
 

@@ -3,6 +3,7 @@ import { getWorldComments, createComment, updateComment, softDeleteComment } fro
 import type { Comment } from "../lib/types";
 import { resolveAnchor, type Anchor } from "../lib/anchor";
 import { Icon } from "../components/icons";
+import { confirmDialog } from "../components/confirm";
 
 type Scope = "chapter" | "book" | "world";
 type ChapterRef = { id: string; manuscript_order: number; title: string };
@@ -87,6 +88,7 @@ export function ChapterComments({ worldId, chapterId, chapters, bookIds, body, p
     try { await updateComment(c.id, { body }); reload(); } catch (x) { setErr(String(x)); }
   }
   async function del(c: Comment) {
+    if (!(await confirmDialog({ title: "Delete comment", message: "Delete this comment? It moves to the Trash — recoverable from Settings → Trash.", confirmLabel: "Delete", tone: "danger" }))) return;
     try { await softDeleteComment(c.id); reload(); } catch (x) { setErr(String(x)); }
   }
   async function reanchor(c: Comment) {

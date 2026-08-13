@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode, type CSSPropertie
 import { createPortal } from "react-dom";
 import { getStream, getEntities, getEntityTypes, getRelationshipTypes, getChapters, getNotes, getWorldComments, getWorld, getBands, updateNote, softDeleteNote } from "../lib/api";
 import { NotePad } from "../components/NotePad";
+import { confirmDialog } from "../components/confirm";
 import type { StreamRow, Entity, EntityType, RelationshipType, Chapter, Note, Comment, Band } from "../lib/types";
 import { buildTypeSwatches } from "../lib/entityTypes";
 import { Mention } from "../components/Mention";
@@ -294,6 +295,20 @@ export function Overview({ worldId, go }: { worldId: string; go: (n: Nav) => voi
   const commentChapters = useMemo(() => new Set(openComments.map((c) => c.chapter_id)), [openComments]);
   const chById = useMemo(() => new Map(chapters.map((c) => [c.id, c])), [chapters]);
   const recentNotes = useMemo(() => [...notes].reverse().slice(0, 4), [notes]);
+
+  // Delete a note — always confirm first, and say where it goes. Soft-delete, so
+  // it's recoverable. Returns whether it was deleted (the pad closes only then).
+  async function removeNote(id: string): Promise<boolean> {
+    const ok = await confirmDialog({
+      title: "Delete note",
+      message: "Delete this note? It moves to the Trash — recoverable from Settings → Trash.",
+      confirmLabel: "Delete", tone: "danger",
+    });
+    if (!ok) return false;
+    await softDeleteNote(id);
+    setNotes((prev) => prev.filter((x) => x.id !== id));
+    return true;
+  }
 
   // "Keep both" on a duplicate question is permanent for that pair — the writer
   // with twin brothers named Holmes must never see it again (§9 ruling).
@@ -699,8 +714,8 @@ export function Overview({ worldId, go }: { worldId: string; go: (n: Nav) => voi
                         </span>
                         <span className="spacer" />
                         <button className="trail-act" onClick={() => setOpenNote(n)}>Open</button>
-                        <button className="trail-act trail-x" title="Delete note (recoverable from Trash)"
-                          onClick={() => { void softDeleteNote(n.id); setNotes((prev) => prev.filter((x) => x.id !== n.id)); }}>×</button>
+                        <button className="trail-act trail-x" title="Delete note"
+                          onClick={() => void removeNote(n.id)}>×</button>
                       </div>
                     </div>
                   );
@@ -724,7 +739,7 @@ export function Overview({ worldId, go }: { worldId: string; go: (n: Nav) => voi
             saveLabel="Save"
             onClose={() => setOpenNote(null)}
             onSave={async (body) => { await updateNote(openNote.id, { body }); setNotes((prev) => prev.map((x) => (x.id === openNote.id ? { ...x, body } : x))); }}
-            onDelete={async () => { await softDeleteNote(openNote.id); setNotes((prev) => prev.filter((x) => x.id !== openNote.id)); }}
+            onDelete={() => removeNote(openNote.id)}
             goto={nav ? { label: ch ? `Go to chapter ${ch.manuscript_order}` : `Go to ${ent!.title}`, onClick: () => { setOpenNote(null); go(nav); } } : undefined}
           />
         );

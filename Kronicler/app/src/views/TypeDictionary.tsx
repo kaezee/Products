@@ -3,6 +3,7 @@ import { getRelationshipTypes, getStream, updateRelationshipType, softDeleteRela
 import type { RelationshipType, StreamRow } from "../lib/types";
 import { VALENCE_COLOR, VALENCE_ORDER, VALENCE_LABEL } from "../lib/valence";
 import { Icon } from "../components/icons";
+import { confirmDialog } from "../components/confirm";
 
 // The relationship dictionary — every label the world uses, its valence family,
 // and whether it's ambient. Lives under Relationships (it's relationship
@@ -32,6 +33,8 @@ export function TypeDictionary({ worldId }: { worldId: string }) {
     try { await updateRelationshipType(id, p); } catch (x) { setErr(String(x)); void reload(); }
   }
   async function remove(id: string) {
+    const label = types.find((t) => t.id === id)?.label;
+    if (!(await confirmDialog({ title: "Delete connection type", message: `Delete ${label ? `the “${label}” type` : "this connection type"}? Moments already recorded with it are unaffected; it's soft-deleted and recoverable.`, confirmLabel: "Delete", tone: "danger" }))) return;
     try { await softDeleteRelationshipType(id); setTypes((prev) => prev.filter((t) => t.id !== id)); }
     catch (x) { setErr(String(x)); }
   }

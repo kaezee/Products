@@ -20,7 +20,9 @@ export function NotePad({
   saveLabel?: string;
   onClose: () => void;
   onSave: (body: string) => Promise<void>;
-  onDelete?: () => Promise<void>;
+  // Returns true if the note was deleted (close the pad), false if the user
+  // backed out of the confirmation (keep it open). Owns its own confirm.
+  onDelete?: () => Promise<boolean>;
   goto?: { label: string; onClick: () => void };
 }) {
   const [body, setBody] = useState(initial);
@@ -36,7 +38,7 @@ export function NotePad({
   async function del() {
     if (busy || !onDelete) return;
     setBusy(true);
-    try { await onDelete(); onClose(); }
+    try { if (await onDelete()) onClose(); else setBusy(false); }
     catch { setBusy(false); }
   }
 
@@ -57,11 +59,12 @@ export function NotePad({
           placeholder="A name, a thought, a thread to pick up later…"
           onKeyDown={(e) => { if ((e.metaKey || e.ctrlKey) && e.key === "Enter") void save(); if (e.key === "Escape") onClose(); }}
         />
+        {/* The top-right × is the dismiss; the footer holds only real actions —
+            no redundant Cancel. */}
         <div className="notepad-foot">
           {onDelete && <button className="ghost notepad-del" onClick={() => void del()} disabled={busy}>Delete</button>}
           {goto && <button className="ghost" onClick={goto.onClick}>{goto.label} <Icon name="arrow" size={13} /></button>}
           <span className="spacer" />
-          <button className="ghost" onClick={onClose}>Cancel</button>
           <button className="primary" disabled={!body.trim() || busy || !dirty} onClick={() => void save()}>{saveLabel}</button>
         </div>
       </div>

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { supabase } from "./lib/supabase";
-import { getMyWorlds, createWorld, softDeleteWorld, renameWorld, seedSampleWorld, seedProjectShape, getChapters, getEntities, getNotes, createNote } from "./lib/api";
+import { getMyWorlds, createWorld, softDeleteWorld, renameWorld, seedSampleWorld, seedProjectShape, createNote } from "./lib/api";
 import { enqueueNote, flushQueue, type PendingNote } from "./lib/captureQueue";
 import { QuickCapture } from "./components/QuickCapture";
 import type { World } from "./lib/types";
@@ -84,6 +84,13 @@ const SCOPE_META: Record<Scope, { label: string; icon: IconName }> = {
 // trail can show it and route back. onClear closes the leaf within the view.
 export interface LeafCrumb { label: string; onClear: () => void }
 
+// The world to open on load: the one you were last in (persisted), else the first.
+const LAST_WORLD_KEY = "k.world";
+function pickWorld(w: World[]): string | null {
+  const saved = localStorage.getItem(LAST_WORLD_KEY);
+  return (saved && w.some((x) => x.id === saved)) ? saved : (w[0]?.id ?? null);
+}
+
 function Workspace({ session }: { session: Session }) {
   const [worlds, setWorlds] = useState<World[] | null>(null);
   const [worldId, setWorldId] = useState<string | null>(null);
@@ -143,13 +150,18 @@ function Workspace({ session }: { session: Session }) {
       .then(async (w) => {
         if (!alive) return;
         setWorlds(w);
-        setWorldId((cur) => cur ?? w[0]?.id ?? null);
+        // Restore the world you were last in across reloads (falls back to the
+        // first world if the saved one is gone).
+        setWorldId((cur) => cur ?? pickWorld(w));
         // First-ever visit (empty + not onboarded) is handled below by a full-page
         // onboarding screen — the chooser card alone, no dashboard behind it.
       })
       .catch((x) => alive && setErr(String(x)));
     return () => { alive = false; };
   }, []);
+
+  // Remember the active world so a reload returns you to it, not the first world.
+  useEffect(() => { if (worldId) localStorage.setItem(LAST_WORLD_KEY, worldId); }, [worldId]);
 
   useEffect(() => {
     const h = (e: KeyboardEvent) => {
@@ -178,7 +190,7 @@ function Workspace({ session }: { session: Session }) {
     try {
       const w = await getMyWorlds();
       setWorlds(w);
-      setWorldId((cur) => cur ?? w[0]?.id ?? null);
+      setWorldId((cur) => cur ?? pickWorld(w));
     } catch (x) { setErr(String(x)); }
   }
 
@@ -266,17 +278,6 @@ function Workspace({ session }: { session: Session }) {
   }
 
   function go(n: Nav) { setQuery(""); setLeaf(null); setNav(n); }
-
-  // Landing rule (§2): a truly empty world (no cast, chapters, notes, comments)
-  // opens straight into Write — there's nothing to orient yet. Runs once per world.
-  const landedFor = useRef<string | null>(null);
-  useEffect(() => {
-    if (!worldId || landedFor.current === worldId) return;
-    landedFor.current = worldId;
-    Promise.all([getChapters(worldId), getEntities(worldId), getNotes(worldId)])
-      .then(([c, e, n]) => { if (c.length === 0 && e.length === 0 && n.length === 0) setNav({ scope: "manuscript" }); })
-      .catch(() => {});
-  }, [worldId]);
 
   // §2.6 start-choice cards. Each carries a small illustration of what it does —
   // a blank page + caret, a marked-up manuscript, a .docx becoming split chapters.

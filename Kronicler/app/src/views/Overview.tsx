@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
-import { getStream, getEntities, getEntityTypes, getRelationshipTypes, getChapters, getNotes, getWorldComments, getWorld, getBands } from "../lib/api";
+import { getStream, getEntities, getEntityTypes, getRelationshipTypes, getChapters, getNotes, getWorldComments, getWorld, getBands, updateNote, softDeleteNote } from "../lib/api";
+import { NotePad } from "../components/NotePad";
 import type { StreamRow, Entity, EntityType, RelationshipType, Chapter, Note, Comment, Band } from "../lib/types";
 import { buildTypeSwatches } from "../lib/entityTypes";
 import { Mention } from "../components/Mention";
@@ -38,6 +39,7 @@ export function Overview({ worldId, go }: { worldId: string; go: (n: Nav) => voi
   const [comments, setComments] = useState<Comment[]>([]);
   const [err, setErr] = useState<string | null>(null);
   const [worldName, setWorldName] = useState("");
+  const [openNote, setOpenNote] = useState<Note | null>(null); // the note being read/edited
   // §3 demonstration checklist: retires permanently at 4/4 and never returns.
   const [ckRetired] = useState(() => localStorage.getItem(`k.checklist.${worldId}`) === "1");
 
@@ -452,24 +454,23 @@ export function Overview({ worldId, go }: { worldId: string; go: (n: Nav) => voi
       <div className="fi">
         <h2 className="scope-title">Overview</h2>
 
-        {/* Empty state: a single centred hero — illustration, the one thing to do,
-            its actions — then the follow-on steps grounded below. One focal axis. */}
-        <div className="np-empty">
+        {/* Empty state: one card, a single centred hero — illustration, the one
+            thing to do, its actions, then the follow-on steps as a quiet inline
+            row. Each step links to where it happens. */}
+        <div className="np-empty card">
           <div className="np-illo-wrap"><EmptyOverviewArt /></div>
           <h3 className="np-empty-title">Write your first chapter</h3>
-          <p className="np-empty-desc">Even a title is enough — known names light up as you write, and this page fills itself in.</p>
+          <p className="np-empty-desc">Even a title is enough — known names light up as you write.</p>
           <div className="np-empty-actions">
             <button className="primary" onClick={() => go({ scope: "manuscript" })}>Start writing</button>
             <button className="ghost" onClick={() => go({ scope: "manuscript", openImport: true })}>Bring in a manuscript</button>
           </div>
-
-          <div className="np-next card">
-            <div className="np-next-lab">Then, as you go</div>
-            <ol className="np-seq">
-              <li><span className="np-seq-n">1</span>Add someone, somewhere, or something</li>
-              <li><span className="np-seq-n">2</span>Select a line and record what changes</li>
-              <li><span className="np-seq-n">3</span>Give a chapter a date</li>
-            </ol>
+          <div className="np-empty-steps">
+            <button className="np-step" onClick={() => go({ scope: "library" })}>Add someone</button>
+            <Icon name="arrow" size={13} className="np-step-arrow" />
+            <button className="np-step" onClick={() => go({ scope: "manuscript" })}>Record what changes</button>
+            <Icon name="arrow" size={13} className="np-step-arrow" />
+            <button className="np-step" onClick={() => go({ scope: "timeline" })}>Date a chapter</button>
           </div>
         </div>
       </div>
@@ -689,12 +690,17 @@ export function Overview({ worldId, go }: { worldId: string; go: (n: Nav) => voi
                 {recentNotes.map((n) => {
                   const ch = (n.chapter_ids ?? []).map((id) => chById.get(id)).find(Boolean);
                   const ent = !ch && (n.entity_ids ?? []).length ? entities.find((e) => e.id === n.entity_ids[0]) : null;
-                  const nav: Nav = ch ? { scope: "manuscript", chapterId: ch.id } : ent ? { scope: "library", entityId: ent.id } : { scope: "overview" };
                   return (
-                    <div className="trail-well click" key={n.id} onClick={() => go(nav)}>
-                      <div className="trail-body">{n.body.trim().slice(0, 180) || <span className="muted">(empty note)</span>}</div>
-                      <div className="trail-meta">
-                        {ch ? `in chapter ${ch.manuscript_order}` : ent ? <>pinned to <Mention name={ent.title} swatch={swatchOf(ent.id)} /></> : "in this world"}
+                    <div className="trail-well" key={n.id}>
+                      <div className="trail-body clamp" onClick={() => setOpenNote(n)}>{n.body.trim() || <span className="muted">(empty note)</span>}</div>
+                      <div className="trail-foot">
+                        <span className="trail-meta">
+                          {ch ? `in chapter ${ch.manuscript_order}` : ent ? <>pinned to <Mention name={ent.title} swatch={swatchOf(ent.id)} /></> : "in this world"}
+                        </span>
+                        <span className="spacer" />
+                        <button className="trail-act" onClick={() => setOpenNote(n)}>Open</button>
+                        <button className="trail-act trail-x" title="Delete note (recoverable from Trash)"
+                          onClick={() => { void softDeleteNote(n.id); setNotes((prev) => prev.filter((x) => x.id !== n.id)); }}>×</button>
                       </div>
                     </div>
                   );
@@ -706,6 +712,23 @@ export function Overview({ worldId, go }: { worldId: string; go: (n: Nav) => voi
       )}
 
       </>}
+
+      {openNote && (() => {
+        const ch = (openNote.chapter_ids ?? []).map((id) => chById.get(id)).find(Boolean);
+        const ent = !ch && (openNote.entity_ids ?? []).length ? entities.find((e) => e.id === openNote.entity_ids[0]) : null;
+        const nav: Nav | null = ch ? { scope: "manuscript", chapterId: ch.id } : ent ? { scope: "library", entityId: ent.id } : null;
+        return (
+          <NotePad
+            title="Note"
+            initial={openNote.body}
+            saveLabel="Save"
+            onClose={() => setOpenNote(null)}
+            onSave={async (body) => { await updateNote(openNote.id, { body }); setNotes((prev) => prev.map((x) => (x.id === openNote.id ? { ...x, body } : x))); }}
+            onDelete={async () => { await softDeleteNote(openNote.id); setNotes((prev) => prev.filter((x) => x.id !== openNote.id)); }}
+            goto={nav ? { label: ch ? `Go to chapter ${ch.manuscript_order}` : `Go to ${ent!.title}`, onClick: () => { setOpenNote(null); go(nav); } } : undefined}
+          />
+        );
+      })()}
     </div>
   );
 }

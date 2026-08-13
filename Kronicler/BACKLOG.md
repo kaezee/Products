@@ -252,6 +252,16 @@ Tracked in the session task list; not yet done:
 
 ---
 
+## Notes
+
+- **Rich-text notes** — when the rich-text editor lands, wire it into the note
+  pad (QuickCapture / NotePad) so notes support formatting: at least numbered /
+  bulleted lists, and basic marks. Today notes are plain-text `<textarea>`.
+- **Live note refresh on Overview** — adding a note while sitting on the Overview
+  doesn't refresh "What you left yourself" until reload/renavigate (Overview
+  fetches on world open, not per note save). Push new/edited notes into local
+  state, or refetch on the quick-capture save.
+
 ## Smaller / open questions
 
 - **Timeline day-vs-month precision** — how granular the timeline positions dated

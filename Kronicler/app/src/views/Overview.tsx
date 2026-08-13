@@ -346,12 +346,12 @@ export function Overview({ worldId, go }: { worldId: string; go: (n: Nav) => voi
   const shape = sizeBits.length ? sizeBits.join(" · ") : "A new world — nothing in it yet. Start below.";
 
 
-  // A brand-new world has nothing to orient, continue, or flag — so the stats,
-  // the launchpad, and the activity columns are all empty shells. Until there's
-  // something in the world, the Overview shows only the way in: the Docs
-  // migration door and the getting-started checklist. The dashboard proper
-  // appears the moment the writer has a chapter, a cast member, or a moment.
-  const hasContent = stats.total > 0 || stats.entities > 0 || stats.relCount > 0;
+  // A brand-new world has nothing to orient, continue, or flag — so it shows the
+  // centred empty-state hero instead of the dashboard. A note the writer left
+  // themselves counts as content too: the dashboard appears the moment there's a
+  // chapter, a cast member, a moment, or a note/comment — otherwise a note taken
+  // before any prose would be invisible.
+  const hasContent = stats.total > 0 || stats.entities > 0 || stats.relCount > 0 || notes.length > 0 || comments.length > 0;
 
   // §4.1 thresholds (one place, made to be tuned): how long away flips Overview
   // from a resume line, to an orientation sentence, to a full recap.
@@ -479,7 +479,7 @@ export function Overview({ worldId, go }: { worldId: string; go: (n: Nav) => voi
   return (
     <div className="fi">
       <h2 className="scope-title">Overview</h2>
-      {msGrid.total < 5 && <p className="scope-sub">{shape}</p>}
+      {msGrid.total < 5 && sizeBits.length > 0 && <p className="scope-sub">{shape}</p>}
 
       {/* §4.1 one orientation sentence after 1–3 weeks away */}
       {away === "orient" && continueCh && (

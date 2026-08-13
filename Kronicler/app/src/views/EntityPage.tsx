@@ -228,7 +228,7 @@ export function EntityPage({ entity, onBack, onChanged, startEditing }: {
   }
 
   async function removeConnection(relId: string, label: string) {
-    if (!(await confirmDialog({ title: "Remove connection", message: `Remove the "${label}" connection? It moves to the Trash — recoverable from Settings → Trash.`, confirmLabel: "Remove", tone: "danger" }))) return;
+    if (!(await confirmDialog({ title: "Remove connection", message: `Remove the "${label}" connection? Its recorded moments stop showing; you can connect them again later.`, confirmLabel: "Remove", tone: "danger" }))) return;
     try { await softDeleteRelationship(relId); loadConnections(); } catch (x) { setErr(String(x)); }
   }
 

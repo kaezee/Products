@@ -71,12 +71,15 @@ const RAIL_MORE: [Scope, string, IconName][] = [
 ];
 
 // Label + icon per scope, for the breadcrumb trail (settings isn't in the rail).
+// Section icons mirror the rail's custom nav art wherever a scope is shown
+// (breadcrumbs, etc.), so a section reads the same everywhere. Notes/settings/
+// help have no rail art and keep their Lucide glyphs.
 const SCOPE_META: Record<Scope, { label: string; icon: IconName }> = {
-  overview: { label: "Overview", icon: "overview" },
-  library: { label: "World", icon: "library" },
-  manuscript: { label: "Write", icon: "manuscript" },
-  timeline: { label: "Timeline", icon: "timeline" },
-  relationships: { label: "Relationships", icon: "relationships" },
+  overview: { label: "Overview", icon: "nav-overview" },
+  library: { label: "World", icon: "nav-world" },
+  manuscript: { label: "Write", icon: "nav-write" },
+  timeline: { label: "Timeline", icon: "nav-timeline" },
+  relationships: { label: "Relationships", icon: "nav-relationships" },
   notes: { label: "Notes", icon: "notes" },
   settings: { label: "Settings", icon: "settings" },
   help: { label: "Help", icon: "help" },
@@ -419,7 +422,7 @@ function Workspace({ session }: { session: Session }) {
   // rail already says where you are, so "Overview › Relationships" is noise.
   const crumbs: Crumb[] = [];
   if (searching) {
-    crumbs.push({ label: "Overview", icon: "overview", onClick: () => go({ scope: "overview" }) });
+    crumbs.push({ label: "Overview", icon: "nav-overview", onClick: () => go({ scope: "overview" }) });
     crumbs.push({ label: `“${query.trim()}”`, icon: "search" });
   } else if (leaf && nav.scope !== "overview" && nav.scope !== "manuscript") {
     const m = SCOPE_META[nav.scope];

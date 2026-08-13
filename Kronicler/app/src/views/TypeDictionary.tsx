@@ -34,7 +34,7 @@ export function TypeDictionary({ worldId }: { worldId: string }) {
   }
   async function remove(id: string) {
     const label = types.find((t) => t.id === id)?.label;
-    if (!(await confirmDialog({ title: "Delete connection type", message: `Delete ${label ? `the “${label}” type` : "this connection type"}? Moments already recorded with it are unaffected; it's soft-deleted and recoverable.`, confirmLabel: "Delete", tone: "danger" }))) return;
+    if (!(await confirmDialog({ title: "Delete connection type", message: `Delete ${label ? `the “${label}” type` : "this connection type"}? Moments already recorded with it keep their label — it's just removed from the picker.`, confirmLabel: "Delete", tone: "danger" }))) return;
     try { await softDeleteRelationshipType(id); setTypes((prev) => prev.filter((t) => t.id !== id)); }
     catch (x) { setErr(String(x)); }
   }

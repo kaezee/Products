@@ -839,16 +839,57 @@ export async function restoreWorld(id: string): Promise<void> {
   if (error) throw error;
 }
 
-// Trash badge count — soft-deleted entities + chapters (this world) + worlds
-// (account). Cheap head-only counts; the modal fetches the rows themselves.
+// Notes and comments are soft-deleted too, so they belong in the Trash. They're
+// leaf rows (nothing hangs off them), so restore = clear deleted_at, and a
+// permanent purge is a plain delete — RLS keeps it owner-scoped.
+export type DeletedNote = Note & { deleted_at?: string | null };
+export async function getDeletedNotes(worldId: string): Promise<DeletedNote[]> {
+  const { data, error } = await supabase
+    .from("notes").select(NOTE_COLS + ", deleted_at")
+    .eq("world_id", worldId).not("deleted_at", "is", null)
+    .order("deleted_at", { ascending: false });
+  if (error) throw error;
+  return (data ?? []) as unknown as DeletedNote[];
+}
+export async function restoreNote(id: string): Promise<void> {
+  const { error } = await supabase.from("notes").update({ deleted_at: null }).eq("id", id);
+  if (error) throw error;
+}
+export async function purgeNote(id: string): Promise<void> {
+  const { error } = await supabase.from("notes").delete().eq("id", id);
+  if (error) throw error;
+}
+
+export type DeletedComment = Comment & { deleted_at?: string | null };
+export async function getDeletedComments(worldId: string): Promise<DeletedComment[]> {
+  const { data, error } = await supabase
+    .from("comments").select(COMMENT_COLS + ", deleted_at")
+    .eq("world_id", worldId).not("deleted_at", "is", null)
+    .order("deleted_at", { ascending: false });
+  if (error) { if (error.code === "42P01") return []; throw error; }
+  return (data ?? []) as unknown as DeletedComment[];
+}
+export async function restoreComment(id: string): Promise<void> {
+  const { error } = await supabase.from("comments").update({ deleted_at: null }).eq("id", id);
+  if (error) throw error;
+}
+export async function purgeComment(id: string): Promise<void> {
+  const { error } = await supabase.from("comments").delete().eq("id", id);
+  if (error) throw error;
+}
+
+// Trash badge count — soft-deleted entities + chapters + notes + comments (this
+// world) + worlds (account). Cheap head-only counts; the modal fetches rows.
 export async function getTrashCount(worldId: string): Promise<number> {
-  const [e, c, w] = await Promise.all([
+  const [e, c, n, cm, w] = await Promise.all([
     supabase.from("entities").select("id", { count: "exact", head: true }).eq("world_id", worldId).not("deleted_at", "is", null),
     supabase.from("chapters").select("id", { count: "exact", head: true }).eq("world_id", worldId).not("deleted_at", "is", null),
+    supabase.from("notes").select("id", { count: "exact", head: true }).eq("world_id", worldId).not("deleted_at", "is", null),
+    supabase.from("comments").select("id", { count: "exact", head: true }).eq("world_id", worldId).not("deleted_at", "is", null),
     supabase.from("worlds").select("id", { count: "exact", head: true }).not("deleted_at", "is", null),
   ]);
-  if (e.error) throw e.error; if (c.error) throw c.error; if (w.error) throw w.error;
-  return (e.count ?? 0) + (c.count ?? 0) + (w.count ?? 0);
+  for (const r of [e, c, n, cm, w]) if (r.error && r.error.code !== "42P01") throw r.error;
+  return (e.count ?? 0) + (c.count ?? 0) + (n.count ?? 0) + (cm.count ?? 0) + (w.count ?? 0);
 }
 
 // Permanently erase one trashed item and everything that hangs off it, in

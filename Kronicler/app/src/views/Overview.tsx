@@ -451,32 +451,26 @@ export function Overview({ worldId, go }: { worldId: string; go: (n: Nav) => voi
     return (
       <div className="fi">
         <h2 className="scope-title">Overview</h2>
-        <p className="scope-sub">Nothing here yet — start below.</p>
 
-        {/* Hero card: the illustration (transparent, recolours per theme) beside
-            the copy and actions. Nothing floats on the canvas. */}
-        <div className="np-hero card">
-          <div className="np-hero-art">
-            <EmptyOverviewArt />
+        {/* Empty state: a single centred hero — illustration, the one thing to do,
+            its actions — then the follow-on steps grounded below. One focal axis. */}
+        <div className="np-empty">
+          <div className="np-illo-wrap"><EmptyOverviewArt /></div>
+          <h3 className="np-empty-title">Write your first chapter</h3>
+          <p className="np-empty-desc">Even a title is enough — known names light up as you write, and this page fills itself in.</p>
+          <div className="np-empty-actions">
+            <button className="primary" onClick={() => go({ scope: "manuscript" })}>Start writing</button>
+            <button className="ghost" onClick={() => go({ scope: "manuscript", openImport: true })}>Bring in a manuscript</button>
           </div>
-          <div className="np-hero-body">
-            <div className="np-head">Write your first chapter</div>
-            <div className="np-desc">Even a title is enough. Known names light up as you write, and this page fills itself in.</div>
-            <div className="np-actions">
-              <button className="primary" onClick={() => go({ scope: "manuscript" })}>Start writing</button>
-              <button className="ghost" onClick={() => go({ scope: "manuscript", openImport: true })}>Bring in a manuscript</button>
-            </div>
-          </div>
-        </div>
 
-        {/* The "then" steps, grounded in their own card rather than loose bullets. */}
-        <div className="np-next card">
-          <div className="np-next-lab">Then, as you go</div>
-          <ol className="np-seq">
-            <li><span className="np-seq-n">1</span>Add someone, somewhere, or something</li>
-            <li><span className="np-seq-n">2</span>Select a line and record what changes</li>
-            <li><span className="np-seq-n">3</span>Give a chapter a date</li>
-          </ol>
+          <div className="np-next card">
+            <div className="np-next-lab">Then, as you go</div>
+            <ol className="np-seq">
+              <li><span className="np-seq-n">1</span>Add someone, somewhere, or something</li>
+              <li><span className="np-seq-n">2</span>Select a line and record what changes</li>
+              <li><span className="np-seq-n">3</span>Give a chapter a date</li>
+            </ol>
+          </div>
         </div>
       </div>
     );

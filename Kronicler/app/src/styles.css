@@ -1105,11 +1105,12 @@ button.ghost:hover:not(:disabled) { background: var(--wash); border-color: var(-
 .np-head { font-size: 16px; font-weight: 650; color: var(--ink); }
 .np-desc { font-size: 13px; color: var(--muted); margin-top: 4px; max-width: 48ch; }
 .np-actions { display: flex; gap: 10px; margin-top: 14px; flex-wrap: wrap; }
-/* Empty-state hero — illustration + copy in one card, nothing on bare canvas.
-   The art is transparent and recolours per theme via --illo-* tokens. */
-.np-hero { display: flex; align-items: center; gap: 8px; margin: 20px 0 16px; padding: 8px; overflow: hidden; }
-.np-hero-art { flex: 0 0 auto; display: flex; align-items: center; justify-content: center; padding: 14px 18px; }
-.np-illo { display: block; width: 244px; max-width: 100%; height: auto;
+/* Empty state — a single centred hero: illustration, the one thing to do, its
+   actions, then the follow-on steps grounded below. The art is transparent and
+   recolours per theme via --illo-* tokens. */
+.np-empty { max-width: 600px; margin: 8px auto 0; display: flex; flex-direction: column; align-items: center; text-align: center; }
+.np-illo-wrap { margin-bottom: 4px; }
+.np-illo { display: block; width: 320px; max-width: 100%; height: auto;
   /* light / paper theme */
   --illo-ink: #23242B; --illo-paper: #FCFAF4; --illo-accent: #626BBC; --illo-spark: #F7F4FF;
   --illo-t1: #F2F2F8; --illo-t2: #E4E5F1; --illo-t3: #C8CBE4; --illo-t4: #9EA3D1;
@@ -1119,17 +1120,17 @@ button.ghost:hover:not(:disabled) { background: var(--wash); border-color: var(-
   --illo-ink: #D5D8E6; --illo-paper: #141829; --illo-accent: #8B93EC; --illo-spark: #EDE9FF;
   --illo-t1: #20243A; --illo-t2: #272C46; --illo-t3: #333963; --illo-t4: #454C74;
 }
-.np-hero-body { flex: 1; min-width: 0; padding: 18px 22px; align-self: center; }
-/* The "then" steps, grounded as numbered wells rather than loose bullets. */
-.np-next { padding: 16px 18px; margin-bottom: 8px; }
+.np-empty-title { font-family: var(--serif); font-size: 23px; font-weight: 600; color: var(--ink); margin: 2px 0 0; }
+.np-empty-desc { font-size: 13.5px; line-height: 1.55; color: var(--muted); margin: 8px 0 0; max-width: 44ch; }
+.np-empty-actions { display: flex; gap: 10px; margin-top: 20px; flex-wrap: wrap; justify-content: center; }
+/* The "then" steps, grounded as numbered wells, centred under the hero. */
+.np-next { width: 100%; max-width: 440px; margin: 34px 0 8px; padding: 16px 18px; text-align: left; }
 .np-next-lab { font: 700 11px/1.4 var(--sans); letter-spacing: .09em; text-transform: uppercase; color: var(--muted); margin: 0 0 12px; }
 .np-seq { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 8px; }
 .np-seq li { display: flex; align-items: center; gap: 12px; font-size: 13.5px; color: var(--sub); background: var(--inset); border-radius: var(--k-radius-container, 8px); padding: 11px 14px; }
 .np-seq-n { flex: 0 0 auto; width: 22px; height: 22px; border-radius: 50%; background: var(--bondBg); color: var(--bond); font: 700 12px/22px var(--k-font-mono); text-align: center; }
 @media (max-width: 640px) {
-  .np-hero { flex-direction: column; text-align: center; }
-  .np-hero-body { text-align: left; }
-  .np-illo { width: 280px; }
+  .np-illo { width: 260px; }
 }
 
 .dash-orient { font-size: 13px; color: var(--sub); margin: 2px 0 14px; }

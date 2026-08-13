@@ -13,6 +13,7 @@ import type { Nav } from "../App";
 import { VALENCE_COLOR } from "../lib/valence";
 import { Icon } from "../components/icons";
 import { Skeleton } from "../components/Skeleton";
+import { EmptyOverviewArt } from "../components/EmptyOverviewArt";
 
 const DORMANT_GAP = 5;
 
@@ -452,12 +453,11 @@ export function Overview({ worldId, go }: { worldId: string; go: (n: Nav) => voi
         <h2 className="scope-title">Overview</h2>
         <p className="scope-sub">Nothing here yet — start below.</p>
 
-        {/* Hero card: the illustration sits on a fixed light panel (its ink is
-            near-black, so it needs a light ground to read in dark mode too), the
-            copy and actions beside it. Nothing floats on the canvas. */}
+        {/* Hero card: the illustration (transparent, recolours per theme) beside
+            the copy and actions. Nothing floats on the canvas. */}
         <div className="np-hero card">
           <div className="np-hero-art">
-            <img src="/illustrations/empty-overview.svg" alt="" width={521} height={345} />
+            <EmptyOverviewArt />
           </div>
           <div className="np-hero-body">
             <div className="np-head">Write your first chapter</div>

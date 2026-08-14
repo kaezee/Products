@@ -656,7 +656,7 @@ export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) =
               </>
             )}
 
-            {segments.length === 0 && markers.length === 0 && (
+            {segments.length === 0 && markers.length === 0 && looseDated.length === 0 && (
               <div className="wt2-empty-hint">Add a section (a series, book, or season), then date chapters or bulk-add them from the sidebar. Dated chapters appear here; the ruler is bounded by your world's known time.</div>
             )}
 

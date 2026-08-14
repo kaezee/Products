@@ -235,7 +235,8 @@ export function EntityPage({ entity, onBack, onChanged, startEditing }: {
   return (
     <div className="fi">
       <div className="row" style={{ borderBottom: "none", padding: 0, marginBottom: 8 }}>
-        <span className="tab" onClick={onBack} style={{ paddingLeft: 0, display: "inline-flex", alignItems: "center", gap: 4 }}><Icon name="chevron-left" size={15} /> World</span>
+        {/* Back to World is the app breadcrumb ("World › <name>") above this view;
+            a second in-view back link was redundant, so it's gone. */}
         <span className="spacer" />
         {!editing ? (
           <>

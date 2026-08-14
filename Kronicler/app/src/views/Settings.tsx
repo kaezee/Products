@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
-import { exportWorld, getChapters, getEntities, getStream, getNotes, getTrashCount } from "../lib/api";
+import { exportWorld, getChapters, getEntities, getStream, getNotes, getTrashCount, requestAccountDeletion } from "../lib/api";
 import { exportVaultZip } from "../lib/exportVault";
 import { track } from "../lib/analytics";
 import type { Entity } from "../lib/types";
@@ -32,6 +32,7 @@ export function Settings({ worldId, worldName, userEmail, onDeleteWorld, onWorld
 }) {
   const [busy, setBusy] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  const [acctMsg, setAcctMsg] = useState<string | null>(null);
   const [trashOpen, setTrashOpen] = useState(false);
   const [trashCount, setTrashCount] = useState<number | null>(null);
   const [levels, setLevels] = useState(() => getLevelNames(worldId));
@@ -98,6 +99,25 @@ export function Settings({ worldId, worldName, userEmail, onDeleteWorld, onWorld
       }
       download(`${slug(worldName)}-world-${stamp()}.md`, md, "text/markdown");
     } catch (x) { setErr(String(x)); } finally { setBusy(null); }
+  }
+
+  // Account deletion (MVP): the client can't delete an auth user, so this files a
+  // logged request an operator actions from the dashboard, then signs the writer
+  // out. Confirm hard first, and point them at Export — this is irreversible.
+  async function requestDelete() {
+    const ok = await confirmDialog({
+      title: "Delete your account",
+      message: `Permanently delete your account${userEmail ? ` (${userEmail})` : ""} and every project in it?\n\nThis is irreversible — all your worlds, chapters, characters, relationships, and notes are removed. Export anything you want to keep first.`,
+      confirmLabel: "Request deletion", tone: "danger",
+    });
+    if (!ok) return;
+    setBusy("account"); setErr(null);
+    try {
+      await requestAccountDeletion();
+      track({ name: "account_deletion_requested" });
+      setAcctMsg("Your deletion request has been received. We’ll remove your account and all its data. Signing you out…");
+      window.setTimeout(() => { void supabase.auth.signOut(); }, 2800);
+    } catch (x) { setErr(String(x)); setBusy(null); }
   }
 
   return (
@@ -185,7 +205,7 @@ export function Settings({ worldId, worldName, userEmail, onDeleteWorld, onWorld
 
       <div className="label" style={{ marginTop: 28, color: "var(--hostile)" }}>Danger zone</div>
       <div className="card" style={{ borderColor: "var(--hostile)" }}>
-        <div className="row" style={{ borderBottom: "none" }}>
+        <div className="row">
           <div style={{ flex: 1 }}>
             <div style={{ fontWeight: 500 }}>Delete “{worldName}”</div>
             <span className="muted" style={{ fontSize: 12.5 }}>
@@ -200,6 +220,20 @@ export function Settings({ worldId, worldName, userEmail, onDeleteWorld, onWorld
               }
             }}
           >Delete project</button>
+        </div>
+        <div className="row" style={{ borderBottom: "none" }}>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontWeight: 500 }}>Delete my account</div>
+            <span className="muted" style={{ fontSize: 12.5 }}>
+              Requests permanent deletion of your whole account and every project in it. Irreversible, and unlike a project it does not go to trash — export first.
+            </span>
+            {acctMsg && <div style={{ marginTop: 8, fontSize: 12.5, color: "var(--allied)" }}>{acctMsg}</div>}
+          </div>
+          <button
+            style={{ color: "var(--hostile)", borderColor: "var(--hostile)" }}
+            disabled={busy === "account" || !!acctMsg}
+            onClick={requestDelete}
+          >{busy === "account" ? <Spinner size={13} /> : "Delete account…"}</button>
         </div>
       </div>
 

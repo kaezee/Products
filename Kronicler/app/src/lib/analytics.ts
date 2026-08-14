@@ -23,7 +23,8 @@ export type AnalyticsEvent =
   | { name: "moment_marked"; props: { source: string; chapter_words?: number } }
   | { name: "note_created"; props: { source: string } }
   | { name: "overview_discovery_clicked"; props: { kind: string } }
-  | { name: "export_run" };
+  | { name: "export_run" }
+  | { name: "account_deletion_requested" };
 
 const ENV = import.meta.env as Record<string, string | undefined>;
 const DOMAIN = ENV.VITE_ANALYTICS_DOMAIN;   // the site name registered with the ingest

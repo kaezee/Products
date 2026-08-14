@@ -166,6 +166,22 @@ export async function renameWorld(id: string, name: string): Promise<void> {
   if (error) throw error;
 }
 
+// File a "delete my account" request (migration 0032). The client can't delete
+// an auth user itself; this writes a row an operator monitors and actions from
+// the Supabase dashboard (deleting the user there purges all their data via the
+// on_auth_user_deleted trigger). The row's user_id is a plain uuid, so the log
+// survives the deletion as an audit trail.
+export async function requestAccountDeletion(reason?: string): Promise<void> {
+  const { data, error: userErr } = await supabase.auth.getUser();
+  if (userErr) throw userErr;
+  const user = data.user;
+  if (!user) throw new Error("Not signed in.");
+  const { error } = await supabase.from("account_deletion_requests").insert({
+    user_id: user.id, email: user.email ?? null, reason: reason ?? null,
+  });
+  if (error) throw error;
+}
+
 // The world clock for one world (calendar + known time). Used by the timeline.
 export async function getWorld(id: string): Promise<World> {
   const { data, error } = await supabase

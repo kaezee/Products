@@ -22,6 +22,7 @@ const DORMANT_GAP = 5;
 
 const wordsOf = (body: string) => (body || "").replace(/<[^>]*>/g, " ").trim().split(/\s+/).filter(Boolean).length;
 const fmt = (n: number) => n.toLocaleString();
+const titleCase = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 // Spell small counts (the alert reads "Two moments…", not "2 moments…"); numbers
 // past twelve stay numeric — but the alert caps at twelve anyway.
 const WORDS = ["Zero", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine", "Ten", "Eleven", "Twelve"];
@@ -558,6 +559,38 @@ export function Overview({ worldId, go, refreshKey }: { worldId: string; go: (n:
           </>
         )}
       </div>
+
+      {/* World at a glance: a small manuscript (grid hidden below 3 chapters,
+          cast/relationships live in other views) still deserves to see its own
+          shape on the home page — otherwise adding characters and dates looks
+          like it did nothing. Each stat deep-links to where that work lives. */}
+      {(stats.entities > 0 || stats.dated > 0 || stats.relCount > 0) && (
+        <div className="card" style={{ marginBottom: 18 }}>
+          <div className="chron-sec">
+            <div className="chron-lab">Your world so far<Explain term="Your world so far">A snapshot of what you've built beyond the prose — your cast, your dated chapters, and the connections between people. Tap any to jump there.</Explain></div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
+              {stats.entities > 0 && (
+                <button className="dash-glance" onClick={() => go({ scope: "library" })}>
+                  <span className="dash-glance-n">{fmt(stats.entities)} in your world</span>
+                  <span className="dash-glance-sub">{stats.typeBreakdown.slice(0, 4).map(([t, n]) => `${n} ${titleCase(t)}${n === 1 ? "" : "s"}`).join(" · ")}</span>
+                </button>
+              )}
+              {stats.dated > 0 && (
+                <button className="dash-glance" onClick={() => go({ scope: "timeline" })}>
+                  <span className="dash-glance-n">{fmt(stats.dated)} chapter{stats.dated === 1 ? "" : "s"} dated</span>
+                  <span className="dash-glance-sub">on your timeline</span>
+                </button>
+              )}
+              {stats.relCount > 0 && (
+                <button className="dash-glance" onClick={() => go({ scope: "relationships" })}>
+                  <span className="dash-glance-n">{fmt(stats.relCount)} connection{stats.relCount === 1 ? "" : "s"}</span>
+                  <span className="dash-glance-sub">between your people</span>
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Alert strip (§5): moments that no longer match the prose — a chapter
           blanked, set back to planned, or deleted. Capped at 12 — past that the

@@ -230,6 +230,20 @@ export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) =
   }, [known, content, dpy, ms, chapters.length]);
   navRef.current = { lo: nav.lo, hi: nav.hi };
 
+  // Default framing (§5.2, Phase 1): fit to the CONTENT, padded by a percentage of
+  // its own span, so the frame expands and contracts with the story — a tight
+  // cluster zooms in, a wide spread zooms out. A single point (or an empty world)
+  // falls back to a small floor window / known time, so it never frames an empty
+  // century around one chapter. Known time stays reachable by panning (nav), but
+  // no longer drives the default frame — it's now an optional manual reference.
+  const fitFrame = useMemo(() => {
+    const floor = 2 * dpy;                    // one placed chapter still shows ~±2 years
+    const base = content ?? { lo: nav.knownLo, hi: nav.knownHi };
+    const span = Math.max(dpy, base.hi - base.lo);
+    const pad = Math.max(span * 0.15, floor);
+    return { lo: base.lo - pad, hi: base.hi + pad };
+  }, [content, nav.knownLo, nav.knownHi, dpy]);
+
   // Clamp a view to the navigable range and derived zoom bounds (§5.2).
   function clampView(v: View, w: number): View {
     const navSpan = Math.max(1, navRef.current.hi - navRef.current.lo);
@@ -249,7 +263,7 @@ export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) =
   useEffect(() => {
     if (fitDone || loading) return;
     const w = boardRef.current?.clientWidth ?? nowW; setNowW(w);
-    setView(clampView({ start: nav.lo, ppd: w / Math.max(dpy, nav.hi - nav.lo), ty: 0 }, w));
+    setView(clampView({ start: fitFrame.lo, ppd: w / Math.max(dpy, fitFrame.hi - fitFrame.lo), ty: 0 }, w));
     setFitDone(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [content, nav, loading, fitDone]);
@@ -296,11 +310,11 @@ export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) =
     // scroll-to-zoom is wired to nothing. eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading]);
 
-  // Fit frames known time with its ±500y buffer (the whole navigable range), so
-  // known time sits in focus in the middle with a little room either side.
+  // Fit frames what's actually placed (content ± a percentage), so the story sits
+  // in focus rather than a near-empty span. Known time stays reachable by panning.
   function fitKnown() {
     const w = boardRef.current?.clientWidth ?? nowW;
-    animateTo({ start: nav.lo, ppd: w / Math.max(dpy, nav.hi - nav.lo), ty: 0 });
+    animateTo({ start: fitFrame.lo, ppd: w / Math.max(dpy, fitFrame.hi - fitFrame.lo), ty: 0 });
   }
 
   // ── known time: edit, extend, and the shrink warning (§5.3–5.4) ─────────
@@ -558,7 +572,7 @@ export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) =
         </span>
         <span className="spacer" />
         <button className="iconbtn" onClick={() => void undo()} title="Undo (⌘Z)"><Icon name="undo" size={15} /></button>
-        <button onClick={fitKnown} title="Frame known time">Fit</button>
+        <button onClick={fitKnown} title="Fit to what's placed">Fit</button>
         <div style={{ position: "relative" }}>
           <button className="primary" onClick={() => setAddMenu((v) => !v)} style={{ display: "inline-flex", alignItems: "center", gap: 5 }}><Icon name="plus" size={14} /> Add</button>
           {addMenu && (

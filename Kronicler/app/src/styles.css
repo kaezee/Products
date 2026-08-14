@@ -315,7 +315,10 @@ h2.ed-canvas-title, .ed-canvas-input { margin: 0; }
    sitting on the tinted canvas. The title header AND the prose both live on the
    sheet, so the whole chapter reads as one document. */
 .ed-prose { background: var(--paper); }
-.ed-chapter { max-width: 820px; margin: 14px auto 0 0; background: var(--surface);
+/* width is pinned to min(100%, 820px): inside the column-flex .ed-prose an `auto`
+   cross-axis margin would suppress stretch and let the sheet size to its content
+   — so it narrowed as you typed. width:100% holds it fixed regardless of text. */
+.ed-chapter { max-width: 820px; width: 100%; margin: 14px 0 0; background: var(--surface);
   border: 1px solid var(--line); border-radius: 4px;
   box-shadow: 0 1px 2px rgba(0,0,0,.04), 0 10px 30px rgba(0,0,0,.05);
   padding: clamp(32px, 4.5vw, 60px) clamp(24px, 5vw, 72px); }
@@ -594,10 +597,16 @@ h2.ed-canvas-title, .ed-canvas-input { margin: 0; }
 .confirm-overlay { align-items: center; padding-top: 0; z-index: 90; }
 /* Toast / snackbar — transient, non-blocking action confirmation. The host is
    click-through; only the pills themselves take pointer events. */
-.toast-host { position: fixed; left: 50%; bottom: 26px; transform: translateX(-50%); z-index: 200; display: flex; flex-direction: column; align-items: center; gap: 8px; pointer-events: none; }
-.toast { display: inline-flex; align-items: center; gap: 9px; pointer-events: auto; background: var(--raised); color: var(--ink); border: 1px solid var(--line); border-radius: 999px; padding: 9px 16px 9px 13px; font-size: 13px; font-weight: 500; box-shadow: var(--pop); animation: toast-in 180ms var(--k-ease, ease); }
-.toast-ic { color: var(--allied); flex: 0 0 auto; }
-.toast-info .toast-ic { color: var(--bond); }
+.toast-host { position: fixed; right: 24px; bottom: 24px; left: auto; transform: none; z-index: 200; display: flex; flex-direction: column; align-items: flex-end; gap: 10px; pointer-events: none; }
+/* An inverse (dark-on-light-UI) surface so the confirmation reads at a glance and
+   contrasts hard with the paper canvas — Material's inverse-snackbar pattern, so
+   it flips correctly in the dark theme too. Wider than a pill, corner-docked. */
+.toast { display: inline-flex; align-items: center; gap: 10px; pointer-events: auto; min-width: 260px;
+  max-width: min(400px, calc(100vw - 48px)); background: var(--ink); color: var(--k-text-inverse);
+  border-radius: 12px; padding: 12px 16px; font-size: 13.5px; font-weight: 500; line-height: 1.35;
+  box-shadow: var(--pop); animation: toast-in 180ms var(--k-ease, ease); }
+.toast-ic { flex: 0 0 auto; color: color-mix(in srgb, var(--allied) 55%, #fff); }
+.toast-info .toast-ic { color: color-mix(in srgb, var(--bond) 60%, #fff); }
 @keyframes toast-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 @media (prefers-reduced-motion: reduce) { .toast { animation: none; } }
 .confirm { width: 430px; max-width: calc(100vw - 32px); background: var(--surface); border: 1px solid var(--lineStrong); border-radius: 14px; padding: 20px 22px; box-shadow: var(--pop); }

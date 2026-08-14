@@ -497,7 +497,7 @@ export function Overview({ worldId, go, refreshKey }: { worldId: string; go: (n:
   return (
     <div className="fi">
       <h2 className="scope-title">Overview</h2>
-      {msGrid.total < 5 && sizeBits.length > 0 && <p className="scope-sub">{shape}</p>}
+      {msGrid.total < 3 && sizeBits.length > 0 && <p className="scope-sub">{shape}</p>}
 
       {/* §4.1 one orientation sentence after 1–3 weeks away */}
       {away === "orient" && continueCh && (
@@ -570,9 +570,9 @@ export function Overview({ worldId, go, refreshKey }: { worldId: string; go: (n:
         </button>
       )}
 
-      {/* Manuscript grid (§2): the whole book at a glance. Below 5 chapters it
-          isn't worth drawing — the chapter list already fits in the head. */}
-      {msGrid.total >= 5 && (
+      {/* Manuscript grid (§2): the whole book at a glance. Below 3 chapters it
+          isn't worth drawing — a cell or two says nothing the head doesn't. */}
+      {msGrid.total >= 3 && (
         <section className="card ms-grid">
           <div className="ms-grid-head">
             <span className="ms-grid-title">What you've written<Explain term="What you've written">Every chapter, as one cell — shaded by how long it is (or, on the Moments lens, by how much happens in it). Books wrap; the amber ring is where you stopped.</Explain></span>

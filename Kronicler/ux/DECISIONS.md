@@ -7,6 +7,43 @@ accidentally undo it.
 
 ---
 
+## 2026-08-14 · Markers enclose — never a single-edge accent stroke
+
+**Decision:** A status / selection / "you-are-here" marker is always an
+**enclosing** shape — a full ring, outline, dot, chip, or tinted fill — never a
+**one-sided edge stroke** (a left/right/top/bottom bar). Concretely, "where you
+stopped" (the amber `--marker`) is a full amber ring everywhere it appears:
+- Overview grid cell — `.ms-cell.here` `border: 2px solid var(--marker)`
+- grid legend — `.ms-legend-here` `box-shadow: 0 0 0 1.5px var(--marker)`
+- Timeline band — `.wt2-chband.resume` `outline: 2px solid var(--marker)`
+- Write structure tree — `.wt-ch.resume` `box-shadow: inset 0 0 0 1.5px var(--marker)`
+
+**Why:** a single-edge bar reads as unfinished — a clipped box, a rule that lost
+its other three sides — and it fights the row's own rounded rectangle, pointing
+at one corner instead of enclosing the thing it marks. It also breaks LTR/RTL
+symmetry and stacks badly with a fill state (the stroke sits on one edge while
+the fill owns the whole shape). An enclosing ring hugs the element's radius, is
+direction-neutral, and layers cleanly over a `.on` fill (blue fill + amber ring
+= "selected *and* where you stopped"). It also keeps ONE marker vocabulary across
+grid, timeline, and tree, so the writer learns "amber ring = here" exactly once.
+
+**What it rules out:** using `border-left` / `border-right` / `inset Npx 0 0`
+edge shadows as an *accent, status, active, or marker* indicator. Reach for a
+ring/outline (enclose), a leading dot or chip (symbol), or a tint fill instead.
+
+**Not covered (these one-sided borders are legitimate and stay):** structural
+**dividers** between rows/sections (`border-bottom`/`border-top` hairlines),
+layout **seams** between panels (`.ed-panel`, `.wt2-side` left borders), **axis /
+guide lines** (`.wt2-grid`, `.wt2-knownedge`), and the **blockquote** indent
+(`.moment-offer-q` `border-left`) — a typographic quote convention, not a marker.
+The rule is about *accent/marker* strokes, not about every single-side border.
+
+**Audit note:** swept the stylesheet for single-edge accent strokes used as
+markers — `.wt-ch.resume` was the only offender (it had `inset 2.5px 0 0`),
+now an enclosing ring matching the grid/timeline. No others found.
+
+---
+
 ## 2026-08-02 · Projects switcher: keep the full-screen gallery; fix its affordances
 
 **Decision:** The rail-header project switcher opens the **full-screen Projects

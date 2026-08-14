@@ -452,9 +452,11 @@ h2.ed-canvas-title, .ed-canvas-input { margin: 0; }
 .wt-ch { display: flex; align-items: center; gap: 6px; padding: 6px 8px; border-radius: 6px; cursor: pointer; color: var(--sub); font-size: 13px; }
 .wt-ch:hover { background: var(--wash); }
 .wt-ch.on { background: var(--bondBg); color: var(--bond); font-weight: 600; }
-/* "Where you stopped" — an amber left accent, the same marker the Overview grid
-   and Timeline use. Layers over the open/selected state via inset shadow. */
-.wt-ch.resume { box-shadow: inset 2.5px 0 0 var(--marker); }
+/* "Where you stopped" — a full amber ring hugging the row, the SAME marker the
+   Overview grid cell, its legend, and the Timeline band use. Never a one-sided
+   edge stroke (see DECISIONS: markers are enclosing, not single-edge). The inset
+   shadow layers cleanly over the open/selected (.on) blue fill. */
+.wt-ch.resume { box-shadow: inset 0 0 0 1.5px var(--marker); }
 /* Drag-to-reorder: highlight the drop target as a soft zone, not a hairline stroke. */
 .wt-ch.wt-drop { background: color-mix(in srgb, var(--bond) 14%, transparent); color: var(--bond); }
 .wt-ch > svg { color: var(--faint); flex: 0 0 auto; }

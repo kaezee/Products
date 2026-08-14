@@ -212,18 +212,25 @@ function Workspace({ session }: { session: Session }) {
     const name = newWorldDraft.trim();
     if (!name) return;
     setNewWorldOpen(false);
+    let w: World;
     try {
-      const w = await createWorld(name);
-      localStorage.setItem("k.onboarded", "1");
+      w = await createWorld(name);
+    } catch (x) { setErr(String(x)); return; }
+    // The project row exists now — put the writer INSIDE it before anything else.
+    // Seeding (preset containers/types) is a nicety; if it throws it must never
+    // strand the writer back on the empty landing, which used to require a manual
+    // reload to escape. So navigate first, then seed best-effort.
+    localStorage.setItem("k.onboarded", "1");
+    setWorlds((prev) => [...(prev ?? []), w]);
+    setWorldId(w.id);
+    track({ name: "project_created", props: { form: newForm, genre: newGenre, entry } });
+    go(entry === "import" ? { scope: "manuscript", openImport: true } : { scope: "overview" });
+    try {
       const { containers } = structureFor(newForm);
       // Canonical types are always offered; only the genre's extras need seeding.
       const extras = GENRE_TYPES[newGenre].types.filter((t) => !CANONICAL_ENTITY_TYPES.includes(t as never));
       await seedProjectShape(w.id, containers, extras);
-      setWorlds((prev) => [...(prev ?? []), w]);
-      setWorldId(w.id);
-      track({ name: "project_created", props: { form: newForm, genre: newGenre, entry } });
-      go(entry === "import" ? { scope: "manuscript", openImport: true } : { scope: "overview" });
-    } catch (x) { setErr(String(x)); }
+    } catch (x) { setErr("Project created, but presetting its types didn’t finish: " + String(x)); }
   }
 
   // Open the seeded example (world switcher / empty state / creation chooser).
@@ -290,7 +297,7 @@ function Workspace({ session }: { session: Session }) {
   // a blank page + caret, a marked-up manuscript, a .docx becoming split chapters.
   const START_CARDS = [
     { k: "blank" as const, t: "Blank", d: "An empty page. Start typing." },
-    { k: "example" as const, t: "The example", d: "Sherlock, fully marked up. Poke at it, delete it later." },
+    { k: "example" as const, t: "Try the example", d: "Sherlock, fully marked up. Poke at it, delete it later." },
     { k: "import" as const, t: "Your manuscript", d: "Upload a .docx — we’ll split the chapters." },
   ];
   function startViz(k: "blank" | "example" | "import") {
@@ -538,7 +545,7 @@ function Workspace({ session }: { session: Session }) {
                   <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 4 }}>
                     <button className="primary" onClick={makeWorld}>Create a project</button>
                     <button onClick={loadExample} disabled={seeding} style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-                      {seeding ? <Spinner size={13} /> : <Icon name="book" size={14} />} Explore the example (Sherlock Holmes)
+                      {seeding ? <Spinner size={13} /> : <Icon name="book" size={14} />} Try the example (Sherlock Holmes)
                     </button>
                   </div>
                 </div>
@@ -582,12 +589,19 @@ function Workspace({ session }: { session: Session }) {
           cards, most-recent first, current marked; pick one to enter. */}
       {worldsScreenOpen && (
         <div className="worlds-screen fi">
+          {/* Top rail: the brand and Back — a persistent home bar we can grow into
+              (account, notifications…) later. The section title lives below it. */}
           <div className="worlds-screen-head">
             <button className="worlds-back" onClick={() => setWorldsScreenOpen(false)} title="Back (Esc)">
               <Icon name="chevron-left" size={17} /> Back
             </button>
             <span className="worlds-head-sep" />
-            <span className="k">K</span>
+            <span className="worlds-brand">Kronicler<span className="worlds-beta">beta</span></span>
+            <span className="spacer" style={{ flex: 1 }} />
+          </div>
+          {/* Secondary nav: the section (Projects) and, in time, its own search
+              and per-section actions. */}
+          <div className="worlds-subnav">
             <h2>Projects</h2>
             <span className="spacer" style={{ flex: 1 }} />
           </div>
@@ -619,7 +633,7 @@ function Workspace({ session }: { session: Session }) {
               </button>
               {!worlds.some((w) => w.is_sample) && (
                 <button className="worldcard new" disabled={seeding} onClick={() => !seeding && loadExample()}>
-                  {seeding ? <Spinner size={16} /> : <Icon name="book" size={20} />} Load the example project
+                  {seeding ? <Spinner size={16} /> : <Icon name="book" size={20} />} Try the example
                 </button>
               )}
             </div>

@@ -342,7 +342,7 @@ export function Manuscript({ worldId, focusChapterId, openImport, go, onLeaf }: 
             focused={focused} onToggleFocus={() => setFocused((f) => !f)} />
         ) : (
           <div className="write-placeholder">
-            <Icon name="feather" size={26} />
+            <Icon name="nav-write" size={30} style={{ color: "var(--faint)" }} />
             <p>Pick a chapter from the list to start writing — or add a new one.</p>
           </div>
         )}

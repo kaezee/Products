@@ -471,13 +471,14 @@ export function Overview({ worldId, go, refreshKey }: { worldId: string; go: (n:
       <div className="fi">
         <h2 className="scope-title">Overview</h2>
 
-        {/* Empty state: one card, a single centred hero — illustration, the one
-            thing to do, its actions, then the follow-on steps as a quiet inline
-            row. Each step links to where it happens. */}
-        <div className="np-empty card">
-          <div className="np-illo-wrap"><EmptyOverviewArt /></div>
+        {/* Empty state: a centred hero straight on the canvas (no card) — heading
+            and its deck, the illustration as a visual beat, the one thing to do
+            with its actions, then the follow-on steps as a quiet inline row.
+            Each step links to where it happens. */}
+        <div className="np-empty">
           <h3 className="np-empty-title">Write your first chapter</h3>
           <p className="np-empty-desc">Even a title is enough — known names light up as you write.</p>
+          <div className="np-illo-wrap"><EmptyOverviewArt /></div>
           <div className="np-empty-actions">
             <button className="primary" onClick={() => go({ scope: "manuscript" })}>Start writing</button>
             <button className="ghost" onClick={() => go({ scope: "manuscript", openImport: true })}>Bring in a manuscript</button>

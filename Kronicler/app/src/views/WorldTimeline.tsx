@@ -24,7 +24,7 @@ import { SkeletonRows } from "../components/Skeleton";
 // ruler + known-time bounds + rendering. LOD tiers, clustering, framing,
 // out-of-bounds editing, axis-mode, and drag-to-segment land in later batches.)
 
-const LABEL_H = 16, BAR_H = 9, CH_H = 20, ROW_GAP = 10, PAD_Y = 26, LOOSE_H = 26;
+const LABEL_H = 16, BAR_H = 9, CH_H = 20, ROW_GAP = 10, PAD_Y = 26, LOOSE_ROW_H = LABEL_H + CH_H + ROW_GAP;
 const MAX_PPD = 60;             // zoom ceiling: one day at 60px (§5.2)
 const RESIZE_MIN_W = 2;
 
@@ -168,11 +168,21 @@ export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) =
     [chapters, ms],
   );
 
+  // Each standalone (dated, unfiled) chapter is its own titled lane — a one-chapter
+  // work, peer to the book/season rows — stacked in date order above the sections.
+  // Filing it into a section removes its segment-less state, so it leaves this stack.
+  const looseLanes = useMemo(
+    () => [...looseDated]
+      .sort((a, b) => (startU(a)! - startU(b)!) || a.manuscript_order - b.manuscript_order)
+      .map((ch, i) => ({ ch, y: PAD_Y + i * LOOSE_ROW_H })),
+    [looseDated, ms],
+  );
+
   // Row layout: depth-first, indent + shrink bar per level; a chapter row only
   // where a segment has dated chapters.
   const rows = useMemo(() => {
     const out: { seg: Segment; depth: number; y: number; hasCh: boolean }[] = [];
-    let y = PAD_Y + (looseDated.length ? LOOSE_H : 0);
+    let y = PAD_Y + looseDated.length * LOOSE_ROW_H;
     const walk = (parent: string | null, depth: number) => {
       for (const s of childrenOf.get(parent) ?? []) {
         const hasCh = (chaptersBySeg.get(s.id) ?? []).some((c) => startU(c) != null);
@@ -648,16 +658,20 @@ export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) =
               </div>
             ))}
 
-            {/* loose dated chapters (a date but no segment). The "loose chapters"
-                label only means something when there ARE sections to be loose from;
-                a project with no structure just shows its chapters on the line, so
-                the label is suppressed and every project reads the same way. */}
-            {looseDated.length > 0 && tier !== "era" && (
-              <>
-                {segments.length > 0 && <span className="wt2-loose-lab" style={{ top: PAD_Y - 14 }}>loose chapters</span>}
-                {chapterLayer(looseDated, "slate", PAD_Y)}
-              </>
-            )}
+            {/* Standalone chapters: each dated chapter not filed under a section
+                gets its OWN titled lane — a one-chapter work (a short story /
+                standalone), peer to the book rows. Its label hugs its date like a
+                book label; file it into a section and it leaves for that book's row. */}
+            {tier !== "era" && looseLanes.map(({ ch, y }) => (
+              <div key={"solo-" + ch.id}>
+                <span className="wt2-seglab" style={{ left: xOf(startU(ch)!), top: y, color: "var(--sub)" }}
+                  title={`${ch.title} · standalone — not yet in a book or series`}>
+                  <span className="wt2-kind">standalone</span>{trunc(ch.title, 20)}
+                  <span className="faint" style={{ fontSize: 10.5, marginLeft: 6 }}>{dayToYear(startU(ch)!)}</span>
+                </span>
+                {chapterBand(ch, "slate", y + LABEL_H, false)}
+              </div>
+            ))}
 
             {segments.length === 0 && markers.length === 0 && looseDated.length === 0 && (
               <div className="wt2-empty-hint">Add a section (a series, book, or season), then date chapters or bulk-add them from the sidebar. Dated chapters appear here; the ruler is bounded by your world's known time.</div>

@@ -648,10 +648,13 @@ export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) =
               </div>
             ))}
 
-            {/* loose dated chapters (a date but no segment) */}
+            {/* loose dated chapters (a date but no segment). The "loose chapters"
+                label only means something when there ARE sections to be loose from;
+                a project with no structure just shows its chapters on the line, so
+                the label is suppressed and every project reads the same way. */}
             {looseDated.length > 0 && tier !== "era" && (
               <>
-                <span className="wt2-loose-lab" style={{ top: PAD_Y - 14 }}>loose chapters</span>
+                {segments.length > 0 && <span className="wt2-loose-lab" style={{ top: PAD_Y - 14 }}>loose chapters</span>}
                 {chapterLayer(looseDated, "slate", PAD_Y)}
               </>
             )}

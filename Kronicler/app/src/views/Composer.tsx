@@ -109,53 +109,65 @@ export function Composer(props: {
           {" "}<span style={{ color: "var(--ink)", fontWeight: 600 }}><Icon name="book" size={12} /> ch. {String(chapterOrder).padStart(2, "0")} — {chapterTitle}</span>.
         </p>
 
-        {/* the sentence */}
-        <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginBottom: 12 }}>
-          <select value={a} onChange={(e) => setA(e.target.value)} className="sel">{entOptions(b)}</select>
-          <div style={{ position: "relative" }}>
-            <input
-              ref={typeRef}
-              autoFocus
-              value={chosenType ? chosenType.label : typeQuery}
-              onChange={(e) => { setTypeQuery(e.target.value); setTypeId(null); }}
-              onKeyDown={(e) => { if (e.key === "Enter" && (chosenType || canMint) && a && b && a !== b) commit(); if (e.key === "Escape") onClose(); }}
-              placeholder="did what…"
-              style={{ width: 150, borderColor: chosenType ? VALENCE_COLOR[chosenType.valence] : undefined }}
-            />
-            {q.length > 0 && !typeId && (
-              <div className="typeahead">
-                {matches.map((t) => (
-                  <div key={t.id} className="ta-row" onClick={() => { setTypeId(t.id); setTypeQuery(""); }}>
-                    <span className="dot" style={{ background: VALENCE_COLOR[t.valence] }} />{t.label}
-                  </div>
-                ))}
-                {canMint && (
-                  <div className="ta-row" style={{ flexDirection: "column", alignItems: "flex-start", gap: 6 }}>
-                    <span className="muted">mint “{typeQuery.trim()}” as a new type — pick a standing:</span>
-                    <span style={{ display: "flex", gap: 6 }}>
-                      {VALENCES.map((v) => (
-                        <span key={v} title={v} onClick={() => setMintValence(v)}
-                          style={{ width: 16, height: 16, borderRadius: "50%", background: VALENCE_COLOR[v], cursor: "pointer",
-                            outline: mintValence === v ? "2px solid var(--ink)" : "none", outlineOffset: 1 }} />
-                      ))}
-                    </span>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-          <select value={b} onChange={(e) => setB(e.target.value)} className="sel">{entOptions(a)}</select>
+        {/* the sentence (§8): [who] [did what] [to/with whom], with a quiet label
+            under each part so the structure reads at a glance. */}
+        <div className="cmp-sentence">
+          <label className="cmp-part">
+            <select value={a} onChange={(e) => setA(e.target.value)} className="sel">{entOptions(b)}</select>
+            <span className="cmp-part-lab">who</span>
+          </label>
+          <label className="cmp-part">
+            <div style={{ position: "relative" }}>
+              <input
+                ref={typeRef}
+                autoFocus
+                value={chosenType ? chosenType.label : typeQuery}
+                onChange={(e) => { setTypeQuery(e.target.value); setTypeId(null); }}
+                onKeyDown={(e) => { if (e.key === "Enter" && (chosenType || canMint) && a && b && a !== b) commit(); if (e.key === "Escape") onClose(); }}
+                placeholder="did what… (e.g. betrayed)"
+                style={{ width: 200, borderColor: chosenType ? VALENCE_COLOR[chosenType.valence] : undefined }}
+              />
+              {q.length > 0 && !typeId && (
+                <div className="typeahead">
+                  {matches.map((t) => (
+                    <div key={t.id} className="ta-row" onClick={() => { setTypeId(t.id); setTypeQuery(""); }}>
+                      <span className="dot" style={{ background: VALENCE_COLOR[t.valence] }} />{t.label}
+                    </div>
+                  ))}
+                  {canMint && (
+                    <div className="ta-row" style={{ flexDirection: "column", alignItems: "flex-start", gap: 6 }}>
+                      <span className="muted">mint “{typeQuery.trim()}” as a new type — pick a standing:</span>
+                      <span style={{ display: "flex", gap: 6 }}>
+                        {VALENCES.map((v) => (
+                          <span key={v} title={v} onClick={() => setMintValence(v)}
+                            style={{ width: 16, height: 16, borderRadius: "50%", background: VALENCE_COLOR[v], cursor: "pointer",
+                              outline: mintValence === v ? "2px solid var(--ink)" : "none", outlineOffset: 1 }} />
+                        ))}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+            <span className="cmp-part-lab">did what</span>
+          </label>
+          <label className="cmp-part">
+            <select value={b} onChange={(e) => setB(e.target.value)} className="sel">{entOptions(a)}</select>
+            <span className="cmp-part-lab">to / with whom</span>
+          </label>
         </div>
 
-        {/* truth vs belief */}
-        <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginBottom: 8 }}>
-          <span className="seg" style={{ fontSize: 11 }}>
-            <span className={intent === "truth" ? "on" : ""} onClick={() => setIntent("truth")}>the truth</span>
-            <span className={intent === "belief" ? "on" : ""} onClick={() => setIntent("belief")}>🧠 a belief</span>
-          </span>
-          <span className="faint" style={{ fontSize: 11 }}>
-            {intent === "truth" ? "what actually happens" : "what someone thinks is true — even if it's wrong"}
-          </span>
+        {/* truth vs belief — two option cards, each with an icon and what it means,
+            so the choice reads at a glance instead of as a cramped toggle. */}
+        <div className="cmp-choice">
+          <button type="button" className={"cmp-opt" + (intent === "truth" ? " on" : "")} onClick={() => setIntent("truth")}>
+            <span className="cmp-opt-h"><Icon name="check" size={16} /> The truth</span>
+            <span className="cmp-opt-d">What actually happens in the story.</span>
+          </button>
+          <button type="button" className={"cmp-opt" + (intent === "belief" ? " on" : "")} onClick={() => setIntent("belief")}>
+            <span className="cmp-opt-h"><Icon name="drama" size={16} /> A belief</span>
+            <span className="cmp-opt-d">What someone thinks is true — even if it’s wrong.</span>
+          </button>
         </div>
 
         {/* knowledge: for truth, conceal from exceptions; for belief, name who holds it */}
@@ -177,7 +189,7 @@ export function Composer(props: {
               <span key={e.id}
                 className={"chip" + (believers.includes(e.id) ? " on" : "")}
                 onClick={() => setBelievers((c) => c.includes(e.id) ? c.filter((x) => x !== e.id) : [...c, e.id])}>
-                {believers.includes(e.id) ? "🧠 " : ""}{shortName(e.title)}
+                {believers.includes(e.id) ? <><Icon name="drama" size={11} /> </> : ""}{shortName(e.title)}
               </span>
             ))}
           </div>

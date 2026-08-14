@@ -557,6 +557,17 @@ h2.ed-canvas-title, .ed-canvas-input { margin: 0; }
 .dash-continue-lab { font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--bond); }
 .dash-continue-title { font-family: var(--serif); font-size: 18px; font-weight: 600; color: var(--ink); margin: 1px 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .dash-continue-sub { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+/* Record-a-moment composer (§8): the sentence parts each carry a quiet label,
+   and truth/belief is two option cards rather than a cramped toggle. */
+.cmp-sentence { display: flex; gap: 12px; align-items: flex-start; flex-wrap: wrap; margin-bottom: 14px; }
+.cmp-part { display: flex; flex-direction: column; gap: 4px; }
+.cmp-part-lab { font-size: 10.5px; text-transform: uppercase; letter-spacing: .06em; color: var(--faint); padding-left: 2px; }
+.cmp-choice { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
+.cmp-opt { flex: 1; min-width: 210px; display: flex; flex-direction: column; align-items: flex-start; gap: 4px; padding: 12px 14px; border: 1.5px solid var(--line); border-radius: 12px; background: var(--surface); cursor: pointer; text-align: left; transition: border-color .12s, background .12s; }
+.cmp-opt:hover { border-color: var(--lineStrong); }
+.cmp-opt.on { border-color: var(--bond); background: var(--inset); }
+.cmp-opt-h { display: inline-flex; align-items: center; gap: 7px; font-weight: 600; font-size: 14px; color: var(--ink); }
+.cmp-opt-d { font-size: 12px; color: var(--muted); }
 /* ── Manuscript grid (Overview redesign §2) — one cell per chapter, shaded by
    length. The whole book at a glance: where the long chapters are, where the
    thin ones are, and where you are (the marker ring). Cells inherit the ink

@@ -298,11 +298,11 @@ export function Library({ worldId, focusEntityId, onLeaf }: { worldId: string; f
       )}
 
       {entities.length === 0 ? (
-        <EmptyState icon="library" title="Nobody in the world yet"
+        <EmptyState icon="nav-world" title="Nobody in the world yet"
           desc="Everyone and everything your story is made of — characters, places, factions, objects. Each one is an entity: add them here, and they light up in your prose as you write."
           steps={["Add someone, somewhere, or something", "Write them into a chapter", "Watch the web form"]}
           action={{ label: "Add your first character", onClick: openFull }}
-          secondary={<button style={{ marginTop: 10 }} onClick={() => setImporting(true)}>Import from .docx</button>} />
+          secondary={<button onClick={() => setImporting(true)}>Import from .docx</button>} />
       ) : (
         <>
           {/* search + sort */}

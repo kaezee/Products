@@ -49,7 +49,7 @@ export function RichProse({ value, entities, onChange, onSelectText, onActive, o
   onActive?: (a: ActiveFormats) => void;
   onOpenEntity?: (id: string) => void;
   stateOf?: (entityId: string) => MentionState[];
-  onMarkEntity?: () => void;
+  onMarkEntity?: (at?: { x: number; y: number }) => void;
   onMarkMoment?: (anchor: Anchor) => void;
   onComment?: (range: { start: number; end: number; quote: string }) => void;
   apiRef?: (api: ProseApi | null) => void;
@@ -520,7 +520,7 @@ export function RichProse({ value, entities, onChange, onSelectText, onActive, o
               first; a sentence puts Mark a moment first. */}
           {(() => {
             const markEntity = onMarkEntity && (
-              <button key="me" onClick={() => { onMarkEntity(); setSel(null); }} title="Tag the selection as a character, place, item…">✦ Mark entity</button>
+              <button key="me" onClick={() => { onMarkEntity?.({ x: sel.x, y: sel.y }); setSel(null); }} title="Tag the selection as a character, place, item…">✦ Mark entity</button>
             );
             const markMoment = onMarkMoment && (
               <button key="mm" disabled={sel.len < 3} onClick={() => fireMarkMoment()} title="Record what happens between characters in the selection">✳ Mark a moment <span className="annot-kbd">{MARK_MOMENT.label}</span></button>

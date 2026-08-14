@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   getRelationshipTypes, getChapterVersions, getChapterEntities,
   linkChapterEntity, saveChapterBody, getStream, deleteState, setStateAnchor,
@@ -45,7 +46,7 @@ function ChapterBlock({
   onOpenEntity?: (id: string) => void;
   onSelect: (chapterId: string, text: string) => void;
   onMentions: (chapterId: string, ids: string[]) => void;
-  onMarkEntity: (chapterId: string) => void;
+  onMarkEntity: (chapterId: string, at?: { x: number; y: number }) => void;
   onMarkMoment: (chapterId: string, anchor: Anchor) => void;
   onComment: (chapterId: string, range: { start: number; end: number; quote: string }) => void;
   registerApi: (chapterId: string, api: ProseApi | null) => void;
@@ -183,7 +184,7 @@ function ChapterBlock({
         onActive={onActive}
         onOpenEntity={onOpenEntity}
         stateOf={stOf}
-        onMarkEntity={() => onMarkEntity(chapter.id)}
+        onMarkEntity={(at) => onMarkEntity(chapter.id, at)}
         onMarkMoment={(anchor) => onMarkMoment(chapter.id, anchor)}
         onComment={(range) => onComment(chapter.id, range)}
         apiRef={setApi}
@@ -284,6 +285,7 @@ export function BookCanvas(props: {
     return proseApis.current.get(c.chapter_id)?.selectRange(c.anchor_start, c.anchor_end, c.quote) ?? false;
   }, []);
   const [entMode, setEntMode] = useState<null | "mark">(null);
+  const [markAt, setMarkAt] = useState<{ x: number; y: number } | null>(null);
   const [entChId, setEntChId] = useState(openId);      // chapter the entity action targets
   const [selWord, setSelWord] = useState("");
   const [newType, setNewType] = useState("Character");
@@ -405,11 +407,12 @@ export function BookCanvas(props: {
 
   // §3.6: one "Mark entity" flow — find an existing entity (records an alias) or
   // create a new one (adds it to the world). No separate New/Alias buttons.
-  function openMarkEntity(chapterId: string) {
+  function openMarkEntity(chapterId: string, at?: { x: number; y: number }) {
     const w = selText.trim();
     if (!w) return;
     setSelWord(w); setEntChId(chapterId);
     setNewType("Character"); setCustomType(""); setAliasQuery("");
+    setMarkAt(at ?? null);
     setEntMode("mark");
   }
 
@@ -520,60 +523,73 @@ export function BookCanvas(props: {
 
       <div className={"ed-body" + (panel ? " has-panel" : "")}>
         <div className="ed-prose" ref={scroller}>
-          {entMode === "mark" && (
-            <div className="card ed-markent" style={{ marginBottom: 8 }}>
-              <div className="ed-markent-head">
-                <span className="muted">Mark</span>
-                <span className="title-serif">“{selWord}”</span>
-                <span className="muted" style={{ fontSize: 12.5 }}>as a character, place, or item in your world</span>
-                <span className="spacer" style={{ flex: 1 }} />
-                <button className="iconbtn" onClick={() => setEntMode(null)} title="Close (Esc)"><Icon name="close" size={15} /></button>
-              </div>
+          {/* Mark-entity card floats over the prose, anchored to the selection
+              (portaled to <body> so the prose column's overflow can't clip it —
+              the old inline card was cut off under the toolbar). */}
+          {entMode === "mark" && createPortal((() => {
+            const W = 360;
+            const flip = markAt ? markAt.y > window.innerHeight - 300 : false;
+            const left = markAt ? Math.max(12, Math.min(markAt.x - W / 2, window.innerWidth - W - 12)) : (window.innerWidth - W) / 2;
+            const top = markAt ? (flip ? markAt.y - 12 : markAt.y + 22) : 110;
+            return (
+              <>
+                <div onMouseDown={() => setEntMode(null)} style={{ position: "fixed", inset: 0, zIndex: 315 }} />
+                <div className="card ed-markent ed-markent-pop"
+                  style={{ position: "fixed", zIndex: 320, width: W, left, top, transform: flip ? "translateY(-100%)" : "none", maxHeight: "min(70vh, 520px)", overflowY: "auto" }}
+                  onKeyDown={(e) => { if (e.key === "Escape") setEntMode(null); }}>
+                  <div className="ed-markent-head">
+                    <span className="muted">Mark</span>
+                    <span className="title-serif">“{selWord}”</span>
+                    <span className="spacer" style={{ flex: 1 }} />
+                    <button className="iconbtn" onClick={() => setEntMode(null)} title="Close (Esc)"><Icon name="close" size={15} /></button>
+                  </div>
 
-              {/* Primary path: create it. Marking a name you just wrote almost
-                  always means "make this real" — so lead with that, type inline,
-                  one click to add + link. Searching existing is the fallback below. */}
-              <div className="ed-markent-new" style={{ paddingTop: 0, borderTop: "none" }}>
-                <span className="ed-panel-lab" style={{ marginBottom: 0 }}>Add as a</span>
-                <select className="sel" value={newType} onChange={(e) => setNewType(e.target.value)}>
-                  {CANONICAL_ENTITY_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
-                  <option value={CUSTOM_TYPE}>+ Custom type…</option>
-                </select>
-                {newType === CUSTOM_TYPE && (
-                  <input autoFocus value={customType} placeholder="New type (e.g. Deity)" style={{ width: 140 }}
-                    onChange={(e) => setCustomType(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === "Enter") createFromSelection(); }} />
-                )}
-                <button className="primary" onClick={createFromSelection}>Add “{selWord}”</button>
-              </div>
+                  {/* Primary path: create it. Marking a name you just wrote almost
+                      always means "make this real" — so lead with that, type inline,
+                      one click to add + link. Searching existing is the fallback below. */}
+                  <div className="ed-markent-new" style={{ paddingTop: 0, borderTop: "none" }}>
+                    <span className="ed-panel-lab" style={{ marginBottom: 0 }}>Add as a</span>
+                    <select className="sel" value={newType} onChange={(e) => setNewType(e.target.value)}>
+                      {CANONICAL_ENTITY_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+                      <option value={CUSTOM_TYPE}>+ Custom type…</option>
+                    </select>
+                    {newType === CUSTOM_TYPE && (
+                      <input autoFocus value={customType} placeholder="New type (e.g. Deity)" style={{ width: 140 }}
+                        onChange={(e) => setCustomType(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === "Enter") createFromSelection(); }} />
+                    )}
+                    <button className="primary" autoFocus={newType !== CUSTOM_TYPE} onClick={createFromSelection}>Add “{selWord}”</button>
+                  </div>
 
-              {/* Fallback: only when there's a cast to link to. Records the word
-                  as another name (alias) for someone who already exists. */}
-              {ents.length > 0 && (
-                <div style={{ borderTop: "1px solid var(--line)", paddingTop: 10, display: "flex", flexDirection: "column", gap: 8 }}>
-                  <span className="ed-panel-lab" style={{ marginBottom: 0 }}>Already written it? Link to an existing one instead</span>
-                  <input value={aliasQuery} placeholder="Search your characters, places, items…" style={{ width: "100%" }}
-                    onChange={(e) => setAliasQuery(e.target.value)} />
-                  {aliasQuery.trim() && (
-                    <div className="ed-markent-results">
-                      {aliasMatches.map((e) => (
-                        <span key={e.id} className="chip click" onClick={() => addAliasTo(e)} title={`Record “${selWord}” as another name for ${e.title}`}>
-                          {e.title} <span className="faint" style={{ marginLeft: 4 }}>{e.type}</span>
-                        </span>
-                      ))}
-                      {aliasMatches.length === 0 && <span className="muted">No match — use “Add” above to create it.</span>}
+                  {/* Fallback: only when there's a cast to link to. Records the word
+                      as another name (alias) for someone who already exists. */}
+                  {ents.length > 0 && (
+                    <div style={{ borderTop: "1px solid var(--line)", paddingTop: 10, display: "flex", flexDirection: "column", gap: 8 }}>
+                      <span className="ed-panel-lab" style={{ marginBottom: 0 }}>Already written it? Link to an existing one instead</span>
+                      <input value={aliasQuery} placeholder="Search your characters, places, items…" style={{ width: "100%" }}
+                        onChange={(e) => setAliasQuery(e.target.value)} />
+                      {aliasQuery.trim() && (
+                        <div className="ed-markent-results">
+                          {aliasMatches.map((e) => (
+                            <span key={e.id} className="chip click" onClick={() => addAliasTo(e)} title={`Record “${selWord}” as another name for ${e.title}`}>
+                              {e.title} <span className="faint" style={{ marginLeft: 4 }}>{e.type}</span>
+                            </span>
+                          ))}
+                          {aliasMatches.length === 0 && <span className="muted">No match — use “Add” above to create it.</span>}
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
-              )}
-            </div>
-          )}
+              </>
+            );
+          })(), document.body)}
 
           {activeChapter && (
             <ChapterBlock key={activeChapter.id} worldId={worldId} chapter={activeChapter} entities={ents} stateOf={stateOf}
               onOpenEntity={onOpenEntity} onSelect={onSelect}
               onMentions={onMentions}
-              onMarkEntity={(id) => openMarkEntity(id)}
+              onMarkEntity={(id, at) => openMarkEntity(id, at)}
               onMarkMoment={(id, anchor) => { setEntChId(id); setPendingAnchor(anchor); setComposerOpen(true); }}
               onComment={onComment} registerApi={registerApi} onSaveState={setChSaveState}
               onActive={setActive} marks={momentMarks} onMarkClick={() => summon("continuity")}

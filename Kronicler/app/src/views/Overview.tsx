@@ -22,7 +22,6 @@ const DORMANT_GAP = 5;
 
 const wordsOf = (body: string) => (body || "").replace(/<[^>]*>/g, " ").trim().split(/\s+/).filter(Boolean).length;
 const fmt = (n: number) => n.toLocaleString();
-const titleCase = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 // Spell small counts (the alert reads "Two moments…", not "2 moments…"); numbers
 // past twelve stay numeric — but the alert caps at twelve anyway.
 const WORDS = ["Zero", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine", "Ten", "Eleven", "Twelve"];
@@ -499,7 +498,7 @@ export function Overview({ worldId, go, refreshKey }: { worldId: string; go: (n:
   return (
     <div className="fi">
       <h2 className="scope-title">Overview</h2>
-      {msGrid.total < 3 && sizeBits.length > 0 && <p className="scope-sub">{shape}</p>}
+      {msGrid.total < 1 && sizeBits.length > 0 && <p className="scope-sub">{shape}</p>}
 
       {/* §4.1 one orientation sentence after 1–3 weeks away */}
       {away === "orient" && continueCh && (
@@ -560,38 +559,6 @@ export function Overview({ worldId, go, refreshKey }: { worldId: string; go: (n:
         )}
       </div>
 
-      {/* World at a glance: a small manuscript (grid hidden below 3 chapters,
-          cast/relationships live in other views) still deserves to see its own
-          shape on the home page — otherwise adding characters and dates looks
-          like it did nothing. Each stat deep-links to where that work lives. */}
-      {(stats.entities > 0 || stats.dated > 0 || stats.relCount > 0) && (
-        <div className="card" style={{ marginBottom: 18 }}>
-          <div className="chron-sec">
-            <div className="chron-lab">Your world so far<Explain term="Your world so far">A snapshot of what you've built beyond the prose — your cast, your dated chapters, and the connections between people. Tap any to jump there.</Explain></div>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
-              {stats.entities > 0 && (
-                <button className="dash-glance" onClick={() => go({ scope: "library" })}>
-                  <span className="dash-glance-n">{fmt(stats.entities)} in your world</span>
-                  <span className="dash-glance-sub">{stats.typeBreakdown.slice(0, 4).map(([t, n]) => `${n} ${titleCase(t)}${n === 1 ? "" : "s"}`).join(" · ")}</span>
-                </button>
-              )}
-              {stats.dated > 0 && (
-                <button className="dash-glance" onClick={() => go({ scope: "timeline" })}>
-                  <span className="dash-glance-n">{fmt(stats.dated)} chapter{stats.dated === 1 ? "" : "s"} dated</span>
-                  <span className="dash-glance-sub">on your timeline</span>
-                </button>
-              )}
-              {stats.relCount > 0 && (
-                <button className="dash-glance" onClick={() => go({ scope: "relationships" })}>
-                  <span className="dash-glance-n">{fmt(stats.relCount)} connection{stats.relCount === 1 ? "" : "s"}</span>
-                  <span className="dash-glance-sub">between your people</span>
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Alert strip (§5): moments that no longer match the prose — a chapter
           blanked, set back to planned, or deleted. Capped at 12 — past that the
           exact number stops helping and would only alarm, so it reads "Some". */}
@@ -604,9 +571,10 @@ export function Overview({ worldId, go, refreshKey }: { worldId: string; go: (n:
         </button>
       )}
 
-      {/* Manuscript grid (§2): the whole book at a glance. Below 3 chapters it
-          isn't worth drawing — a cell or two says nothing the head doesn't. */}
-      {msGrid.total >= 3 && (
+      {/* Manuscript grid (§2): the whole book at a glance — shown for any world
+          with at least one chapter, so a small manuscript still sees what it's
+          written (a couple of cells plus the chapter/word/moment head). */}
+      {msGrid.total >= 1 && (
         <section className="card ms-grid">
           <div className="ms-grid-head">
             <span className="ms-grid-title">What you've written<Explain term="What you've written">Every chapter, as one cell — shaded by how long it is (or, on the Moments lens, by how much happens in it). Books wrap; the amber ring is where you stopped.</Explain></span>

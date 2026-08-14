@@ -530,7 +530,7 @@ export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) =
     return (
       <div className="fi">
         <h2 className="scope-title" style={{ marginBottom: 12 }}>World Timeline</h2>
-        <EmptyState icon="timeline"
+        <EmptyState icon="nav-timeline"
           title="Your story hasn’t reached the timeline yet"
           desc="The timeline draws itself from your chapters. Write one, give it an in-world date, and it drops onto the line here — no manual plotting."
           steps={["Write a chapter", "Give it a date", "It lands here"]}

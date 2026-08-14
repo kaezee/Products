@@ -163,7 +163,7 @@ export function Relationships({ worldId, go }: { worldId: string; go: (n: Nav) =
     return (
       <div className="fi">
         <h2 className="scope-title" style={{ marginBottom: 12 }}>Relationships</h2>
-        <EmptyState icon="relationships" title="No relationships yet"
+        <EmptyState icon="nav-relationships" title="No relationships yet"
           desc="Relationships grow out of your prose. Open a chapter, select a line where two characters connect, and record what passes between them — it appears here as a living web you can filter and rewind."
           steps={["Add your characters", "Mark a moment in a chapter", "See the web"]}
           action={{ label: "Open the Manuscript", onClick: () => go({ scope: "manuscript" }) }} />

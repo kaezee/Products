@@ -1139,9 +1139,9 @@ button.ghost:hover:not(:disabled) { background: var(--wash); border-color: var(-
 /* Empty state — a single centred hero: illustration, the one thing to do, its
    actions, then the follow-on steps grounded below. The art is transparent and
    recolours per theme via --illo-* tokens. */
-.np-empty { margin: 12px 0 0; padding: 44px 32px 36px; display: flex; flex-direction: column; align-items: center; text-align: center; }
-.np-illo-wrap { margin-bottom: 4px; }
-.np-illo { display: block; width: 320px; max-width: 100%; height: auto;
+.np-empty { margin: 8px 0 0; padding: 26px 32px 14px; display: flex; flex-direction: column; align-items: center; text-align: center; }
+.np-illo-wrap { margin: 24px 0 2px; }
+.np-illo { display: block; width: 384px; max-width: 100%; height: auto;
   /* light / paper theme */
   --illo-ink: #23242B; --illo-paper: #FCFAF4; --illo-accent: #626BBC; --illo-spark: #F7F4FF;
   --illo-t1: #F2F2F8; --illo-t2: #E4E5F1; --illo-t3: #C8CBE4; --illo-t4: #9EA3D1;
@@ -1151,16 +1151,16 @@ button.ghost:hover:not(:disabled) { background: var(--wash); border-color: var(-
   --illo-ink: #D5D8E6; --illo-paper: #141829; --illo-accent: #8B93EC; --illo-spark: #EDE9FF;
   --illo-t1: #20243A; --illo-t2: #272C46; --illo-t3: #333963; --illo-t4: #454C74;
 }
-.np-empty-title { font-family: var(--serif); font-size: 23px; font-weight: 600; color: var(--ink); margin: 2px 0 0; }
-.np-empty-desc { font-size: 13.5px; line-height: 1.55; color: var(--muted); margin: 8px 0 0; max-width: 44ch; }
-.np-empty-actions { display: flex; gap: 10px; margin-top: 20px; flex-wrap: wrap; justify-content: center; }
+.np-empty-title { font-family: var(--serif); font-size: 23px; font-weight: 600; color: var(--ink); margin: 0; }
+.np-empty-desc { font-size: 13.5px; line-height: 1.55; color: var(--muted); margin: 9px 0 0; max-width: 44ch; }
+.np-empty-actions { display: flex; gap: 10px; margin-top: 22px; flex-wrap: wrap; justify-content: center; }
 /* The follow-on steps as a quiet inline row of links, arrow-separated. */
 .np-empty-steps { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 6px; margin-top: 26px; }
 .np-step { background: none; border: none; font-size: 13px; color: var(--muted); cursor: pointer; padding: 3px 6px; border-radius: 6px; transition: color var(--k-duration-fast,120ms), background var(--k-duration-fast,120ms); }
 .np-step:hover { color: var(--sub); background: var(--wash); }
 .np-step-arrow { color: var(--faint); flex: 0 0 auto; }
 @media (max-width: 640px) {
-  .np-illo { width: 260px; }
+  .np-illo { width: 300px; }
 }
 
 .dash-orient { font-size: 13px; color: var(--sub); margin: 2px 0 14px; }

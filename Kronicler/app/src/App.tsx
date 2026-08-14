@@ -416,9 +416,13 @@ function Workspace({ session }: { session: Session }) {
     </div>
   );
 
-  // First-ever visit → onboarding is the chooser card alone on a clean screen,
-  // no dashboard chrome behind it. Creating (or opening the example) leaves it.
-  if (worlds.length === 0 && !localStorage.getItem("k.onboarded")) return (
+  // No projects yet → the chooser card alone on a clean screen (Blank / Example /
+  // Import), no dashboard chrome behind it. Keyed off the data, not a per-browser
+  // localStorage flag: that flag leaked across accounts (e.g. after a fresh Google
+  // sign-in on a browser that had onboarded before), dumping new users straight
+  // into an empty workspace instead of this chooser. Creating or opening the
+  // example gives the account a world, which leaves this screen.
+  if (worlds.length === 0) return (
     <div className="onboard-page">{creationCard(true, false)}</div>
   );
 

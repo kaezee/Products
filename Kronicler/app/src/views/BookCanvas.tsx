@@ -461,6 +461,15 @@ export function BookCanvas(props: {
     [activeMentions, castIds, dismissed],
   );
 
+  // Esc closes the Mark-entity card from anywhere — the old card could only be
+  // dismissed by a small "Cancel" link, which readers missed and felt trapped by.
+  useEffect(() => {
+    if (entMode !== "mark") return;
+    const h = (e: KeyboardEvent) => { if (e.key === "Escape") setEntMode(null); };
+    window.addEventListener("keydown", h);
+    return () => window.removeEventListener("keydown", h);
+  }, [entMode]);
+
   return (
     <div className="ed-shell">
       {/* Top toolbar: document chrome only — the things a Docs/Word writer already
@@ -516,32 +525,47 @@ export function BookCanvas(props: {
               <div className="ed-markent-head">
                 <span className="muted">Mark</span>
                 <span className="title-serif">“{selWord}”</span>
+                <span className="muted" style={{ fontSize: 12.5 }}>as a character, place, or item in your world</span>
                 <span className="spacer" style={{ flex: 1 }} />
-                <button onClick={() => setEntMode(null)}>Cancel</button>
+                <button className="iconbtn" onClick={() => setEntMode(null)} title="Close (Esc)"><Icon name="close" size={15} /></button>
               </div>
-              <input autoFocus value={aliasQuery} placeholder="Find an existing character, place, item…" style={{ width: "100%" }}
-                onChange={(e) => setAliasQuery(e.target.value)} />
-              <div className="ed-markent-results">
-                {aliasMatches.map((e) => (
-                  <span key={e.id} className="chip click" onClick={() => addAliasTo(e)} title={`Record “${selWord}” as another name for ${e.title}`}>
-                    {e.title} <span className="faint" style={{ marginLeft: 4 }}>{e.type}</span>
-                  </span>
-                ))}
-                {aliasMatches.length === 0 && aliasQuery.trim() && <span className="muted">No match — create it below.</span>}
-              </div>
-              <div className="ed-markent-new">
-                <span className="ed-panel-lab" style={{ marginBottom: 0 }}>New to the world</span>
+
+              {/* Primary path: create it. Marking a name you just wrote almost
+                  always means "make this real" — so lead with that, type inline,
+                  one click to add + link. Searching existing is the fallback below. */}
+              <div className="ed-markent-new" style={{ paddingTop: 0, borderTop: "none" }}>
+                <span className="ed-panel-lab" style={{ marginBottom: 0 }}>Add as a</span>
                 <select className="sel" value={newType} onChange={(e) => setNewType(e.target.value)}>
                   {CANONICAL_ENTITY_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
                   <option value={CUSTOM_TYPE}>+ Custom type…</option>
                 </select>
                 {newType === CUSTOM_TYPE && (
-                  <input value={customType} placeholder="New type (e.g. Deity)" style={{ width: 140 }}
+                  <input autoFocus value={customType} placeholder="New type (e.g. Deity)" style={{ width: 140 }}
                     onChange={(e) => setCustomType(e.target.value)}
                     onKeyDown={(e) => { if (e.key === "Enter") createFromSelection(); }} />
                 )}
-                <button className="primary" onClick={createFromSelection}>Add to world</button>
+                <button className="primary" onClick={createFromSelection}>Add “{selWord}”</button>
               </div>
+
+              {/* Fallback: only when there's a cast to link to. Records the word
+                  as another name (alias) for someone who already exists. */}
+              {ents.length > 0 && (
+                <div style={{ borderTop: "1px solid var(--line)", paddingTop: 10, display: "flex", flexDirection: "column", gap: 8 }}>
+                  <span className="ed-panel-lab" style={{ marginBottom: 0 }}>Already written it? Link to an existing one instead</span>
+                  <input value={aliasQuery} placeholder="Search your characters, places, items…" style={{ width: "100%" }}
+                    onChange={(e) => setAliasQuery(e.target.value)} />
+                  {aliasQuery.trim() && (
+                    <div className="ed-markent-results">
+                      {aliasMatches.map((e) => (
+                        <span key={e.id} className="chip click" onClick={() => addAliasTo(e)} title={`Record “${selWord}” as another name for ${e.title}`}>
+                          {e.title} <span className="faint" style={{ marginLeft: 4 }}>{e.type}</span>
+                        </span>
+                      ))}
+                      {aliasMatches.length === 0 && <span className="muted">No match — use “Add” above to create it.</span>}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
 

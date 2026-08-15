@@ -1052,6 +1052,13 @@ button.danger:hover:not(:disabled) { filter: brightness(0.93); background: var(-
 /* Known time (§5.3): outside-bounds dim zone, edge labels, extend chips, warning. */
 .wt2-oob { position: absolute; top: 32px; bottom: 0; z-index: 2; pointer-events: none;
   background-image: repeating-linear-gradient(45deg, transparent 0 7px, color-mix(in srgb, var(--k-text-primary) 5%, transparent) 7px 8px); }
+/* Compressed-gap marker (elastic axis): a hatched sliver where empty time was
+   collapsed, labelled with how many years it stands in for. */
+.wt2-gap { position: absolute; top: 32px; bottom: 0; z-index: 3; display: flex; align-items: flex-start; justify-content: center;
+  background-image: repeating-linear-gradient(45deg, color-mix(in srgb, var(--k-text-primary) 9%, transparent) 0 3px, transparent 3px 7px);
+  border-left: 1px dashed color-mix(in srgb, var(--k-text-primary) 30%, transparent); border-right: 1px dashed color-mix(in srgb, var(--k-text-primary) 30%, transparent); }
+.wt2-gap span { position: sticky; top: 38px; font-family: var(--k-font-mono); font-size: 9.5px; white-space: nowrap;
+  color: color-mix(in srgb, var(--k-text-primary) 55%, transparent); background: var(--k-bg-surface); padding: 0 3px; border-radius: 3px; }
 .wt2-edgelab { position: absolute; top: 37px; font-size: 9.5px; white-space: nowrap; z-index: 4; transform: translateX(5px);
   font-family: var(--k-font-mono); color: color-mix(in srgb, var(--k-valence-hostile) 78%, var(--k-text-primary)); }
 .wt2-extend { position: absolute; top: 54px; z-index: 5; transform: translateX(5px); font-size: 10px; white-space: nowrap; cursor: pointer;

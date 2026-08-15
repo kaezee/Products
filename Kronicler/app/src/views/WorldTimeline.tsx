@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   getSegments, createSegment, updateSegment, softDeleteSegment, restoreSegment, setChapterSegment,
-  getChapters, getMarkers, createMarker, softDeleteMarker, restoreMarker, getSegmentKinds, getWorld, setKnownTime, setChapterDate,
+  getChapters, getSegmentKinds, getWorld, setKnownTime, setChapterDate,
 } from "../lib/api";
-import type { Segment, Chapter, TimelineMarker, SegmentKind } from "../lib/types";
+import type { Segment, Chapter, SegmentKind } from "../lib/types";
 import type { Nav } from "../App";
 import { parseStoryTime } from "../lib/time";
 import { buildKindSwatches } from "../lib/segmentKinds";
@@ -35,7 +35,6 @@ type Span = [number, number];   // [dayStart, dayEnd]
 export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) => void }) {
   const [segments, setSegments] = useState<Segment[]>([]);
   const [chapters, setChapters] = useState<Chapter[]>([]);
-  const [markers, setMarkers] = useState<TimelineMarker[]>([]);
   const [kinds, setKinds] = useState<SegmentKind[]>([]);
   const [cal, setCal] = useState<DerivedCalendar>(() => deriveCalendar(DEFAULT_CALENDAR));
   const [known, setKnown] = useState<{ start: number; end: number }>({ start: 0, end: 1000 });
@@ -47,11 +46,6 @@ export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) =
   const [sideOpen, setSideOpen] = useState(true);
   const [sel, setSel] = useState<Set<string>>(new Set());
   const [bulkSeg, setBulkSeg] = useState("");
-  // Live placement guide while an undated chapter is dragged over the canvas.
-  const [dropHint, setDropHint] = useState<{ x: number; year: number } | null>(null);
-  const [noteOpen, setNoteOpen] = useState(false);
-  const [noteYear, setNoteYear] = useState(""); const [noteText, setNoteText] = useState("");
-  const [addMenu, setAddMenu] = useState(false);
   const [ktStart, setKtStart] = useState(""); const [ktEnd, setKtEnd] = useState("");
   const [warn, setWarn] = useState<null | { segs: { id: string; name: string; lo: number; hi: number }[]; chs: { id: string; title: string; year: number }[]; contain: [number, number]; want: [number, number] }>(null);
 
@@ -86,12 +80,12 @@ export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) =
 
   async function reload() {
     try {
-      const [w, s, c, m, k] = await Promise.all([
-        getWorld(worldId), getSegments(worldId), getChapters(worldId), getMarkers(worldId), getSegmentKinds(worldId),
+      const [w, s, c, k] = await Promise.all([
+        getWorld(worldId), getSegments(worldId), getChapters(worldId), getSegmentKinds(worldId),
       ]);
       setCal(deriveCalendar(w.calendar ?? DEFAULT_CALENDAR));
       setKnown({ start: w.known_start_year ?? 0, end: w.known_end_year ?? 1000 });
-      setSegments(s); setChapters(c); setMarkers(m); setKinds(k);
+      setSegments(s); setChapters(c); setKinds(k);
     } catch (x) { setErr(String(x)); } finally { setLoading(false); }
   }
   useEffect(() => { setLoading(true); setFitDone(false); modeChosen.current = false; undoStack.current = []; void reload(); /* eslint-disable-next-line */ }, [worldId]);
@@ -360,11 +354,11 @@ export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) =
   const ticks = useMemo(() => {
     if (ms) {
       const lo = dayOf(0), hi = dayOf(nowW);
-      return niceTicks(lo, hi, Math.max(3, Math.round(nowW / 110)))
+      return niceTicks(lo, hi, Math.max(3, Math.round(nowW / 110)), 1)
         .filter((t) => t >= 1).map((t) => ({ pos: t, label: `ch ${t}` }));
     }
     const yLo = dayOf(0) / dpy, yHi = dayOf(nowW) / dpy;
-    const round = niceTicks(yLo, yHi, Math.max(3, Math.round(nowW / 130))).map((t) => ({ pos: yearToDay(t), label: `${t}` }));
+    const round = niceTicks(yLo, yHi, Math.max(3, Math.round(nowW / 130)), 1).map((t) => ({ pos: yearToDay(t), label: `${t}` }));
     // Always label the years your content actually sits at, even when they aren't
     // "round" — otherwise a 1970 chapter shows no date until you zoom right in.
     const seen = new Set(round.map((t) => Math.round(t.pos / dpy)));
@@ -458,7 +452,7 @@ export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) =
       resizeRef.current = { id: handle.dataset.seg!, edge: handle.dataset.edge as "start" | "end", prevStart: seg?.start_ref ?? null, prevEnd: seg?.end_ref ?? null };
       e.preventDefault(); return;
     }
-    if (t.closest(".wt2-seglab, .wt2-ch, .wt2-note, button, input, select")) return;
+    if (t.closest(".wt2-seglab, .wt2-ch, button, input, select")) return;
     panRef.current = { x: e.clientX, y: e.clientY, start: view.start, ty: view.ty };
   }
   function onMove(e: React.MouseEvent) {
@@ -479,26 +473,6 @@ export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) =
         updateSegment(s.id, { start_ref: s.start_ref, end_ref: s.end_ref }).catch((x) => setErr(String(x)));
       }
     }
-  }
-
-  // Drag-to-place dating (the "Both" half of the core loop): drag an undated
-  // chapter out of the sidebar and drop it on the canvas — the year under the
-  // cursor becomes its date. Only on the story axis (manuscript order isn't a date).
-  const DRAG_KEY = "application/x-kronicler-chapter";
-  const draggingChapter = (e: React.DragEvent) => e.dataTransfer.types.includes(DRAG_KEY);
-  function onBoardDragOver(e: React.DragEvent) {
-    if (ms || !draggingChapter(e)) return;
-    e.preventDefault();
-    e.dataTransfer.dropEffect = "copy";
-    const lx = localX(e.clientX);
-    setDropHint({ x: lx, year: dayToYear(dayOf(lx)) });
-  }
-  function onBoardDrop(e: React.DragEvent) {
-    const id = e.dataTransfer.getData(DRAG_KEY);
-    setDropHint(null);
-    if (ms || !id) return;
-    e.preventDefault();
-    void dateChapter(id, String(dayToYear(dayOf(localX(e.clientX)))));
   }
 
   async function submitAdd() {
@@ -528,23 +502,13 @@ export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) =
     } catch (x) { setErr(String(x)); }
   }
   const toggleSel = (id: string) => setSel((p) => { const n = new Set(p); n.has(id) ? n.delete(id) : n.add(id); return n; });
-  async function addNote() {
-    if (!noteText.trim()) { setNoteOpen(false); return; }
-    try {
-      const yr = noteYear.trim() ? parseStoryTime(noteYear) : null;
-      const clock = yr == null ? {} : { time_year: yr, time_precision: "year" as const, day_num_start: yr * dpy, day_num_end: yr * dpy + dpy - 1 };
-      const m = await createMarker(worldId, { kind: "note", label: noteText.trim(), story_time_ref: yr, story_time_label: noteYear.trim() || null, ...clock });
-      pushUndo(() => softDeleteMarker(m.id));
-      setNoteText(""); setNoteYear(""); setNoteOpen(false); setErr(null); await reload();
-    } catch (x) { setErr(String(x)); }
-  }
-  async function delMarker(id: string) { try { await softDeleteMarker(id); pushUndo(() => restoreMarker(id)); await reload(); } catch (x) { setErr(String(x)); } }
 
   if (err) return <p className="err">{err}</p>;
   if (loading) return <SkeletonRows rows={6} />;
 
   const visibleUnits = nowW / view.ppd;
-  const visibleYears = visibleUnits / dpy;
+  const visibleYears = visibleUnits / dpy;                    // WARPED span — drives LOD tiers (pixel density)
+  const realYears = (dayOf(nowW) - dayOf(0)) / dpy;           // TRUE story-years on screen — the readout the reader trusts
   const tier: Tier = ms ? (visibleUnits > 40 ? "season" : "detail") : tierOf(visibleYears);
   function switchMode(m: "story" | "ms") { if (m === axisMode) return; modeChosen.current = true; setAxisMode(m); setFitDone(false); }
 
@@ -638,9 +602,9 @@ export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) =
     });
   };
 
-  // Nothing on the timeline yet — no chapters, segments, or notes. Show only the
-  // way in, not the ruler, toolbar, and inspector wrapped around empty space.
-  if (chapters.length === 0 && segments.length === 0 && markers.length === 0) {
+  // Nothing on the timeline yet — no chapters or sections. Show only the way in,
+  // not the ruler, toolbar, and inspector wrapped around empty space.
+  if (chapters.length === 0 && segments.length === 0) {
     return (
       <div className="fi">
         <h2 className="scope-title" style={{ marginBottom: 12 }}>World Timeline</h2>
@@ -658,20 +622,15 @@ export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) =
       <div className="row" style={{ borderBottom: "none", padding: 0, marginBottom: 4, gap: 8, flexWrap: "wrap", flexShrink: 0, alignItems: "baseline" }}>
         <h2 className="scope-title" style={{ margin: 0 }}>World Timeline</h2>
         <span className="faint" style={{ fontSize: 11 }} title="Scroll to zoom · shift-scroll / drag to pan · double-click a bar to frame · ⌘Z undo">
-          {ms ? <>{Math.round(visibleUnits)} chapters in view</> : <>{fmtSpan(visibleYears)} in view</>}
+          {ms ? <>{Math.round(visibleUnits)} chapters in view</> : <>{fmtSpan(realYears)} in view</>}
         </span>
         <span className="spacer" />
         <button className="iconbtn" onClick={() => void undo()} title="Undo (⌘Z)"><Icon name="undo" size={15} /></button>
         <button onClick={fitKnown} title="Fit to what's placed">Fit</button>
-        <div style={{ position: "relative" }}>
-          <button className="primary" onClick={() => setAddMenu((v) => !v)} style={{ display: "inline-flex", alignItems: "center", gap: 5 }}><Icon name="plus" size={14} /> Add</button>
-          {addMenu && (
-            <div className="wt2-addmenu" onMouseLeave={() => setAddMenu(false)}>
-              <button onClick={() => { setAddMenu(false); const yr = dayToYear(dayOf(nowW / 2)); setFName(""); setFKind("series"); setFParent(""); setFStart(String(yr)); setFEnd(String(yr + 50)); setAdding(true); }}><Icon name="plus" size={13} /> Section</button>
-              <button onClick={() => { setAddMenu(false); setNoteText(""); setNoteYear(String(dayToYear(dayOf(nowW / 2)))); setNoteOpen(true); }}><Icon name="edit" size={13} /> Note</button>
-            </div>
-          )}
-        </div>
+        <button className="primary" style={{ display: "inline-flex", alignItems: "center", gap: 5 }}
+          onClick={() => { const yr = dayToYear(dayOf(nowW / 2)); setFName(""); setFKind("series"); setFParent(""); setFStart(String(yr)); setFEnd(String(yr + 50)); setAdding(true); }}>
+          <Icon name="plus" size={14} /> Section
+        </button>
       </div>
 
       {warn && (
@@ -719,19 +678,8 @@ export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) =
         </div>
       )}
 
-      {noteOpen && (
-        <div className="card" style={{ padding: 10, marginBottom: 10, display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-          <span className="wt2-kind" style={{ color: "var(--obligation)" }}>note</span>
-          <input autoFocus placeholder="Note — a thought, an event, a reminder…" value={noteText} onChange={(e) => setNoteText(e.target.value)} style={{ width: 280 }} />
-          <input placeholder="year (blank = no time)" value={noteYear} onChange={(e) => setNoteYear(e.target.value)} style={{ width: 150 }} />
-          <button className="primary" onClick={addNote}>Add</button>
-          <button onClick={() => setNoteOpen(false)}>Cancel</button>
-        </div>
-      )}
-
       <div className="wt2-wrap">
-        <div ref={boardRef} className="wt2-board" onMouseDown={onDown} onMouseMove={onMove} onMouseUp={onUp} onMouseLeave={onUp}
-          onDragOver={onBoardDragOver} onDrop={onBoardDrop} onDragLeave={() => setDropHint(null)}>
+        <div ref={boardRef} className="wt2-board" onMouseDown={onDown} onMouseMove={onMove} onMouseUp={onUp} onMouseLeave={onUp}>
           {/* White = where your chapters actually sit (content clusters) = "in the
               timeline". Grey hatch everywhere else = empty time (gaps + buffer) =
               "not in the timeline". The world clock is just a readout now. */}
@@ -750,12 +698,6 @@ export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) =
             ))}
           </>}
 
-          {dropHint && !ms && (
-            <div className="wt2-drophint" style={{ left: dropHint.x }}>
-              <span className="wt2-drophint-lab">{dropHint.year}</span>
-            </div>
-          )}
-
           <div className="wt2-ruler">
             {ticks.map((t) => <span key={t.pos} className="wt2-tick" style={{ left: xOf(t.pos) }}>{t.label}</span>)}
           </div>
@@ -764,14 +706,6 @@ export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) =
           </div>
 
           <div className="wt2-content" style={{ transform: `translateY(${view.ty}px)`, height: rows.height, bottom: "auto" }}>
-            {/* markers with a date */}
-            {markers.filter((m) => m.day_num_start != null).map((m) => (
-              <div key={m.id} className="wt2-note" style={{ left: xOf(m.day_num_start!), top: 2 }} title={`${m.label ?? ""} · ${m.story_time_label ?? ""}`}>
-                <span className="wt2-notedot" />
-                <span className="wt2-notelab"><Icon name="edit" size={11} /> {trunc(m.label ?? "note", 22)}<span className="wt2-x" onClick={() => delMarker(m.id)}><Icon name="close" size={12} /></span></span>
-              </div>
-            ))}
-
             {/* Standalone chapters: each dated chapter not filed under a section
                 gets its OWN titled lane — a one-chapter work (a short story /
                 standalone), peer to the book rows. Its label hugs its date like a
@@ -787,7 +721,7 @@ export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) =
               </div>
             ))}
 
-            {segments.length === 0 && markers.length === 0 && looseDated.length === 0 && (
+            {segments.length === 0 && looseDated.length === 0 && (
               <div className="wt2-empty-hint">Add a section (a series, book, or season), then date chapters or bulk-add them from the sidebar. Dated chapters appear here; the ruler is bounded by your world's known time.</div>
             )}
 
@@ -828,7 +762,7 @@ export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) =
             {undatedSidebar.length === 0
               ? <div className="wt2-sidesub" style={{ margin: 0, display: "inline-flex", alignItems: "center", gap: 5 }}><Icon name="done" size={13} style={{ color: "var(--bond)" }} /> Every chapter has a date</div>
               : <>
-                  <div className="wt2-sidesub" style={{ marginTop: 0 }}>Type a year, or drag a chapter onto the line to place it.</div>
+                  <div className="wt2-sidesub" style={{ marginTop: 0 }}>Type a year to place a chapter on the line.</div>
                   {sel.size > 0 && (
                     <div className="wt2-sidefile">
                       <span style={{ fontSize: 11.5, fontWeight: 600 }}>{sel.size} selected</span>
@@ -842,12 +776,6 @@ export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) =
                   )}
                   {undatedSidebar.map((c) => (
                     <div key={c.id} className={"wt2-und" + (sel.has(c.id) ? " on" : "")}>
-                      <span className="wt2-grip" title="Drag onto the timeline to date"
-                        draggable={!ms}
-                        onDragStart={(e) => { e.dataTransfer.setData(DRAG_KEY, c.id); e.dataTransfer.effectAllowed = "copy"; }}
-                        onDragEnd={() => setDropHint(null)}>
-                        <Icon name="grip" size={13} />
-                      </span>
                       <input type="checkbox" checked={sel.has(c.id)} onChange={() => toggleSel(c.id)} aria-label={`select ${c.title}`}
                         style={{ width: 14, height: 14, accentColor: "var(--bond)" }} />
                       <span className="wt2-und-title" title={c.title} onClick={() => go({ scope: "manuscript", chapterId: c.id })}>
@@ -890,16 +818,6 @@ export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) =
             ))}
           </Disclosure>
 
-          {/* Notes */}
-          <Disclosure label="Notes" count={markers.length}>
-            {markers.length === 0 && <div className="wt2-sidesub" style={{ marginTop: 0 }}>No notes yet — use + Add · Note.</div>}
-            {markers.map((m) => (
-              <div key={m.id} className="wt2-outline">
-                <span className="wt2-outline-name" title={m.label ?? ""}><Icon name="edit" size={11} /> {trunc(m.label ?? "note", 20)}{m.day_num_start == null ? "" : ` · ${dayToYear(m.day_num_start)}`}</span>
-                <span className="wt2-open" title="Delete" onClick={() => delMarker(m.id)}><Icon name="close" size={13} /></span>
-              </div>
-            ))}
-          </Disclosure>
         </SidePanel>
       </div>
     </div>
@@ -955,10 +873,13 @@ function fmtSpan(years: number): string {
   return "weeks";
 }
 
-function niceTicks(min: number, max: number, count: number): number[] {
+// minStep floors the interval to whole units. Story time is YEAR-precision — a
+// chapter stores a year, not a calendar date — so the ruler must never invent a
+// sub-year tick (the old "1970.59"): pass minStep=1 and the smallest step is 1 year.
+function niceTicks(min: number, max: number, count: number, minStep = 0): number[] {
   const span = max - min; if (span <= 0) return [Math.round(min)];
   const raw = span / Math.max(1, count), mag = Math.pow(10, Math.floor(Math.log10(raw))), norm = raw / mag;
-  const step = (norm < 1.5 ? 1 : norm < 3 ? 2 : norm < 7 ? 5 : 10) * mag;
+  const step = Math.max(minStep, (norm < 1.5 ? 1 : norm < 3 ? 2 : norm < 7 ? 5 : 10) * mag);
   const out: number[] = [];
   for (let t = Math.ceil(min / step) * step; t <= max + 1e-9; t += step) out.push(Math.round(t * 1000) / 1000);
   return [...new Set(out)];

@@ -689,10 +689,6 @@ button.danger:hover:not(:disabled) { filter: brightness(0.93); background: var(-
 
 /* Timeline toolbar bits + panel contents */
 .iconbtn { padding: 8px 10px; font-size: 14px; line-height: 1; }
-.wt2-addmenu { position: absolute; top: calc(100% + 6px); right: 0; z-index: 20; display: flex; flex-direction: column; gap: 2px;
-  background: var(--raised); border: 1px solid var(--lineStrong); border-radius: 10px; box-shadow: var(--pop); padding: 4px; min-width: 150px; }
-.wt2-addmenu button { border: none; background: none; text-align: left; font-weight: 500; padding: 8px 10px; border-radius: 7px; }
-.wt2-addmenu button:hover:not(:disabled) { background: var(--wash); }
 .wt2-sidefile { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; padding: 8px; margin-bottom: 8px; border: 1px solid var(--bondLine); background: var(--bondBg); border-radius: 8px; }
 .wt2-und { display: flex; align-items: center; gap: 7px; padding: 5px 2px; border-bottom: 1px solid var(--line); }
 .wt2-und:last-child { border-bottom: none; }
@@ -704,12 +700,6 @@ button.danger:hover:not(:disabled) { filter: brightness(0.93); background: var(-
 .swatchpop { position: absolute; top: calc(100% + 6px); left: 0; z-index: 40; background: var(--k-bg-raised); border: 1px solid var(--k-border); border-radius: 10px; box-shadow: 0 8px 24px rgba(0,0,0,.16); padding: 8px; width: 148px; }
 .swatchpop-grid { display: grid; grid-template-columns: repeat(6, 20px); gap: 3px; }
 .swatchpop-auto { margin-top: 8px; width: 100%; font-size: 11px; padding: 5px 8px; }
-.wt2-grip { display: inline-flex; align-items: center; color: var(--faint); cursor: grab; flex: 0 0 auto; }
-.wt2-grip:hover { color: var(--muted); }
-.wt2-grip:active { cursor: grabbing; }
-/* Live placement guide shown while an undated chapter is dragged over the canvas. */
-.wt2-drophint { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--k-action-fill); z-index: 6; pointer-events: none; box-shadow: 0 0 0 1px var(--k-bg-canvas); }
-.wt2-drophint-lab { position: absolute; top: 2px; left: 50%; transform: translateX(-50%); background: var(--k-action-fill); color: var(--k-on-action-fill); font-family: var(--mono); font-size: 10.5px; font-weight: 600; padding: 1px 6px; border-radius: 5px; white-space: nowrap; }
 .wt2-outline { display: flex; align-items: center; gap: 7px; padding: 5px 2px; }
 .wt2-outline-dot { width: 8px; height: 8px; border-radius: 50%; flex: 0 0 auto; }
 .wt2-outline-name { flex: 1; min-width: 0; font-size: 12px; color: var(--sub); cursor: pointer; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
@@ -1001,9 +991,6 @@ button.danger:hover:not(:disabled) { filter: brightness(0.93); background: var(-
 .wt2-grid { position: absolute; top: 0; bottom: 0; width: 0; border-left: 1px solid var(--k-border); opacity: 0.55; }
 .wt2-content { position: absolute; top: 32px; left: 0; right: 0; bottom: 0; will-change: transform; z-index: 3; }
 .wt2-empty-hint { position: absolute; top: 20px; left: 20px; color: var(--muted); font-size: 13px; max-width: 400px; }
-.wt2-note { position: absolute; top: 4px; display: flex; align-items: center; gap: 4px; z-index: 4; white-space: nowrap; transform: translateX(-3px); }
-.wt2-notedot { width: 7px; height: 7px; border-radius: 50%; background: var(--obligation); flex: 0 0 auto; }
-.wt2-notelab { font-size: 10px; color: var(--obligation); background: transparent; border: 1px solid var(--obligationLine); border-radius: 5px; padding: 1px 6px; }
 .wt2-yr { font-size: 11px; padding: 2px 5px; width: 52px; font-variant-numeric: tabular-nums; }
 .wt2-seglab { position: absolute; font-family: var(--serif); font-size: 13px; font-weight: 600; white-space: nowrap; z-index: 2; }
 .wt2-kind { font-family: var(--sans); font-size: 8.5px; text-transform: uppercase; letter-spacing: .05em; opacity: .65; font-weight: 700; margin-right: 3px; }

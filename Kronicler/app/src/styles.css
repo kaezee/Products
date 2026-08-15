@@ -1339,6 +1339,10 @@ button.chron-more:hover { background: var(--wash); }
 /* Repair path for a moment whose prose was edited away (dependency pass §2). */
 .moment-stale { flex-basis: 100%; font-size: 11.5px; line-height: 1.5; color: var(--muted); margin-top: 3px; padding: 7px 9px; background: var(--inset); border-radius: 8px; }
 .moment-stale button { padding: 2px 9px; font-size: 11px; margin-left: 8px; }
+/* One flash when its margin ✳ is clicked, so the eye lands on the right moment. */
+.moment-focus { animation: momentFlash 1.8s ease-out; border-radius: 8px; }
+@keyframes momentFlash { 0%, 12% { background: var(--wash); } 100% { background: transparent; } }
+@media (prefers-reduced-motion: reduce) { .moment-focus { animation: none; } }
 
 /* §6.3 margin indicator — a moment marks the left margin beside its anchored line
    (never inline; mentions already own inline treatment). Small, quiet, clickable. */

@@ -268,6 +268,17 @@ export function BookCanvas(props: {
   const [markedCount, setMarkedCount] = useState(() => Number(localStorage.getItem("k.momentsMarked") || 0));
   const bumpMarked = () => setMarkedCount((c) => { const n = c + 1; localStorage.setItem("k.momentsMarked", String(n)); return n; });
   const summon = (p: "comments" | "notes" | "continuity") => { setTakeover(null); setPanel((cur) => (cur === p ? null : p)); };
+  // Clicking a margin ✳ focuses that one moment: open Continuity (never toggle it
+  // shut) and flag its row so the effect below scrolls to it and flashes it.
+  const [focusMoment, setFocusMoment] = useState<string | null>(null);
+  const momentRowRef = useRef<HTMLDivElement | null>(null);
+  const focusOnMoment = (id: string) => { setTakeover(null); setPanel("continuity"); setFocusMoment(id); };
+  useEffect(() => {
+    if (!focusMoment) return;
+    momentRowRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    const t = setTimeout(() => setFocusMoment(null), 1800);   // one flash, then clear
+    return () => clearTimeout(t);
+  }, [focusMoment]);
   const summonTakeover = (t: "history") => { setPanel(null); setTakeover((cur) => (cur === t ? null : t)); };
   const [pendingComment, setPendingComment] = useState<{ chapterId: string; start: number; end: number; quote: string } | null>(null);
   // Each chapter block registers a small handle so a comment can jump to its range.
@@ -592,7 +603,7 @@ export function BookCanvas(props: {
               onMarkEntity={(id, at) => openMarkEntity(id, at)}
               onMarkMoment={(id, anchor) => { setEntChId(id); setPendingAnchor(anchor); setComposerOpen(true); }}
               onComment={onComment} registerApi={registerApi} onSaveState={setChSaveState}
-              onActive={setActive} marks={momentMarks} onMarkClick={() => summon("continuity")}
+              onActive={setActive} marks={momentMarks} onMarkClick={focusOnMoment}
               onDateChanged={() => onChapterMetaChanged?.()} />
           )}
         </div>
@@ -661,7 +672,9 @@ export function BookCanvas(props: {
                       <div className="ed-panel-lab" style={{ marginTop: 14 }}>Recorded here <span className="ed-panel-count">{momentCount}</span></div>
                     )}
                     {chapterMoments.map(({ s, stale }) => (
-                      <div className="row" key={s.state_id} style={{ padding: "7px 0", gap: 6, borderColor: "var(--line)", flexWrap: "wrap" }}>
+                      <div className={"row" + (s.state_id === focusMoment ? " moment-focus" : "")} key={s.state_id}
+                        ref={s.state_id === focusMoment ? momentRowRef : undefined}
+                        style={{ padding: "7px 0", gap: 6, borderColor: "var(--line)", flexWrap: "wrap" }}>
                         <span style={{ flex: 1, minWidth: 0, fontSize: 12.5 }}>
                           <span aria-hidden style={{ color: VALENCE_COLOR[s.valence], marginRight: 5 }}>✳</span>
                           {s.participants.map((p) => p.title).join(" · ")} <span style={{ color: VALENCE_COLOR[s.valence], fontWeight: 600 }}>{s.type_label}</span>

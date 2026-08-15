@@ -724,6 +724,13 @@ button.danger:hover:not(:disabled) { filter: brightness(0.93); background: var(-
 .ed-prose.clean .prose-wrap.has-marks { padding-left: 0; }
 .ed-prose.clean .prose-mark { display: none; }
 
+/* Notes pinned to a character, on its page (EntityPage). */
+.ent-notes { display: flex; flex-direction: column; gap: 8px; max-width: 620px; }
+.ent-note { text-align: left; width: 100%; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); cursor: pointer; font: inherit; color: inherit; display: block; }
+.ent-note:hover { border-color: var(--lineStrong); background: var(--wash); }
+.ent-note-secret { font-size: 10px; text-transform: uppercase; letter-spacing: .05em; color: var(--hostile); font-weight: 700; margin-bottom: 4px; display: block; }
+.ent-note-body { font-size: 13.5px; line-height: 1.55; color: var(--sub); display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; white-space: pre-wrap; }
+
 /* Floating annotation control — appears at the text selection (design doc 2 §5) */
 .prose-wrap { position: relative; }
 .annot-bar { display: flex; gap: 2px; padding: 3px; background: var(--k-bg-raised, var(--surface));

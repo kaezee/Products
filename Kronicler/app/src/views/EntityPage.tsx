@@ -4,8 +4,9 @@ import {
   createRelationshipType, appendPairwiseState, appendGroupState, updateEntity, softDeleteEntity,
   updateStateType, softDeleteRelationship, swapParticipant,
   relationshipIdForState, setConnectionRoles,
+  getNotes, createNote, updateNote, softDeleteNote,
 } from "../lib/api";
-import type { Entity, StreamRow, RelationshipType, Valence } from "../lib/types";
+import type { Entity, StreamRow, RelationshipType, Valence, Note } from "../lib/types";
 import type { EntityChapter } from "../lib/api";
 import { VALENCE_COLOR } from "../lib/valence";
 import { CANONICAL_ENTITY_TYPES, CUSTOM_TYPE } from "../lib/entityTypes";
@@ -14,6 +15,7 @@ import { isBelief } from "../lib/knowledge";
 import { ArcSparkline } from "./ArcSparkline";
 import { Icon } from "../components/icons";
 import { confirmDialog } from "../components/confirm";
+import { NotePad } from "../components/NotePad";
 
 // The direction picker shared by the add-form and the edit-panel: "both ways"
 // (symmetric) vs "directional", with an optional other-side word. When the
@@ -145,6 +147,8 @@ export function EntityPage({ entity, onBack, onChanged, startEditing }: {
   const [ent, setEnt] = useState<Entity>(entity);
   const [rows, setRows] = useState<StreamRow[] | null>(null);
   const [appears, setAppears] = useState<EntityChapter[]>([]);
+  const [notes, setNotes] = useState<Note[]>([]);       // notes pinned to this entity (entity_ids ∋ id)
+  const [openNote, setOpenNote] = useState<Note | "new" | null>(null);
   const [others, setOthers] = useState<Entity[]>([]);
   const [types, setTypes] = useState<RelationshipType[]>([]);
   const [err, setErr] = useState<string | null>(null);
@@ -163,16 +167,22 @@ export function EntityPage({ entity, onBack, onChanged, startEditing }: {
   function loadConnections() {
     getEntityStream(ent.id).then(setRows).catch((x) => setErr(String(x)));
   }
+  const pinnedOf = (ns: Note[]) => ns.filter((n) => (n.entity_ids ?? []).includes(ent.id));
+  function reloadNotes() {
+    getNotes(ent.world_id).then((ns) => setNotes(pinnedOf(ns))).catch((x) => setErr(String(x)));
+  }
 
   useEffect(() => {
     let alive = true;
     getEntityStream(ent.id).then((r) => alive && setRows(r)).catch((x) => alive && setErr(String(x)));
     getEntityChapters(ent.id).then((c) => alive && setAppears(c)).catch((x) => alive && setErr(String(x)));
     getRelationshipTypes(ent.world_id).then((t) => alive && setTypes(t)).catch((x) => alive && setErr(String(x)));
+    getNotes(ent.world_id).then((ns) => alive && setNotes(pinnedOf(ns))).catch((x) => alive && setErr(String(x)));
     getEntities(ent.world_id)
       .then((es) => alive && setOthers(es.filter((e) => e.id !== ent.id)))
       .catch((x) => alive && setErr(String(x)));
     return () => { alive = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ent.id, ent.world_id]);
 
   const groups = useMemo(() => {
@@ -378,6 +388,50 @@ export function EntityPage({ entity, onBack, onChanged, startEditing }: {
           <span className="chip" key={c.chapter_id}>ch. {c.manuscript_order} · {c.role}</span>
         ))}
       </div>
+
+      {/* Notes pinned to this character — the same notes that live on the planning
+          board, surfaced where you'd look for them. Click one to read/edit. */}
+      <div className="row" style={{ borderBottom: "none", padding: 0, marginTop: 18, marginBottom: 6, alignItems: "baseline" }}>
+        <div className="label" style={{ margin: 0 }}>Notes</div>
+        <span className="spacer" />
+        <button style={{ padding: "3px 10px", fontSize: 12 }} onClick={() => setOpenNote("new")}>+ Note</button>
+      </div>
+      {notes.length === 0
+        ? <span className="muted">No notes pinned to {ent.title} yet. A note you pin here also shows on the planning board.</span>
+        : (
+          <div className="ent-notes">
+            {notes.map((n) => (
+              <button className="ent-note" key={n.id} onClick={() => setOpenNote(n)}>
+                {n.is_secret && <span className="ent-note-secret">secret</span>}
+                <span className="ent-note-body">{n.body}</span>
+              </button>
+            ))}
+          </div>
+        )}
+
+      {openNote && (
+        <NotePad
+          title={openNote === "new" ? "New note" : "Note"}
+          helper={openNote === "new" ? `Pinned to ${ent.title} — also appears on the planning board.` : undefined}
+          initial={openNote === "new" ? "" : openNote.body}
+          saveLabel="Save"
+          onClose={() => setOpenNote(null)}
+          onSave={async (bodyText) => {
+            if (openNote === "new") {
+              const created = await createNote(ent.world_id, 80 + notes.length * 18, 80 + notes.length * 18, false, "app", bodyText);
+              await updateNote(created.id, { entity_ids: [ent.id] });
+            } else {
+              await updateNote(openNote.id, { body: bodyText });
+            }
+            reloadNotes();
+          }}
+          onDelete={openNote === "new" ? undefined : async () => {
+            const ok = await confirmDialog({ title: "Delete note", message: "Delete this note? It's removed from the character and the planning board. Recoverable from Trash.", confirmLabel: "Delete", tone: "danger" });
+            if (ok) { await softDeleteNote(openNote.id); reloadNotes(); }
+            return ok;
+          }}
+        />
+      )}
     </div>
   );
 }

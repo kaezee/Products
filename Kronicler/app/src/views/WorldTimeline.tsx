@@ -13,6 +13,7 @@ import { EmptyState } from "../components/EmptyState";
 import { Icon } from "../components/icons";
 import { SwatchPicker } from "../components/SwatchPicker";
 import { confirmDialog } from "../components/confirm";
+import { toast } from "../components/toast";
 import { SkeletonRows } from "../components/Skeleton";
 
 // The World Timeline (design doc 3). Everything positions on a signed DAY NUMBER;
@@ -218,8 +219,11 @@ export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) =
   const axisWarp = useMemo(() => {
     const id = (d: number) => d;
     const frameOf = (lo: number, hi: number) => { const m = Math.max((hi - lo) * 0.05, dpy); return { lo: lo - m, hi: hi + m }; };
-    const idResult = (lo: number, hi: number, cls: [number, number][] = []) => ({ warp: id, unwarp: id, gaps: [] as Gap[], frame: frameOf(lo, hi), clusters: cls });
-    if (!content) { const kLo = yearToDay(known.start), kHi = yearToDay(known.end) + dpy - 1; return idResult(kLo, kHi); }
+    // Known-time span in days. The frame includes it, so a manual world-clock
+    // change is visible immediately (the axis extends), not just a silent readout.
+    const kLo = yearToDay(known.start), kHi = yearToDay(known.end) + dpy - 1;
+    const idResult = (lo: number, hi: number, cls: [number, number][] = []) => ({ warp: id, unwarp: id, gaps: [] as Gap[], frame: frameOf(Math.min(lo, kLo), Math.max(hi, kHi)), clusters: cls });
+    if (!content) return idResult(kLo, kHi);
 
     // Occupied intervals, each PADDED into a clean-canvas band so even a single-day
     // chapter shows the years around it; overlapping bands merge into one cluster.
@@ -253,7 +257,6 @@ export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) =
         pieces.push({ lo: gLo, hi: gHi, wlo: w, whi: w + gW }); w += gW;
       }
     }
-    const frame = frameOf(pieces[0].wlo, pieces[pieces.length - 1].whi);   // NB: warped coords
     if (gaps.length === 0) return idResult(pieces[0].lo, pieces[pieces.length - 1].hi, clusters);
 
     const warpFn = (d: number) => {
@@ -270,6 +273,7 @@ export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) =
       for (const p of pieces) if (wd >= p.wlo && wd <= p.whi) { const dw = p.whi - p.wlo; return dw === 0 ? p.lo : p.lo + (wd - p.wlo) / dw * (p.hi - p.lo); }
       return wd;
     };
+    const frame = frameOf(Math.min(pieces[0].wlo, warpFn(kLo)), Math.max(pieces[pieces.length - 1].whi, warpFn(kHi))); // warped, includes known span
     return { warp: warpFn, unwarp: unwarpFn, gaps, frame, clusters };
   }, [content, segments, chapters, spanOf, dpy, ms, known]);
   const { warp, unwarp } = axisWarp;
@@ -329,6 +333,23 @@ export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) =
     setFitDone(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [content, nav, loading, fitDone]);
+
+  // After the first frame, keep the view honest in real time: if newly dated
+  // content — or a widened world clock — now sits outside what's on screen, ease
+  // the frame out to include it, instead of needing a manual Fit or a refresh.
+  const fitKey = useRef("");
+  useEffect(() => {
+    if (loading || !fitDone || ms) return;
+    const key = `${content ? content.lo + ":" + content.hi : "0"}|${known.start}:${known.end}`;
+    const firstRun = fitKey.current === "";
+    if (key === fitKey.current) return;
+    fitKey.current = key;
+    if (firstRun) return;                                   // the initial-frame effect owns the first fit
+    const w = nowWRef.current || 1, v = viewRef.current;
+    const vlo = v.start, vhi = v.start + w / v.ppd, f = axisWarp.frame;
+    if (f.lo < vlo - 1 || f.hi > vhi + 1) animateTo({ start: f.lo, ppd: w / Math.max(dpy, f.hi - f.lo), ty: v.ty });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [content, known, fitDone, loading, ms]);
 
   const xOf = (day: number) => (warp(day) - view.start) * view.ppd;
   const dayOf = (px: number) => unwarp(view.start + px / view.ppd);
@@ -391,7 +412,8 @@ export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) =
     setKnown({ start: startYr, end: endYr });
     pushUndo(() => setKnownTime(worldId, prev.start, prev.end));
     setWarn(null);
-    try { await setKnownTime(worldId, startYr, endYr); } catch (x) { setErr(String(x)); }
+    toast(`World clock set to ${startYr}–${endYr}`);
+    try { await setKnownTime(worldId, startYr, endYr); } catch (x) { setErr(String(x)); toast("Couldn’t save the world clock"); }
   }
   // Validate a proposed range: which segments fall (partly) outside, and which
   // chapters are individually outside while their PARENT is inside (flashbacks).

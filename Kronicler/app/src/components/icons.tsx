@@ -44,6 +44,7 @@ import {
   Waypoints,
   Link2,
   Eye,
+  EyeOff,
   ArrowUpDown,
   HelpCircle,
   Maximize2,
@@ -120,7 +121,8 @@ const REGISTRY = {
   waypoints: Waypoints,   // how far out
   tone: Contrast,         // tone
   link: Link2,            // kinds of connection
-  eye: Eye,               // point of view
+  eye: Eye,               // point of view · marks visible
+  "eye-off": EyeOff,      // clean text · marks hidden
   sort: ArrowUpDown,      // ordered by
   help: HelpCircle,       // legend
   expand: Maximize2,      // enter focus mode

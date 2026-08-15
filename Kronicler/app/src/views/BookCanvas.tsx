@@ -26,7 +26,7 @@ import { ChapterComments } from "./ChapterComments";
 import { Icon } from "../components/icons";
 import { confirmDialog } from "../components/confirm";
 import {
-  READ_FACES, READ_SIZE_MIN, READ_SIZE_MAX, getReadFace, getReadSize, setReadFace, setReadSize, type ReadFace,
+  READ_FACES, READ_SIZE_MIN, READ_SIZE_MAX, getReadFace, getReadSize, setReadFace, setReadSize, getCleanText, setCleanText, type ReadFace,
 } from "../lib/readingPrefs";
 
 type SaveState = "saved" | "saving" | "dirty";
@@ -224,7 +224,9 @@ export function BookCanvas(props: {
 
   const [readFace, setReadFaceState] = useState<ReadFace>(getReadFace());
   const [readSize, setReadSizeState] = useState<number>(getReadSize());
+  const [cleanText, setCleanTextState] = useState<boolean>(getCleanText());
   function changeFace(f: ReadFace) { setReadFace(f); setReadFaceState(f); }
+  function toggleClean() { const v = !cleanText; setCleanText(v); setCleanTextState(v); }
   function changeSize(n: number) { setReadSize(n); setReadSizeState(getReadSize()); }
 
   const [ents, setEnts] = useState<Entity[]>(entities);
@@ -508,6 +510,10 @@ export function BookCanvas(props: {
           <span>{readSize}</span>
           <button disabled={readSize >= READ_SIZE_MAX} onClick={() => changeSize(readSize + 1)} title="Larger">+</button>
         </div>
+        <button className={"ed-fmt" + (cleanText ? " on" : "")} onClick={toggleClean}
+          title={cleanText ? "Show entity links and moment marks" : "Clean text — hide links and moment marks to read your prose"}>
+          <Icon name={cleanText ? "eye-off" : "eye"} size={15} />
+        </button>
         <span className="spacer" style={{ flex: 1 }} />
         <span className="ed-save muted">{chSaveState === "saved" ? "saved" : chSaveState === "saving" ? "saving…" : "unsaved"}</span>
         {/* Summon icons (§3.4): each opens one panel; opening one closes the rest. */}
@@ -533,7 +539,7 @@ export function BookCanvas(props: {
       {err && <p className="err">{err}</p>}
 
       <div className={"ed-body" + (panel ? " has-panel" : "")}>
-        <div className="ed-prose" ref={scroller}>
+        <div className={"ed-prose" + (cleanText ? " clean" : "")} ref={scroller}>
           {/* Mark-entity card floats over the prose, anchored to the selection
               (portaled to <body> so the prose column's overflow can't clip it —
               the old inline card was cut off under the toolbar). */}

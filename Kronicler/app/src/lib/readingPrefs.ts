@@ -42,3 +42,12 @@ export function setReadSize(n: number) {
   localStorage.setItem("k.readSize", String(v));
   applyReadingPrefs();
 }
+
+// Clean text: hide the entity links and moment marks so the writer can read
+// their prose. Purely a view toggle — the prose stays editable. Per-device.
+export function getCleanText(): boolean {
+  return localStorage.getItem("k.cleanText") === "1";
+}
+export function setCleanText(on: boolean) {
+  localStorage.setItem("k.cleanText", on ? "1" : "0");
+}

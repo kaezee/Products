@@ -717,6 +717,13 @@ button.danger:hover:not(:disabled) { filter: brightness(0.93); background: var(-
 .ment:hover, .ment:focus-visible { background: var(--k-ment-tint, var(--k-action-subtle)); }
 .ment:focus-visible { outline: 2px solid var(--k-action-fill); outline-offset: 1px; }
 
+/* Clean text (eye toggle): read the prose with the machinery hidden — entity
+   links go plain (still clickable) and the ✳ moment marks + their gutter vanish.
+   Purely a view state; the prose stays fully editable. */
+.ed-prose.clean .ment { text-decoration: none; background: none; cursor: text; }
+.ed-prose.clean .prose-wrap.has-marks { padding-left: 0; }
+.ed-prose.clean .prose-mark { display: none; }
+
 /* Floating annotation control — appears at the text selection (design doc 2 §5) */
 .prose-wrap { position: relative; }
 .annot-bar { display: flex; gap: 2px; padding: 3px; background: var(--k-bg-raised, var(--surface));

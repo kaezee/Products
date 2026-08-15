@@ -96,7 +96,6 @@ export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) =
   useEffect(() => { setLoading(true); setFitDone(false); modeChosen.current = false; undoStack.current = []; void reload(); /* eslint-disable-next-line */ }, [worldId]);
   useEffect(() => () => { if (animRef.current) cancelAnimationFrame(animRef.current); }, []);
   // Keep the World-clock inputs in sync with the loaded/edited known range.
-  useEffect(() => { setKtStart(String(known.start)); setKtEnd(String(known.end)); }, [known]);
   // Default axis: Manuscript order when fewer than 20% of chapters are dated (§8).
   useEffect(() => {
     if (loading || modeChosen.current || chapters.length === 0) return;
@@ -219,7 +218,7 @@ export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) =
   const axisWarp = useMemo(() => {
     const id = (d: number) => d;
     const frameOf = (lo: number, hi: number) => { const m = Math.max((hi - lo) * 0.05, dpy); return { lo: lo - m, hi: hi + m }; };
-    const idResult = (lo: number, hi: number) => ({ warp: id, unwarp: id, gaps: [] as Gap[], frame: frameOf(lo, hi) });
+    const idResult = (lo: number, hi: number, cls: [number, number][] = []) => ({ warp: id, unwarp: id, gaps: [] as Gap[], frame: frameOf(lo, hi), clusters: cls });
     if (!content) { const kLo = yearToDay(known.start), kHi = yearToDay(known.end) + dpy - 1; return idResult(kLo, kHi); }
 
     // Occupied intervals, each PADDED into a clean-canvas band so even a single-day
@@ -236,7 +235,7 @@ export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) =
       if (last && lo <= last[1]) last[1] = Math.max(last[1], hi);
       else clusters.push([lo, hi]);
     }
-    if (clusters.length < 2) return idResult(clusters[0][0], clusters[0][1]);
+    if (clusters.length < 2) return idResult(clusters[0][0], clusters[0][1], clusters);
 
     const OW = clusters.reduce((s, [a, b]) => s + (b - a), 0);   // total clean-canvas width
     const bigGap = Math.max((content.hi - content.lo) * 0.2, 2 * dpy);
@@ -255,7 +254,7 @@ export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) =
       }
     }
     const frame = frameOf(pieces[0].wlo, pieces[pieces.length - 1].whi);   // NB: warped coords
-    if (gaps.length === 0) return idResult(pieces[0].lo, pieces[pieces.length - 1].hi);
+    if (gaps.length === 0) return idResult(pieces[0].lo, pieces[pieces.length - 1].hi, clusters);
 
     const warpFn = (d: number) => {
       const f = pieces[0], l = pieces[pieces.length - 1];
@@ -271,9 +270,18 @@ export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) =
       for (const p of pieces) if (wd >= p.wlo && wd <= p.whi) { const dw = p.whi - p.wlo; return dw === 0 ? p.lo : p.lo + (wd - p.wlo) / dw * (p.hi - p.lo); }
       return wd;
     };
-    return { warp: warpFn, unwarp: unwarpFn, gaps, frame };
+    return { warp: warpFn, unwarp: unwarpFn, gaps, frame, clusters };
   }, [content, segments, chapters, spanOf, dpy, ms, known]);
   const { warp, unwarp } = axisWarp;
+
+  // The world clock auto-extends to cover every dated chapter — a chapter at 3000
+  // means the world's history spans to 3000, whatever the writer last typed. It's
+  // now just the span readout; the canvas is painted by content, not by this.
+  const effKnown = useMemo(() => content
+    ? { start: Math.min(known.start, dayToYear(content.lo)), end: Math.max(known.end, dayToYear(content.hi)) }
+    : known, [known, content, dpy]);
+  // Reflect the (auto-extended) span in the clock inputs.
+  useEffect(() => { setKtStart(String(effKnown.start)); setKtEnd(String(effKnown.end)); }, [effKnown]);
 
   // Known time in day-numbers, and the padded navigable range (§5.2). Padding is
   // proportional; the union with content means shrinking known time never
@@ -284,17 +292,15 @@ export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) =
       const span = Math.max(1, hi - lo), pad = Math.max(0.5, span * 0.06);
       return { lo: lo - pad, hi: hi + pad, knownLo: lo, knownHi: hi };
     }
-    const knownLo = yearToDay(known.start), knownHi = yearToDay(known.end) + dpy - 1;
-    // Buffer around known time = breathing room, scaled to the story's own length
-    // so it never dwarfs a short timeline. A 50-year world gets ±50 years; a
-    // millennium-spanning one caps at ±500. Unioned with content so nothing is
-    // ever stranded.
-    const knownSpanYears = Math.max(1, known.end - known.start);
-    const pad = Math.min(500, Math.max(50, knownSpanYears)) * dpy;
-    const lo = (content ? Math.min(knownLo, content.lo) : knownLo) - pad;
-    const hi = (content ? Math.max(knownHi, content.hi) : knownHi) + pad;
+    const knownLo = yearToDay(effKnown.start), knownHi = yearToDay(effKnown.end) + dpy - 1;
+    // Buffer = a SMALL fixed margin of clean-ish breathing room. Beyond content the
+    // axis is linear (uncompressed), so a big buffer here would swamp compressed
+    // content when zoomed out — a few years is all the pannable slack we want.
+    const buf = 5 * dpy;
+    const lo = (content ? Math.min(knownLo, content.lo) : knownLo) - buf;
+    const hi = (content ? Math.max(knownHi, content.hi) : knownHi) + buf;
     return { lo, hi, knownLo, knownHi };
-  }, [known, content, dpy, ms, chapters.length]);
+  }, [effKnown, content, dpy, ms, chapters.length]);
   navRef.current = { lo: nav.lo, hi: nav.hi };
 
 
@@ -337,11 +343,15 @@ export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) =
         .filter((t) => t >= 1).map((t) => ({ pos: t, label: `ch ${t}` }));
     }
     const yLo = dayOf(0) / dpy, yHi = dayOf(nowW) / dpy;
-    return niceTicks(yLo, yHi, Math.max(3, Math.round(nowW / 130)))
-      .map((t) => ({ pos: yearToDay(t), label: `${t}` }))
-      .filter((tk) => !axisWarp.gaps.some((g) => tk.pos > g.lo && tk.pos < g.hi)); // hide ticks buried in a compressed gap
+    const round = niceTicks(yLo, yHi, Math.max(3, Math.round(nowW / 130))).map((t) => ({ pos: yearToDay(t), label: `${t}` }));
+    // Always label the years your content actually sits at, even when they aren't
+    // "round" — otherwise a 1970 chapter shows no date until you zoom right in.
+    const seen = new Set(round.map((t) => Math.round(t.pos / dpy)));
+    const cts: { pos: number; label: string }[] = [];
+    for (const c of chapters) { const a = startU(c); if (a != null) { const y = dayToYear(a); if (!seen.has(y)) { seen.add(y); cts.push({ pos: yearToDay(y), label: `${y}` }); } } }
+    return [...round, ...cts].filter((tk) => !axisWarp.gaps.some((g) => tk.pos > g.lo && tk.pos < g.hi)); // hide ticks buried in a compressed gap
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [view, nowW, dpy, ms, axisWarp]);
+  }, [view, nowW, dpy, ms, axisWarp, chapters]);
 
   useEffect(() => {
     const el = boardRef.current; if (!el) return;
@@ -514,7 +524,6 @@ export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) =
   const visibleUnits = nowW / view.ppd;
   const visibleYears = visibleUnits / dpy;
   const tier: Tier = ms ? (visibleUnits > 40 ? "season" : "detail") : tierOf(visibleYears);
-  const knownX0 = xOf(nav.knownLo), knownX1 = xOf(nav.knownHi);
   function switchMode(m: "story" | "ms") { if (m === axisMode) return; modeChosen.current = true; setAxisMode(m); setFitDone(false); }
 
   // Frame a day range (+10% pad) with a smooth ~340ms cubic-out animation.
@@ -701,12 +710,14 @@ export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) =
       <div className="wt2-wrap">
         <div ref={boardRef} className="wt2-board" onMouseDown={onDown} onMouseMove={onMove} onMouseUp={onUp} onMouseLeave={onUp}
           onDragOver={onBoardDragOver} onDrop={onBoardDrop} onDragLeave={() => setDropHint(null)}>
-          {/* Known time is the bright focus; the buffer is dim. Editing lives in
-              the panel's World clock section, not on the canvas. */}
+          {/* White = where your chapters actually sit (content clusters) = "in the
+              timeline". Grey hatch everywhere else = empty time (gaps + buffer) =
+              "not in the timeline". The world clock is just a readout now. */}
           {!ms && <>
-            <div className="wt2-known" style={{ left: Math.max(0, knownX0), width: Math.max(0, Math.min(nowW, knownX1) - Math.max(0, knownX0)) }} />
-            {knownX0 > 0 && <div className="wt2-oob" style={{ left: 0, width: Math.min(nowW, knownX0) }} />}
-            {knownX1 < nowW && <div className="wt2-oob" style={{ left: Math.max(0, knownX1), right: 0 }} />}
+            <div className="wt2-hatch" />
+            {axisWarp.clusters.map(([lo, hi], i) => (
+              <div key={"live" + i} className="wt2-live" style={{ left: xOf(lo), width: Math.max(2, xOf(hi) - xOf(lo)) }} />
+            ))}
             {/* Compressed-gap markers: where empty centuries were collapsed, so the
                 axis never silently lies about the scale. */}
             {axisWarp.gaps.map((g) => (
@@ -830,7 +841,7 @@ export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) =
 
           {/* World clock — set once, so it lives here, not on the canvas. */}
           <Disclosure label="World clock">
-            <div className="wt2-sidesub" style={{ marginTop: 0 }}>The years your world's history spans — it frames the timeline.</div>
+            <div className="wt2-sidesub" style={{ marginTop: 0 }}>The years your world's history spans. Extends automatically to cover your dated chapters.</div>
             <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap", marginBottom: 10 }}>
               <input value={ktStart} onChange={(e) => setKtStart(e.target.value)} style={{ width: 68, fontSize: 12 }} aria-label="known start year" />
               <span className="muted">→</span>

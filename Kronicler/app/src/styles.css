@@ -1052,6 +1052,11 @@ button.danger:hover:not(:disabled) { filter: brightness(0.93); background: var(-
 /* Known time (§5.3): outside-bounds dim zone, edge labels, extend chips, warning. */
 .wt2-oob { position: absolute; top: 32px; bottom: 0; z-index: 2; pointer-events: none;
   background-image: repeating-linear-gradient(45deg, transparent 0 7px, color-mix(in srgb, var(--k-text-primary) 5%, transparent) 7px 8px); }
+/* Content-driven canvas: grey hatch = time NOT in the timeline; white bands sit
+   over the years your chapters actually cover ("in the timeline"). */
+.wt2-hatch { position: absolute; top: 32px; left: 0; right: 0; bottom: 0; z-index: 0; pointer-events: none;
+  background-image: repeating-linear-gradient(45deg, transparent 0 7px, color-mix(in srgb, var(--k-text-primary) 5%, transparent) 7px 8px); }
+.wt2-live { position: absolute; top: 32px; bottom: 0; z-index: 0; pointer-events: none; background: var(--k-bg-surface); }
 /* Compressed-gap marker (elastic axis): a hatched sliver where empty time was
    collapsed, labelled with how many years it stands in for. */
 .wt2-gap { position: absolute; top: 32px; bottom: 0; z-index: 3; display: flex; align-items: flex-start; justify-content: center;

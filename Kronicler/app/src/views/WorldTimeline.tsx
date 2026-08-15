@@ -215,58 +215,64 @@ export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) =
   // piecewise-linear real→warped transform; xOf/dayOf and framing route through
   // it. It stays EXACTLY identity unless a gap is genuinely large, so ordinary
   // single-cluster worlds are byte-for-byte unchanged.
+  type Gap = { lo: number; hi: number; wlo: number; whi: number };
   const axisWarp = useMemo(() => {
-    const idMap = { warp: (d: number) => d, unwarp: (w: number) => w, gaps: [] as { lo: number; hi: number; wlo: number; whi: number }[] };
-    if (!content) return idMap;
-    const iv: [number, number][] = [];
-    for (const s of segments) { const sp = spanOf(s); if (sp) iv.push([sp[0], sp[1]]); }
-    for (const c of chapters) { const a = startU(c); if (a != null) iv.push([a, endU(c) ?? a]); }
-    if (iv.length < 2) return idMap;
-    const span = content.hi - content.lo;
-    if (span <= 0) return idMap;
-    iv.sort((a, b) => a[0] - b[0]);
-    const joinTol = span * 0.08;                       // small gaps stay linear (merged through)
-    const merged: [number, number][] = [];
-    for (const [a, b] of iv) {
-      const last = merged[merged.length - 1];
-      if (last && a - last[1] <= joinTol) last[1] = Math.max(last[1], b);
-      else merged.push([a, b]);
+    const id = (d: number) => d;
+    const frameOf = (lo: number, hi: number) => { const m = Math.max((hi - lo) * 0.05, dpy); return { lo: lo - m, hi: hi + m }; };
+    const idResult = (lo: number, hi: number) => ({ warp: id, unwarp: id, gaps: [] as Gap[], frame: frameOf(lo, hi) });
+    if (!content) { const kLo = yearToDay(known.start), kHi = yearToDay(known.end) + dpy - 1; return idResult(kLo, kHi); }
+
+    // Occupied intervals, each PADDED into a clean-canvas band so even a single-day
+    // chapter shows the years around it; overlapping bands merge into one cluster.
+    const raw: [number, number][] = [];
+    for (const sg of segments) { const sp = spanOf(sg); if (sp) raw.push([sp[0], sp[1]]); }
+    for (const c of chapters) { const a = startU(c); if (a != null) raw.push([a, endU(c) ?? a]); }
+    raw.sort((a, b) => a[0] - b[0]);
+    const clusters: [number, number][] = [];
+    for (const [a, b] of raw) {
+      const pad = Math.max((b - a) * 0.2, 3 * dpy);          // ~±3y clean canvas around a point
+      const lo = a - pad, hi = b + pad;
+      const last = clusters[clusters.length - 1];
+      if (last && lo <= last[1]) last[1] = Math.max(last[1], hi);
+      else clusters.push([lo, hi]);
     }
-    if (merged.length < 2) return idMap;
-    const bigGap = Math.max(span * 0.25, dpy * 2);     // only gaps larger than this compress
-    const gapW = span * 0.06;                          // each compresses to ~6% of content span
-    const pieces: { rlo: number; rhi: number; wlo: number; whi: number }[] = [];
-    const gaps: { lo: number; hi: number; wlo: number; whi: number }[] = [];
-    let w = merged[0][0];
-    for (let i = 0; i < merged.length; i++) {
-      const [rlo, rhi] = merged[i];
-      pieces.push({ rlo, rhi, wlo: w, whi: w + (rhi - rlo) }); w += rhi - rlo;
-      if (i < merged.length - 1) {
-        const gLo = rhi, gHi = merged[i + 1][0], gReal = gHi - gLo;
-        const gWarp = gReal > bigGap ? gapW : gReal;
-        if (gReal > bigGap) gaps.push({ lo: gLo, hi: gHi, wlo: w, whi: w + gWarp });
-        pieces.push({ rlo: gLo, rhi: gHi, wlo: w, whi: w + gWarp }); w += gWarp;
+    if (clusters.length < 2) return idResult(clusters[0][0], clusters[0][1]);
+
+    const OW = clusters.reduce((s, [a, b]) => s + (b - a), 0);   // total clean-canvas width
+    const bigGap = Math.max((content.hi - content.lo) * 0.2, 2 * dpy);
+    const gapWarp = Math.max(2 * dpy, OW * 0.07);               // a big gap → a THIN break, sized to content
+    const pieces: Gap[] = [];
+    const gaps: Gap[] = [];
+    let w = clusters[0][0];
+    for (let i = 0; i < clusters.length; i++) {
+      const [rlo, rhi] = clusters[i];
+      pieces.push({ lo: rlo, hi: rhi, wlo: w, whi: w + (rhi - rlo) }); w += rhi - rlo;
+      if (i < clusters.length - 1) {
+        const gLo = rhi, gHi = clusters[i + 1][0], gReal = gHi - gLo;
+        const gW = gReal > bigGap ? gapWarp : gReal;
+        if (gReal > bigGap) gaps.push({ lo: gLo, hi: gHi, wlo: w, whi: w + gW });
+        pieces.push({ lo: gLo, hi: gHi, wlo: w, whi: w + gW }); w += gW;
       }
     }
-    if (gaps.length === 0) return idMap;               // nothing big enough → stay linear
-    const map = (x: number, from: "r" | "w") => {
-      const first = pieces[0], last = pieces[pieces.length - 1];
-      const [aLo, aHi] = from === "r" ? ["rlo", "rhi"] as const : ["wlo", "whi"] as const;
-      const [bLo] = from === "r" ? ["wlo"] as const : ["rlo"] as const;
-      if (x <= first[aLo]) return first[bLo] + (x - first[aLo]);           // linear past the ends
-      if (x >= last[aHi]) return (from === "r" ? last.whi : last.rhi) + (x - last[aHi]);
-      for (const p of pieces) {
-        const lo = p[aLo], hi = p[aHi];
-        if (x >= lo && x <= hi) {
-          const din = hi - lo, dout = from === "r" ? p.whi - p.wlo : p.rhi - p.rlo;
-          const outLo = from === "r" ? p.wlo : p.rlo;
-          return din === 0 ? outLo : outLo + (x - lo) / din * dout;
-        }
-      }
-      return x;
+    const frame = frameOf(pieces[0].wlo, pieces[pieces.length - 1].whi);   // NB: warped coords
+    if (gaps.length === 0) return idResult(pieces[0].lo, pieces[pieces.length - 1].hi);
+
+    const warpFn = (d: number) => {
+      const f = pieces[0], l = pieces[pieces.length - 1];
+      if (d <= f.lo) return f.wlo + (d - f.lo);
+      if (d >= l.hi) return l.whi + (d - l.hi);
+      for (const p of pieces) if (d >= p.lo && d <= p.hi) { const din = p.hi - p.lo; return din === 0 ? p.wlo : p.wlo + (d - p.lo) / din * (p.whi - p.wlo); }
+      return d;
     };
-    return { warp: (d: number) => map(d, "r"), unwarp: (wd: number) => map(wd, "w"), gaps };
-  }, [content, segments, chapters, spanOf, dpy, ms]);
+    const unwarpFn = (wd: number) => {
+      const f = pieces[0], l = pieces[pieces.length - 1];
+      if (wd <= f.wlo) return f.lo + (wd - f.wlo);
+      if (wd >= l.whi) return l.hi + (wd - l.whi);
+      for (const p of pieces) if (wd >= p.wlo && wd <= p.whi) { const dw = p.whi - p.wlo; return dw === 0 ? p.lo : p.lo + (wd - p.wlo) / dw * (p.hi - p.lo); }
+      return wd;
+    };
+    return { warp: warpFn, unwarp: unwarpFn, gaps, frame };
+  }, [content, segments, chapters, spanOf, dpy, ms, known]);
   const { warp, unwarp } = axisWarp;
 
   // Known time in day-numbers, and the padded navigable range (§5.2). Padding is
@@ -291,19 +297,6 @@ export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) =
   }, [known, content, dpy, ms, chapters.length]);
   navRef.current = { lo: nav.lo, hi: nav.hi };
 
-  // Default framing (§5.2, Phase 1): fit to the CONTENT, padded by a percentage of
-  // its own span, so the frame expands and contracts with the story — a tight
-  // cluster zooms in, a wide spread zooms out. A single point (or an empty world)
-  // falls back to a small floor window / known time, so it never frames an empty
-  // century around one chapter. Known time stays reachable by panning (nav), but
-  // no longer drives the default frame — it's now an optional manual reference.
-  const fitFrame = useMemo(() => {
-    const floor = 2 * dpy;                    // one placed chapter still shows ~±2 years
-    const base = content ?? { lo: nav.knownLo, hi: nav.knownHi };
-    const span = Math.max(dpy, base.hi - base.lo);
-    const pad = Math.max(span * 0.15, floor);
-    return { lo: base.lo - pad, hi: base.hi + pad };
-  }, [content, nav.knownLo, nav.knownHi, dpy]);
 
   // Clamp a view to the navigable range and derived zoom bounds (§5.2).
   function clampView(v: View, w: number): View {
@@ -326,7 +319,7 @@ export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) =
   useEffect(() => {
     if (fitDone || loading) return;
     const w = boardRef.current?.clientWidth ?? nowW; setNowW(w);
-    setView(clampView({ start: warp(fitFrame.lo), ppd: w / Math.max(dpy, warp(fitFrame.hi) - warp(fitFrame.lo)), ty: 0 }, w));
+    setView(clampView({ start: axisWarp.frame.lo, ppd: w / Math.max(dpy, axisWarp.frame.hi - axisWarp.frame.lo), ty: 0 }, w));
     setFitDone(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [content, nav, loading, fitDone]);
@@ -379,7 +372,7 @@ export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) =
   // in focus rather than a near-empty span. Known time stays reachable by panning.
   function fitKnown() {
     const w = boardRef.current?.clientWidth ?? nowW;
-    animateTo({ start: warp(fitFrame.lo), ppd: w / Math.max(dpy, warp(fitFrame.hi) - warp(fitFrame.lo)), ty: 0 });
+    animateTo({ start: axisWarp.frame.lo, ppd: w / Math.max(dpy, axisWarp.frame.hi - axisWarp.frame.lo), ty: 0 });
   }
 
   // ── known time: edit, extend, and the shrink warning (§5.3–5.4) ─────────

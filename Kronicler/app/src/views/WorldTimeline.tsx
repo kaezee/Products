@@ -25,7 +25,8 @@ import { SkeletonRows } from "../components/Skeleton";
 // ruler + known-time bounds + rendering. LOD tiers, clustering, framing,
 // out-of-bounds editing, axis-mode, and drag-to-segment land in later batches.)
 
-const LABEL_H = 16, BAR_H = 9, CH_H = 20, ROW_GAP = 10, PAD_Y = 26, LOOSE_ROW_H = LABEL_H + CH_H + ROW_GAP;
+const LABEL_H = 16, BAR_H = 9, CH_H = 20, ROW_GAP = 10, PAD_Y = 26;
+const MAIN_ROW_H = LABEL_H + BAR_H + ROW_GAP + CH_H + 6;   // the project's implicit main-book lane (label + span bar + chapters)
 const MAX_PPD = 60;             // zoom ceiling: one day at 60px (§5.2)
 const RESIZE_MIN_W = 2;
 
@@ -36,6 +37,7 @@ export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) =
   const [segments, setSegments] = useState<Segment[]>([]);
   const [chapters, setChapters] = useState<Chapter[]>([]);
   const [kinds, setKinds] = useState<SegmentKind[]>([]);
+  const [worldName, setWorldName] = useState("");
   const [cal, setCal] = useState<DerivedCalendar>(() => deriveCalendar(DEFAULT_CALENDAR));
   const [known, setKnown] = useState<{ start: number; end: number }>({ start: 0, end: 1000 });
   const [loading, setLoading] = useState(true);
@@ -85,6 +87,7 @@ export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) =
       ]);
       setCal(deriveCalendar(w.calendar ?? DEFAULT_CALENDAR));
       setKnown({ start: w.known_start_year ?? 0, end: w.known_end_year ?? 1000 });
+      setWorldName(w.name ?? "");
       setSegments(s); setChapters(c); setKinds(k);
     } catch (x) { setErr(String(x)); } finally { setLoading(false); }
   }
@@ -162,21 +165,28 @@ export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) =
     [chapters, ms],
   );
 
-  // Each standalone (dated, unfiled) chapter is its own titled lane — a one-chapter
-  // work, peer to the book/season rows — stacked in date order above the sections.
-  // Filing it into a section removes its segment-less state, so it leaves this stack.
-  const looseLanes = useMemo(
-    () => [...looseDated]
-      .sort((a, b) => (startU(a)! - startU(b)!) || a.manuscript_order - b.manuscript_order)
-      .map((ch, i) => ({ ch, y: PAD_Y + i * LOOSE_ROW_H })),
-    [looseDated, ms],
-  );
+  // The project's MAIN BOOK — the implicit Book One a first-time writer never has
+  // to create. Every dated chapter not filed into an explicit book/section belongs
+  // here, drawn as one titled span-bar (like any book) rather than a pile of
+  // one-chapter "standalone" lanes. Its span is the World Clock — the timespan the
+  // writer sets ("this book runs 1000–2000") — stretched to hold any chapter that
+  // pokes past it. File a chapter into a Book and it leaves this row. Null when
+  // nothing is unfiled (the writer has organised everything into explicit books).
+  const mainBook = useMemo(() => {
+    if (ms || looseDated.length === 0) return null;
+    const vals: number[] = [];
+    for (const c of looseDated) { const a = startU(c)!; vals.push(a, endU(c) ?? a); }
+    const lo = Math.min(yearToDay(known.start), ...vals);
+    const hi = Math.max(yearToDay(known.end) + dpy - 1, ...vals);
+    return { lo, hi, chapters: looseDated };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [looseDated, known, dpy, ms]);
 
   // Row layout: depth-first, indent + shrink bar per level; a chapter row only
   // where a segment has dated chapters.
   const rows = useMemo(() => {
     const out: { seg: Segment; depth: number; y: number; hasCh: boolean }[] = [];
-    let y = PAD_Y + looseDated.length * LOOSE_ROW_H;
+    let y = PAD_Y + (mainBook ? MAIN_ROW_H : 0);
     const walk = (parent: string | null, depth: number) => {
       for (const s of childrenOf.get(parent) ?? []) {
         const hasCh = (chaptersBySeg.get(s.id) ?? []).some((c) => startU(c) != null);
@@ -187,7 +197,7 @@ export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) =
     };
     walk(null, 0);
     return { list: out, height: y + PAD_Y };
-  }, [childrenOf, chaptersBySeg, looseDated, ms]);
+  }, [childrenOf, chaptersBySeg, mainBook, ms]);
   rowsHRef.current = rows.height;
 
   // Story mode parks undated chapters in the sidebar; ms mode places them all.
@@ -490,7 +500,7 @@ export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) =
     try { await updateSegment(id, { color }); } catch (x) { setErr(String(x)); }
   }
   async function delSeg(s: Segment) {
-    if (!(await confirmDialog({ title: "Delete section", message: `Delete "${s.name}" and everything in it? Chapters return to the sidebar. Recoverable.`, confirmLabel: "Delete", tone: "danger" }))) return;
+    if (!(await confirmDialog({ title: `Delete ${s.kind}`, message: `Delete "${s.name}"? Its chapters return to your main book (nothing is lost). Recoverable.`, confirmLabel: "Delete", tone: "danger" }))) return;
     try { await softDeleteSegment(s.id); pushUndo(() => restoreSegment(s.id)); await reload(); } catch (x) { setErr(String(x)); }
   }
   async function addSelectedTo(segId: string) {
@@ -627,9 +637,9 @@ export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) =
         <span className="spacer" />
         <button className="iconbtn" onClick={() => void undo()} title="Undo (⌘Z)"><Icon name="undo" size={15} /></button>
         <button onClick={fitKnown} title="Fit to what's placed">Fit</button>
-        <button className="primary" style={{ display: "inline-flex", alignItems: "center", gap: 5 }}
-          onClick={() => { const yr = dayToYear(dayOf(nowW / 2)); setFName(""); setFKind("series"); setFParent(""); setFStart(String(yr)); setFEnd(String(yr + 50)); setAdding(true); }}>
-          <Icon name="plus" size={14} /> Section
+        <button className="primary" style={{ display: "inline-flex", alignItems: "center", gap: 5 }} title="Add another book or series — your chapters are already in your main book"
+          onClick={() => { const yr = dayToYear(dayOf(nowW / 2)); setFName(""); setFKind("book"); setFParent(""); setFStart(String(yr)); setFEnd(String(yr + 50)); setAdding(true); }}>
+          <Icon name="plus" size={14} /> Book
         </button>
       </div>
 
@@ -706,23 +716,30 @@ export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) =
           </div>
 
           <div className="wt2-content" style={{ transform: `translateY(${view.ty}px)`, height: rows.height, bottom: "auto" }}>
-            {/* Standalone chapters: each dated chapter not filed under a section
-                gets its OWN titled lane — a one-chapter work (a short story /
-                standalone), peer to the book rows. Its label hugs its date like a
-                book label; file it into a section and it leaves for that book's row. */}
-            {tier !== "era" && looseLanes.map(({ ch, y }) => (
-              <div key={"solo-" + ch.id}>
-                <span className="wt2-seglab" style={{ left: xOf(startU(ch)!), top: y, color: "var(--sub)" }}
-                  title={`${ch.title} · standalone — not yet in a book or series`}>
-                  <span className="wt2-kind">standalone</span>{trunc(ch.title, 20)}
-                  <span className="faint" style={{ fontSize: 10.5, marginLeft: 6 }}>{dayToYear(startU(ch)!)}</span>
-                </span>
-                {chapterBand(ch, "slate", y + LABEL_H, false)}
-              </div>
-            ))}
+            {/* The main book — one titled span-bar holding every dated chapter not
+                filed into an explicit Book. Its bar is the World Clock span, so the
+                writer can see (and set) where their book runs. Chapters ride inside
+                via the same LOD layer sections use. */}
+            {mainBook && tier !== "era" && (() => {
+              const x1 = xOf(mainBook.lo), w = Math.max(xOf(mainBook.hi) - x1, RESIZE_MIN_W);
+              const label = worldName.trim() || "Main book";
+              const range = `${dayToYear(mainBook.lo)}–${dayToYear(mainBook.hi)}`;
+              return (
+                <div>
+                  <span className="wt2-seglab" style={{ left: x1, top: PAD_Y, color: "var(--k-entity-slate)", cursor: "zoom-in" }}
+                    title={`${label} · ${range} — your project's book. Double-click to frame; set its span in World clock.`}
+                    onDoubleClick={() => frameRange(mainBook.lo, mainBook.hi)}>
+                    <span className="wt2-kind">book</span>{trunc(label, 22)}
+                    <span className="faint" style={{ fontSize: 10.5, marginLeft: 6 }}>{range}</span>
+                  </span>
+                  <div className="wt2-seg" style={{ left: x1, width: w, top: PAD_Y + LABEL_H, height: BAR_H, background: "var(--k-entity-slate)" }} title={`${label} · ${range}`} />
+                  {chapterLayer(mainBook.chapters, "slate", PAD_Y + LABEL_H + BAR_H + 6)}
+                </div>
+              );
+            })()}
 
             {segments.length === 0 && looseDated.length === 0 && (
-              <div className="wt2-empty-hint">Add a section (a series, book, or season), then date chapters or bulk-add them from the sidebar. Dated chapters appear here; the ruler is bounded by your world's known time.</div>
+              <div className="wt2-empty-hint">Date a chapter — type a year in the sidebar — and it lands here in your main book. Use <b>+ Book</b> only when your world holds more than one book or series.</div>
             )}
 
             {rows.list.map(({ seg, depth, y }) => {
@@ -791,7 +808,7 @@ export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) =
 
           {/* World clock — set once, so it lives here, not on the canvas. */}
           <Disclosure label="World clock">
-            <div className="wt2-sidesub" style={{ marginTop: 0 }}>The years your world's history spans. Extends automatically to cover your dated chapters.</div>
+            <div className="wt2-sidesub" style={{ marginTop: 0 }}>The years your world spans — and the timespan of your main book. Set it to when your story runs (e.g. 1000–2000); it extends automatically to cover any dated chapter.</div>
             <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap", marginBottom: 10 }}>
               <input value={ktStart} onChange={(e) => setKtStart(e.target.value)} style={{ width: 68, fontSize: 12 }} aria-label="known start year" />
               <span className="muted">→</span>
@@ -805,9 +822,9 @@ export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) =
             </span>
           </Disclosure>
 
-          {/* Structure — jump to any segment; add a top-level one. */}
-          <Disclosure label="Structure" count={segments.length}>
-            {segments.length === 0 && <div className="wt2-sidesub" style={{ marginTop: 0 }}>No sections yet — use + Add · Section.</div>}
+          {/* Books — the explicit containers beyond the implicit main book. */}
+          <Disclosure label="Books" count={segments.length}>
+            {segments.length === 0 && <div className="wt2-sidesub" style={{ marginTop: 0 }}>Your chapters are all in your main book. Add a Book only to split your world into more than one book or series.</div>}
             {rows.list.map(({ seg, depth }) => (
               <div key={seg.id} className="wt2-outline" style={{ paddingLeft: 4 + depth * 12 }}>
                 <SwatchPicker value={swatchOf(seg)} onPick={(c) => setSegColor(seg.id, c)} title="Section colour — pick or Auto" />

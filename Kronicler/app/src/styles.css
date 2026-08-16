@@ -728,9 +728,14 @@ button.danger:hover:not(:disabled) { filter: brightness(0.93); background: var(-
    Auto-fill so the same grid is 1 col inside the narrow dashboard card and 2–3
    cols in the wider modal, no separate layouts. */
 .leftnote-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(165px, 1fr)); gap: 10px; }
-.leftnote { display: flex; flex-direction: column; gap: 7px; padding: 10px 11px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); min-width: 0; }
+/* Recessed like the "Worth a look" rows (var(--inset)), so notes read as content
+   set into the card rather than a flat panel. */
+.leftnote { display: flex; flex-direction: column; gap: 7px; padding: 10px 11px; border: none; border-radius: var(--k-radius-container, 8px); background: var(--inset); min-width: 0; }
 .leftnote-top { display: flex; align-items: center; gap: 5px; }
 .leftnote-date { font-size: 11px; color: var(--faint); font-variant-numeric: tabular-nums; }
+.leftnote-tag { font-size: 8.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; padding: 1px 6px; border-radius: 999px; }
+.leftnote-tag.t-note { color: var(--bond); background: var(--bondBg); }
+.leftnote-tag.t-comment { color: var(--obligation); background: var(--obligationBg, var(--wash)); }
 .leftnote-secret { color: var(--hostile); display: inline-flex; }
 .leftnote-x { border: none; background: none; padding: 2px; color: var(--faint); cursor: pointer; display: inline-flex; border-radius: 5px; }
 .leftnote-x:hover { color: var(--hostile); background: var(--wash); }
@@ -740,9 +745,14 @@ button.danger:hover:not(:disabled) { filter: brightness(0.93); background: var(-
 .leftnote-where { font-size: 11.5px; color: var(--muted); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .leftnote-open { border: none; background: none; color: var(--muted); font-size: 11.5px; cursor: pointer; display: inline-flex; align-items: center; gap: 3px; padding: 2px 4px; border-radius: 5px; flex: 0 0 auto; }
 .leftnote-open:hover { color: var(--ink); }
-.chron-more { margin-top: 10px; background: none; border: none; color: var(--muted); font-size: 12px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; padding: 4px 2px; align-self: flex-start; }
-.chron-more:hover { color: var(--ink); }
-.notes-all { width: min(680px, 94vw); max-height: 82vh; display: flex; flex-direction: column; }
+/* "Show more" tile — fills the cell after the 5th note instead of showing a 6th. */
+.leftnote-more { align-items: center; justify-content: center; gap: 4px; min-height: 96px; cursor: pointer; background: none; border: 1px dashed var(--lineStrong); color: var(--muted); font: inherit; }
+.leftnote-more:hover { color: var(--ink); border-color: var(--muted); background: var(--wash); }
+.leftnote-more-n { font-size: 18px; font-weight: 700; color: var(--sub); }
+.leftnote-more-lab { font-size: 12px; display: inline-flex; align-items: center; gap: 4px; }
+/* Show-more modal: near-full-screen browse + search. */
+.notes-all { width: min(1100px, 94vw); max-height: calc(100vh - 140px); display: flex; flex-direction: column; }
+.notes-all .leftnote-grid { grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); }
 .notes-all-search { width: 100%; margin: 2px 0 12px; }
 .notes-all-list { overflow-y: auto; min-height: 0; padding-right: 2px; }
 

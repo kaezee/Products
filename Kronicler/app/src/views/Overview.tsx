@@ -295,7 +295,7 @@ export function Overview({ worldId, go, refreshKey }: { worldId: string; go: (n:
   const openComments = useMemo(() => comments.filter((c) => !c.resolved), [comments]);
   const commentChapters = useMemo(() => new Set(openComments.map((c) => c.chapter_id)), [openComments]);
   const chById = useMemo(() => new Map(chapters.map((c) => [c.id, c])), [chapters]);
-  const recentNotes = useMemo(() => [...notes].reverse().slice(0, 4), [notes]);
+  const recentNotes = useMemo(() => [...notes].reverse().slice(0, 5), [notes]);
   const [notesModal, setNotesModal] = useState(false);   // "Show more" — the searchable all-notes modal
   const [noteQuery, setNoteQuery] = useState("");
 
@@ -366,32 +366,51 @@ export function Overview({ worldId, go, refreshKey }: { worldId: string; go: (n:
   ].filter(Boolean) as string[];
   const shape = sizeBits.length ? sizeBits.join(" · ") : "A new world — nothing in it yet. Start below.";
 
-  // One note, rendered as a dated card — WHEN it was left and WHERE it points, the
-  // two things that make it recallable. Shared by the dashboard grid and the modal;
-  // opening one closes the modal (a no-op when it isn't open) and lifts the notepad.
-  const noteCard = (n: Note) => {
+  // One "left yourself" entry — a note OR a comment — as a dated card: WHEN it was
+  // left and WHERE it points, the two recall anchors. One renderer for the
+  // dashboard grid and the Show-more modal; opening closes the modal (a no-op when
+  // it isn't open). Notes lift the notepad; comments jump to their spot in prose.
+  type Entry = { key: string; tag?: "note" | "comment"; date: string; secret?: boolean; body: ReactNode; where: ReactNode; hay: string; onOpen: () => void; onDelete?: () => void };
+  const entryCard = (e: Entry) => (
+    <div className="leftnote" key={e.key}>
+      <div className="leftnote-top">
+        <span className="leftnote-date">{fmtNoteDate(e.date)}</span>
+        {e.tag && <span className={"leftnote-tag t-" + e.tag}>{e.tag}</span>}
+        {e.secret && <span className="leftnote-secret" title="Secret note"><Icon name="lock" size={11} /></span>}
+        <span className="spacer" />
+        {e.onDelete && <button className="leftnote-x" title="Delete" onClick={e.onDelete}><Icon name="close" size={13} /></button>}
+      </div>
+      <div className="leftnote-body clamp" onClick={e.onOpen}>{e.body}</div>
+      <div className="leftnote-foot">
+        <span className="leftnote-where">{e.where}</span>
+        <span className="spacer" />
+        <button className="leftnote-open" onClick={e.onOpen}>Open <Icon name="arrow" size={12} /></button>
+      </div>
+    </div>
+  );
+  const noteEntry = (n: Note, tag = false): Entry => {
     const ch = (n.chapter_ids ?? []).map((id) => chById.get(id)).find(Boolean);
     const ent = !ch && (n.entity_ids ?? []).length ? entities.find((e) => e.id === n.entity_ids[0]) : null;
-    const open = () => { setNotesModal(false); setOpenNote(n); };
-    return (
-      <div className="leftnote" key={n.id}>
-        <div className="leftnote-top">
-          <span className="leftnote-date">{fmtNoteDate(n.created_at)}</span>
-          {n.is_secret && <span className="leftnote-secret" title="Secret note"><Icon name="lock" size={11} /></span>}
-          <span className="spacer" />
-          <button className="leftnote-x" title="Delete note" onClick={() => void removeNote(n.id)}><Icon name="close" size={13} /></button>
-        </div>
-        <div className="leftnote-body clamp" onClick={open}>{n.body.trim() || <span className="muted">(empty note)</span>}</div>
-        <div className="leftnote-foot">
-          <span className="leftnote-where">
-            {ch ? <>in chapter {ch.manuscript_order}</> : ent ? <>pinned to <Mention name={ent.title} swatch={swatchOf(ent.id)} /></> : "in this world"}
-          </span>
-          <span className="spacer" />
-          <button className="leftnote-open" onClick={open}>Open <Icon name="arrow" size={12} /></button>
-        </div>
-      </div>
-    );
+    return {
+      key: "n" + n.id, tag: tag ? "note" : undefined, date: n.created_at, secret: n.is_secret,
+      body: n.body.trim() || <span className="muted">(empty note)</span>,
+      where: ch ? <>in chapter {ch.manuscript_order}</> : ent ? <>pinned to <Mention name={ent.title} swatch={swatchOf(ent.id)} /></> : "in this world",
+      hay: (n.body + " " + (ch ? `chapter ${ch.manuscript_order} ${ch.title}` : "") + " " + (n.entity_ids ?? []).map((id) => entities.find((e) => e.id === id)?.title ?? "").join(" ")).toLowerCase(),
+      onOpen: () => { setNotesModal(false); setOpenNote(n); },
+      onDelete: () => void removeNote(n.id),
+    };
   };
+  const commentEntry = (c: Comment): Entry => {
+    const ch = chById.get(c.chapter_id);
+    return {
+      key: "c" + c.id, tag: "comment", date: c.created_at,
+      body: c.body.trim() || <span className="muted">(empty comment)</span>,
+      where: ch ? <>in chapter {ch.manuscript_order}</> : "in a chapter",
+      hay: (c.body + " " + (ch ? `chapter ${ch.manuscript_order} ${ch.title}` : "")).toLowerCase(),
+      onOpen: () => { setNotesModal(false); go({ scope: "manuscript", chapterId: c.chapter_id }); },
+    };
+  };
+  const noteCard = (n: Note) => entryCard(noteEntry(n, false));
 
 
   // A brand-new world has nothing to orient, continue, or flag — so it shows the
@@ -735,9 +754,16 @@ export function Overview({ worldId, go, refreshKey }: { worldId: string; go: (n:
                     <Icon name="arrow" size={14} style={{ color: "var(--faint)" }} />
                   </div>
                 )}
-                {recentNotes.length > 0 && <div className="leftnote-grid">{recentNotes.map((n) => noteCard(n))}</div>}
-                {notes.length > recentNotes.length && (
-                  <button className="chron-more" onClick={() => { setNoteQuery(""); setNotesModal(true); }}>Show more <Icon name="arrow" size={13} /></button>
+                {(recentNotes.length > 0 || notes.length + openComments.length > recentNotes.length) && (
+                  <div className="leftnote-grid">
+                    {recentNotes.map((n) => noteCard(n))}
+                    {notes.length + openComments.length > recentNotes.length && (
+                      <button className="leftnote leftnote-more" onClick={() => { setNoteQuery(""); setNotesModal(true); }}>
+                        <span className="leftnote-more-n">+{notes.length + openComments.length - recentNotes.length}</span>
+                        <span className="leftnote-more-lab">Show more <Icon name="arrow" size={13} /></span>
+                      </button>
+                    )}
+                  </div>
                 )}
               </div>
             </div>
@@ -769,27 +795,24 @@ export function Overview({ worldId, go, refreshKey }: { worldId: string; go: (n:
           glance and the full archive is one click away. */}
       {notesModal && (() => {
         const q = noteQuery.trim().toLowerCase();
-        const sorted = [...notes].sort((a, b) => (a.created_at < b.created_at ? 1 : a.created_at > b.created_at ? -1 : 0));
-        const list = q ? sorted.filter((n) => {
-          if (n.body.toLowerCase().includes(q)) return true;
-          const ch = (n.chapter_ids ?? []).map((id) => chById.get(id)).find(Boolean);
-          if (ch && `chapter ${ch.manuscript_order} ${ch.title}`.toLowerCase().includes(q)) return true;
-          return (n.entity_ids ?? []).some((id) => entities.find((e) => e.id === id)?.title.toLowerCase().includes(q));
-        }) : sorted;
+        const entries = [...notes.map((n) => noteEntry(n, true)), ...openComments.map(commentEntry)]
+          .sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
+        const list = q ? entries.filter((e) => e.hay.includes(q)) : entries;
+        const total = notes.length + openComments.length;
         return (
           <div className="overlay" onClick={() => setNotesModal(false)}>
             <div className="modal notes-all" onClick={(e) => e.stopPropagation()}>
               <div className="notepad-head">
-                <h3 className="notepad-title">Your notes <span className="muted" style={{ fontWeight: 400, fontSize: 13 }}>({notes.length})</span></h3>
+                <h3 className="notepad-title">What you left yourself <span className="muted" style={{ fontWeight: 400, fontSize: 13 }}>({total})</span></h3>
                 <span className="spacer" />
                 <button className="notepad-close" aria-label="Close" onClick={() => setNotesModal(false)}><Icon name="close" size={17} /></button>
               </div>
-              <input className="notes-all-search" autoFocus placeholder="Search your notes — text, a character, a chapter…"
+              <input className="notes-all-search" autoFocus placeholder="Search — text, a character, a chapter…"
                 value={noteQuery} onChange={(e) => setNoteQuery(e.target.value)} />
               <div className="notes-all-list">
                 {list.length === 0
-                  ? <div className="muted" style={{ padding: "20px 4px" }}>No notes match “{noteQuery.trim()}”.</div>
-                  : <div className="leftnote-grid">{list.map((n) => noteCard(n))}</div>}
+                  ? <div className="muted" style={{ padding: "20px 4px" }}>Nothing matches “{noteQuery.trim()}”.</div>
+                  : <div className="leftnote-grid">{list.map((e) => entryCard(e))}</div>}
               </div>
             </div>
           </div>

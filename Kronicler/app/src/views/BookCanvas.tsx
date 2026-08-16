@@ -62,6 +62,7 @@ function ChapterBlock({
   const [editingTitle, setEditingTitle] = useState(false);
   const [editingDate, setEditingDate] = useState(false);
   const saveTimer = useRef<number | undefined>(undefined);
+  const pendingRef = useRef<string | null>(null);   // unsaved body tail, or null when in sync
   const [status, setStatus] = useState<ChapterStatus>(chapter.status ?? "draft");
   const [statusMenu, setStatusMenu] = useState(false);
   const statusRef = useRef(status);
@@ -72,12 +73,14 @@ function ChapterBlock({
   const setApi = useCallback((api: ProseApi | null) => registerApi(chapter.id, api), [registerApi, chapter.id]);
 
   const scheduleSave = useCallback((next: string) => {
+    pendingRef.current = next;                     // remember the unsaved tail for flush-on-unmount
     setSaveState("dirty");
     window.clearTimeout(saveTimer.current);
     saveTimer.current = window.setTimeout(async () => {
       setSaveState("saving");
       try {
         await saveChapterBody(chapter.id, next);
+        if (pendingRef.current === next) pendingRef.current = null;   // in sync (unless newer keystrokes queued)
         setSaveState("saved");
         // Writing into a planned beat moves it along to Draft on its own.
         if (statusRef.current === "planned" && next.trim()) {
@@ -100,7 +103,19 @@ function ChapterBlock({
     return () => window.removeEventListener("mousedown", h);
   }, [statusMenu]);
 
-  useEffect(() => () => window.clearTimeout(saveTimer.current), []);
+  // Flush a pending debounced save on unmount (switching chapters, leaving Write)
+  // and on tab-hide, so edits typed in the last ~second are never dropped.
+  useEffect(() => {
+    const flush = () => {
+      if (pendingRef.current != null) { void saveChapterBody(chapter.id, pendingRef.current); pendingRef.current = null; }
+    };
+    window.addEventListener("pagehide", flush);
+    return () => {
+      window.removeEventListener("pagehide", flush);
+      window.clearTimeout(saveTimer.current);
+      flush();
+    };
+  }, [chapter.id]);
   useEffect(() => { onSaveState(saveState); }, [saveState]); // eslint-disable-line
 
   // Live word count for the inline chapter-properties line (§3.3).

@@ -750,11 +750,15 @@ button.danger:hover:not(:disabled) { filter: brightness(0.93); background: var(-
 .leftnote-more:hover { color: var(--ink); border-color: var(--muted); background: var(--wash); }
 .leftnote-more-n { font-size: 18px; font-weight: 700; color: var(--sub); }
 .leftnote-more-lab { font-size: 12px; display: inline-flex; align-items: center; gap: 4px; }
-/* Show-more modal: near-full-screen browse + search. */
-.notes-all { width: min(1100px, 94vw); max-height: calc(100vh - 140px); display: flex; flex-direction: column; }
-.notes-all .leftnote-grid { grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); }
+/* Show-more modal: a BROWSE modal, so its frame is FIXED — width AND height —
+   and must NOT resize as notes are added or as search filters the list. Only the
+   inner list scrolls; the header + search stay pinned. */
+.notes-overlay { align-items: center; padding-top: 0; }
+.notes-all { width: min(1100px, 94vw); height: min(900px, calc(100vh - 96px)); display: flex; flex-direction: column; overflow: hidden; }
+.notes-all .notepad-head, .notes-all .notes-all-search { flex: 0 0 auto; }
+.notes-all .leftnote-grid { grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); align-content: start; }
 .notes-all-search { width: 100%; margin: 2px 0 12px; }
-.notes-all-list { overflow-y: auto; min-height: 0; padding-right: 2px; }
+.notes-all-list { flex: 1 1 auto; overflow-y: auto; min-height: 0; padding-right: 2px; }
 
 /* Notes pinned to a character, on its page (EntityPage). */
 .ent-notes { display: flex; flex-direction: column; gap: 8px; max-width: 620px; }

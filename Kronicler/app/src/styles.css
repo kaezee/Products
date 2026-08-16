@@ -724,6 +724,28 @@ button.danger:hover:not(:disabled) { filter: brightness(0.93); background: var(-
 .ed-prose.clean .prose-wrap.has-marks { padding-left: 0; }
 .ed-prose.clean .prose-mark { display: none; }
 
+/* "What you left yourself" — dated note cards (dashboard grid + Show-more modal).
+   Auto-fill so the same grid is 1 col inside the narrow dashboard card and 2–3
+   cols in the wider modal, no separate layouts. */
+.leftnote-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(165px, 1fr)); gap: 10px; }
+.leftnote { display: flex; flex-direction: column; gap: 7px; padding: 10px 11px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); min-width: 0; }
+.leftnote-top { display: flex; align-items: center; gap: 5px; }
+.leftnote-date { font-size: 11px; color: var(--faint); font-variant-numeric: tabular-nums; }
+.leftnote-secret { color: var(--hostile); display: inline-flex; }
+.leftnote-x { border: none; background: none; padding: 2px; color: var(--faint); cursor: pointer; display: inline-flex; border-radius: 5px; }
+.leftnote-x:hover { color: var(--hostile); background: var(--wash); }
+.leftnote-body { font-size: 13px; line-height: 1.5; color: var(--sub); cursor: pointer; white-space: pre-wrap; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
+.leftnote-body:hover { color: var(--ink); }
+.leftnote-foot { display: flex; align-items: center; gap: 6px; margin-top: auto; }
+.leftnote-where { font-size: 11.5px; color: var(--muted); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.leftnote-open { border: none; background: none; color: var(--muted); font-size: 11.5px; cursor: pointer; display: inline-flex; align-items: center; gap: 3px; padding: 2px 4px; border-radius: 5px; flex: 0 0 auto; }
+.leftnote-open:hover { color: var(--ink); }
+.chron-more { margin-top: 10px; background: none; border: none; color: var(--muted); font-size: 12px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; padding: 4px 2px; align-self: flex-start; }
+.chron-more:hover { color: var(--ink); }
+.notes-all { width: min(680px, 94vw); max-height: 82vh; display: flex; flex-direction: column; }
+.notes-all-search { width: 100%; margin: 2px 0 12px; }
+.notes-all-list { overflow-y: auto; min-height: 0; padding-right: 2px; }
+
 /* Notes pinned to a character, on its page (EntityPage). */
 .ent-notes { display: flex; flex-direction: column; gap: 8px; max-width: 620px; }
 .ent-note { text-align: left; width: 100%; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); cursor: pointer; font: inherit; color: inherit; display: block; }

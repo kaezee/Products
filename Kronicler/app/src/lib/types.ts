@@ -52,6 +52,8 @@ export interface Note {
   w: number | null;
   h: number | null;
   source: NoteSource; // where the note was captured (Foundations §4.4)
+  created_at: string; // when the note was first left
+  updated_at: string; // bumped on every edit (DB trigger)
 }
 
 // Where a note was captured. 'mobile' is the PWA capture path (added later);

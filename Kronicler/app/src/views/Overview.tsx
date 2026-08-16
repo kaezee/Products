@@ -296,6 +296,8 @@ export function Overview({ worldId, go, refreshKey }: { worldId: string; go: (n:
   const commentChapters = useMemo(() => new Set(openComments.map((c) => c.chapter_id)), [openComments]);
   const chById = useMemo(() => new Map(chapters.map((c) => [c.id, c])), [chapters]);
   const recentNotes = useMemo(() => [...notes].reverse().slice(0, 4), [notes]);
+  const [notesModal, setNotesModal] = useState(false);   // "Show more" — the searchable all-notes modal
+  const [noteQuery, setNoteQuery] = useState("");
 
   // Delete a note — always confirm first, and say where it goes. Soft-delete, so
   // it's recoverable. Returns whether it was deleted (the pad closes only then).
@@ -363,6 +365,33 @@ export function Overview({ worldId, go, refreshKey }: { worldId: string; go: (n:
     stats.words ? `${fmt(stats.words)} words` : null,
   ].filter(Boolean) as string[];
   const shape = sizeBits.length ? sizeBits.join(" · ") : "A new world — nothing in it yet. Start below.";
+
+  // One note, rendered as a dated card — WHEN it was left and WHERE it points, the
+  // two things that make it recallable. Shared by the dashboard grid and the modal;
+  // opening one closes the modal (a no-op when it isn't open) and lifts the notepad.
+  const noteCard = (n: Note) => {
+    const ch = (n.chapter_ids ?? []).map((id) => chById.get(id)).find(Boolean);
+    const ent = !ch && (n.entity_ids ?? []).length ? entities.find((e) => e.id === n.entity_ids[0]) : null;
+    const open = () => { setNotesModal(false); setOpenNote(n); };
+    return (
+      <div className="leftnote" key={n.id}>
+        <div className="leftnote-top">
+          <span className="leftnote-date">{fmtNoteDate(n.created_at)}</span>
+          {n.is_secret && <span className="leftnote-secret" title="Secret note"><Icon name="lock" size={11} /></span>}
+          <span className="spacer" />
+          <button className="leftnote-x" title="Delete note" onClick={() => void removeNote(n.id)}><Icon name="close" size={13} /></button>
+        </div>
+        <div className="leftnote-body clamp" onClick={open}>{n.body.trim() || <span className="muted">(empty note)</span>}</div>
+        <div className="leftnote-foot">
+          <span className="leftnote-where">
+            {ch ? <>in chapter {ch.manuscript_order}</> : ent ? <>pinned to <Mention name={ent.title} swatch={swatchOf(ent.id)} /></> : "in this world"}
+          </span>
+          <span className="spacer" />
+          <button className="leftnote-open" onClick={open}>Open <Icon name="arrow" size={12} /></button>
+        </div>
+      </div>
+    );
+  };
 
 
   // A brand-new world has nothing to orient, continue, or flag — so it shows the
@@ -706,24 +735,10 @@ export function Overview({ worldId, go, refreshKey }: { worldId: string; go: (n:
                     <Icon name="arrow" size={14} style={{ color: "var(--faint)" }} />
                   </div>
                 )}
-                {recentNotes.map((n) => {
-                  const ch = (n.chapter_ids ?? []).map((id) => chById.get(id)).find(Boolean);
-                  const ent = !ch && (n.entity_ids ?? []).length ? entities.find((e) => e.id === n.entity_ids[0]) : null;
-                  return (
-                    <div className="trail-well" key={n.id}>
-                      <div className="trail-body clamp" onClick={() => setOpenNote(n)}>{n.body.trim() || <span className="muted">(empty note)</span>}</div>
-                      <div className="trail-foot">
-                        <span className="trail-meta">
-                          {ch ? `in chapter ${ch.manuscript_order}` : ent ? <>pinned to <Mention name={ent.title} swatch={swatchOf(ent.id)} /></> : "in this world"}
-                        </span>
-                        <span className="spacer" />
-                        <button className="trail-act" onClick={() => setOpenNote(n)}>Open</button>
-                        <button className="trail-act trail-x" title="Delete note"
-                          onClick={() => void removeNote(n.id)}>×</button>
-                      </div>
-                    </div>
-                  );
-                })}
+                {recentNotes.length > 0 && <div className="leftnote-grid">{recentNotes.map((n) => noteCard(n))}</div>}
+                {notes.length > recentNotes.length && (
+                  <button className="chron-more" onClick={() => { setNoteQuery(""); setNotesModal(true); }}>Show more <Icon name="arrow" size={13} /></button>
+                )}
               </div>
             </div>
           )}
@@ -748,8 +763,53 @@ export function Overview({ worldId, go, refreshKey }: { worldId: string; go: (n:
           />
         );
       })()}
+
+      {/* "Show more" — every note, newest-left first, searchable by text / a
+          character / a chapter. A modal, not a destination: the dashboard stays a
+          glance and the full archive is one click away. */}
+      {notesModal && (() => {
+        const q = noteQuery.trim().toLowerCase();
+        const sorted = [...notes].sort((a, b) => (a.created_at < b.created_at ? 1 : a.created_at > b.created_at ? -1 : 0));
+        const list = q ? sorted.filter((n) => {
+          if (n.body.toLowerCase().includes(q)) return true;
+          const ch = (n.chapter_ids ?? []).map((id) => chById.get(id)).find(Boolean);
+          if (ch && `chapter ${ch.manuscript_order} ${ch.title}`.toLowerCase().includes(q)) return true;
+          return (n.entity_ids ?? []).some((id) => entities.find((e) => e.id === id)?.title.toLowerCase().includes(q));
+        }) : sorted;
+        return (
+          <div className="overlay" onClick={() => setNotesModal(false)}>
+            <div className="modal notes-all" onClick={(e) => e.stopPropagation()}>
+              <div className="notepad-head">
+                <h3 className="notepad-title">Your notes <span className="muted" style={{ fontWeight: 400, fontSize: 13 }}>({notes.length})</span></h3>
+                <span className="spacer" />
+                <button className="notepad-close" aria-label="Close" onClick={() => setNotesModal(false)}><Icon name="close" size={17} /></button>
+              </div>
+              <input className="notes-all-search" autoFocus placeholder="Search your notes — text, a character, a chapter…"
+                value={noteQuery} onChange={(e) => setNoteQuery(e.target.value)} />
+              <div className="notes-all-list">
+                {list.length === 0
+                  ? <div className="muted" style={{ padding: "20px 4px" }}>No notes match “{noteQuery.trim()}”.</div>
+                  : <div className="leftnote-grid">{list.map((n) => noteCard(n))}</div>}
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
+}
+
+// Friendly "when it was left" — relative while recent (the recall window), an
+// absolute date once it's old enough that "43d ago" stops meaning anything.
+function fmtNoteDate(iso: string): string {
+  const t = new Date(iso).getTime();
+  if (!Number.isFinite(t)) return "";
+  const s = Math.max(0, (Date.now() - t) / 1000);
+  if (s < 90) return "just now";
+  if (s < 3600) return `${Math.round(s / 60)}m ago`;
+  if (s < 86400) return `${Math.round(s / 3600)}h ago`;
+  if (s < 7 * 86400) return `${Math.round(s / 86400)}d ago`;
+  return new Date(t).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
 }
 
 // Mirrors the real dashboard's shape so nothing jumps when data lands.

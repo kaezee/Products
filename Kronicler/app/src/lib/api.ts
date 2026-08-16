@@ -42,7 +42,7 @@ export async function deleteEntityType(id: string): Promise<void> {
 
 // ── Notes (the planning board) ───────────────────────────────────────────
 
-const NOTE_COLS = "id, world_id, body, is_secret, entity_ids, chapter_ids, plan_ref, band_id, on_timeline, x, y, w, h, source";
+const NOTE_COLS = "id, world_id, body, is_secret, entity_ids, chapter_ids, plan_ref, band_id, on_timeline, x, y, w, h, source, created_at, updated_at";
 
 export async function getNotes(worldId: string): Promise<Note[]> {
   const { data, error } = await supabase

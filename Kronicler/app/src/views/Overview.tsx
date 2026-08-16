@@ -800,7 +800,7 @@ export function Overview({ worldId, go, refreshKey }: { worldId: string; go: (n:
         const list = q ? entries.filter((e) => e.hay.includes(q)) : entries;
         const total = notes.length + openComments.length;
         return (
-          <div className="overlay notes-overlay" onClick={() => setNotesModal(false)}>
+          <div className="overlay center" onClick={() => setNotesModal(false)}>
             <div className="modal notes-all" onClick={(e) => e.stopPropagation()}>
               <div className="notepad-head">
                 <h3 className="notepad-title">What you left yourself <span className="muted" style={{ fontWeight: 400, fontSize: 13 }}>({total})</span></h3>

@@ -228,6 +228,8 @@ input, textarea, select { font-size: 13px; padding: 9px 11px; border: 1px solid 
 textarea { font-family: var(--serif); }
 .sel { padding: 5px 8px; border: none; border-bottom: 2px solid var(--bondLine); border-radius: 0; background: transparent; font-family: var(--serif); font-size: 14px; font-weight: 600; color: var(--bond); cursor: pointer; }
 .overlay { position: fixed; inset: 0; background: rgba(31,29,24,.4); display: flex; align-items: flex-start; justify-content: center; padding-top: 100px; z-index: 60; }
+/* Vertically-centred variant — for tall fixed-frame modals (browse/list). */
+.overlay.center { align-items: center; padding-top: 0; }
 .composer { width: 440px; max-width: calc(100vw - 32px); background: var(--surface); border: 1px solid var(--lineStrong); border-radius: 14px; padding: 18px 20px; box-shadow: var(--pop); }
 .modal { width: 760px; max-width: calc(100vw - 32px); max-height: calc(100vh - 160px); overflow-y: auto; background: var(--surface); border: 1px solid var(--lineStrong); border-radius: 14px; padding: 18px 20px; box-shadow: var(--pop); }
 
@@ -528,6 +530,12 @@ h2.ed-canvas-title, .ed-canvas-input { margin: 0; }
 /* Count badge (trash, and reusable) + wider modal + trash affordances. */
 .count-badge { display: inline-flex; align-items: center; justify-content: center; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px; font-family: var(--k-font-mono); font-size: 10.5px; font-weight: 600; line-height: 1; color: var(--k-action-on); background: var(--bond); }
 .modal-wide { width: 920px; max-height: calc(100vh - 120px); }
+/* Trash is a BROWSE modal — fixed frame, pinned header + search, scrolling list,
+   so it doesn't resize as items are added or as search filters them. */
+.trash-modal { height: min(820px, calc(100vh - 96px)); max-height: none; display: flex; flex-direction: column; overflow: hidden; }
+.trash-modal > .row, .trash-modal > p { flex: 0 0 auto; }
+.trash-root { display: flex; flex-direction: column; min-height: 0; flex: 1 1 auto; }
+.trash-scroll { flex: 1 1 auto; overflow-y: auto; min-height: 0; }
 .trash-search { flex: none; margin-bottom: 14px; max-width: 320px; }
 .trash-search input { background: var(--inset); }
 .trash-when { font-size: 11px; white-space: nowrap; }
@@ -753,7 +761,6 @@ button.danger:hover:not(:disabled) { filter: brightness(0.93); background: var(-
 /* Show-more modal: a BROWSE modal, so its frame is FIXED — width AND height —
    and must NOT resize as notes are added or as search filters the list. Only the
    inner list scrolls; the header + search stay pinned. */
-.notes-overlay { align-items: center; padding-top: 0; }
 .notes-all { width: min(1100px, 94vw); height: min(900px, calc(100vh - 96px)); display: flex; flex-direction: column; overflow: hidden; }
 .notes-all .notepad-head, .notes-all .notes-all-search { flex: 0 0 auto; }
 .notes-all .leftnote-grid { grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); align-content: start; }

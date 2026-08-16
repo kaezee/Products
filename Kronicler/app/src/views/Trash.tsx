@@ -130,7 +130,7 @@ export function Trash({ worldId, onWorldsChanged }: { worldId: string; onWorldsC
   );
 
   return (
-    <div>
+    <div className="trash-root">
       {!empty && (
         <div className="searchwrap trash-search">
           <span className="ic"><Icon name="search" size={15} /></span>
@@ -138,6 +138,7 @@ export function Trash({ worldId, onWorldsChanged }: { worldId: string; onWorldsC
         </div>
       )}
 
+      <div className="trash-scroll">
       {empty && <div className="card"><div className="row"><span className="muted">Nothing deleted. Trash is empty.</span></div></div>}
       {!empty && shown === 0 && <div className="card"><div className="row"><span className="muted">No trashed items match “{q}”.</span></div></div>}
 
@@ -221,6 +222,7 @@ export function Trash({ worldId, onWorldsChanged }: { worldId: string; onWorldsC
           </div>
         </>
       )}
+      </div>
     </div>
   );
 }

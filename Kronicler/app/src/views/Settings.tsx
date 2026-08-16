@@ -238,8 +238,8 @@ export function Settings({ worldId, worldName, userEmail, onDeleteWorld, onWorld
       </div>
 
       {trashOpen && (
-        <div className="overlay" onClick={() => setTrashOpen(false)}>
-          <div className="modal modal-wide" onClick={(e) => e.stopPropagation()}>
+        <div className="overlay center" onClick={() => setTrashOpen(false)}>
+          <div className="modal modal-wide trash-modal" onClick={(e) => e.stopPropagation()}>
             <div className="row" style={{ borderBottom: "none", padding: 0, marginBottom: 12 }}>
               <h3 style={{ fontFamily: "var(--serif)", fontWeight: 500, margin: 0, fontSize: 19, display: "inline-flex", alignItems: "center", gap: 8 }}>
                 <Icon name="trash" size={17} /> Trash

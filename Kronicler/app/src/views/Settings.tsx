@@ -130,21 +130,21 @@ export function Settings({ worldId, worldName, userEmail, onDeleteWorld, onWorld
       <div className="label" style={{ marginTop: 8 }}>Account</div>
       <AccountPanel userEmail={userEmail} />
 
-      <div className="label" style={{ marginTop: 28 }}>Export · your data is yours</div>
+      <div className="label" style={{ marginTop: 28 }}>Your data · back it up, take it anywhere</div>
       <div className="card">
+        <div className="row">
+          <div style={{ flex: 1 }}>
+            <div style={{ fontWeight: 500 }}>Full backup <span className="chip" style={{ fontSize: 10 }}>.json</span></div>
+            <span className="muted" style={{ fontSize: 12.5 }}>A complete, restore-ready snapshot of <b>everything</b> — chapters and their edit history, your book/series structure, characters, relationships, notes, and comments. One file. Download it now and again as you write, and keep a copy somewhere safe — this is your insurance against anything going wrong.</span>
+          </div>
+          <button className="primary" onClick={backupJson} disabled={!!busy}>{busy === "json" ? <Spinner size={13} /> : "Download backup"}</button>
+        </div>
         <div className="row">
           <div style={{ flex: 1 }}>
             <div style={{ fontWeight: 500 }}>Obsidian vault <span className="chip" style={{ fontSize: 10 }}>.zip</span></div>
             <span className="muted" style={{ fontSize: 12.5 }}>Your whole world as a folder of Markdown files — chapters and characters cross-linked. Unzip and open it in Obsidian, or read it anywhere. Includes the raw data too.</span>
           </div>
-          <button className="primary" onClick={obsidianVault} disabled={!!busy}>{busy === "vault" ? <Spinner size={13} /> : "Download"}</button>
-        </div>
-        <div className="row">
-          <div style={{ flex: 1 }}>
-            <div style={{ fontWeight: 500 }}>Full backup <span className="chip" style={{ fontSize: 10 }}>.json</span></div>
-            <span className="muted" style={{ fontSize: 12.5 }}>Everything — entities, chapters, relationships, notes, the lot. Keep it safe; it's your complete world.</span>
-          </div>
-          <button onClick={backupJson} disabled={!!busy}>{busy === "json" ? <Spinner size={13} /> : "Download"}</button>
+          <button onClick={obsidianVault} disabled={!!busy}>{busy === "vault" ? <Spinner size={13} /> : "Download"}</button>
         </div>
         <div className="row">
           <div style={{ flex: 1 }}>

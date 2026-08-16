@@ -767,19 +767,23 @@ export async function setConnectionRoles(
 // A complete, self-contained snapshot of one world — every live row across all
 // its tables — as a plain object ready to serialise to JSON.
 export async function exportWorld(worldId: string, worldName: string): Promise<object> {
+  // These tables have no deleted_at (hard-deleted via the purge helpers), so the
+  // live-rows filter must be skipped for them, plus the join tables keyed elsewhere.
+  const NO_SOFT_DELETE = new Set(["relationship_participants", "relationship_states", "chapter_entities", "chapter_versions", "segment_kinds", "entity_types"]);
   const grab = async (table: string, col = "world_id") => {
     let q = supabase.from(table).select("*").eq(col, worldId);
-    if (table !== "relationship_participants" && table !== "relationship_states" && table !== "chapter_entities") q = q.is("deleted_at", null);
+    if (!NO_SOFT_DELETE.has(table)) q = q.is("deleted_at", null);
     const { data, error } = await q;
     if (error) throw error;
     return data ?? [];
   };
-  const [entities, chapters, bands, notes, types, rels, timeline_markers] = await Promise.all([
-    grab("entities"), grab("chapters"), grab("bands"), grab("notes"), grab("relationship_types"), grab("relationships"), grab("timeline_markers"),
+  const [entities, chapters, segments, bands, notes, comments, types, rels, timeline_markers, segment_kinds, entity_types] = await Promise.all([
+    grab("entities"), grab("chapters"), grab("segments"), grab("bands"), grab("notes"), grab("comments"),
+    grab("relationship_types"), grab("relationships"), grab("timeline_markers"), grab("segment_kinds"), grab("entity_types"),
   ]);
   const relIds = rels.map((r: { id: string }) => r.id);
   const chIds = chapters.map((c: { id: string }) => c.id);
-  let relationship_participants: unknown[] = [], relationship_states: unknown[] = [], chapter_entities: unknown[] = [];
+  let relationship_participants: unknown[] = [], relationship_states: unknown[] = [], chapter_entities: unknown[] = [], chapter_versions: unknown[] = [];
   if (relIds.length) {
     const p = await supabase.from("relationship_participants").select("*").in("relationship_id", relIds);
     if (p.error) throw p.error; relationship_participants = p.data ?? [];
@@ -789,11 +793,16 @@ export async function exportWorld(worldId: string, worldName: string): Promise<o
   if (chIds.length) {
     const c = await supabase.from("chapter_entities").select("*").in("chapter_id", chIds);
     if (c.error) throw c.error; chapter_entities = c.data ?? [];
+    const v = await supabase.from("chapter_versions").select("*").in("chapter_id", chIds);
+    if (v.error) throw v.error; chapter_versions = v.data ?? [];
   }
+  // version 2: added segments, segment_kinds, entity_types, comments, chapter_versions
+  // so the backup is a complete, restore-ready snapshot of every world-scoped table.
   return {
-    format: "kronicler-world-backup", version: 1, exported_at: new Date().toISOString(),
+    format: "kronicler-world-backup", version: 2, exported_at: new Date().toISOString(),
     world: { id: worldId, name: worldName },
-    entities, chapters, chapter_entities, bands, notes, timeline_markers,
+    entities, chapters, chapter_entities, chapter_versions, segments, bands, notes, comments, timeline_markers,
+    segment_kinds, entity_types,
     relationship_types: types, relationships: rels, relationship_participants, relationship_states,
   };
 }

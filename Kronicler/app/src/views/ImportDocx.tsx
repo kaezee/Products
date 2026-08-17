@@ -139,7 +139,7 @@ export function ImportDocx({ worldId, mode, startOrder, existingTitles, onClose,
 
   return (
     <div className="overlay" onClick={stage === "importing" ? undefined : onClose}>
-      <div className="modal" onClick={(e) => e.stopPropagation()}>
+      <div className="modal modal-lg import-modal" onClick={(e) => e.stopPropagation()}>
         <div className="row" style={{ borderBottom: "none", padding: 0, marginBottom: 10 }}>
           <h3 style={{ fontFamily: "var(--serif)", fontWeight: 500, margin: 0, fontSize: 19 }}>
             Import {mode === "chapters" ? "manuscript" : "lore"}

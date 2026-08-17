@@ -232,8 +232,16 @@ textarea { font-family: var(--serif); }
    than the viewport the overlay itself scrolls. `.center` is now the default and
    kept only for back-compat. */
 .overlay { position: fixed; inset: 0; background: rgba(31,29,24,.4); display: flex; align-items: center; justify-content: center; padding: 24px 16px; z-index: 60; overflow-y: auto; }
-.composer { width: 440px; max-width: calc(100vw - 32px); background: var(--surface); border: 1px solid var(--lineStrong); border-radius: 14px; padding: 18px 20px; box-shadow: var(--pop); }
-.modal { width: 760px; max-width: calc(100vw - 32px); max-height: calc(100vh - 160px); overflow-y: auto; background: var(--surface); border: 1px solid var(--lineStrong); border-radius: 14px; padding: 18px 20px; box-shadow: var(--pop); }
+/* Modal size tiers — widths in rem so they scale with the user's text size, capped
+   so they never exceed the viewport; height capped in vh with the body scrolling.
+   Forms cap and centre (Material/Atlassian/Carbon). One tier per modal. */
+.modal, .composer { max-width: calc(100vw - 2rem); max-height: min(85vh, 100vh - 3rem); overflow-y: auto; background: var(--surface); border: 1px solid var(--lineStrong); border-radius: 14px; padding: 18px 20px; box-shadow: var(--pop); }
+.modal { width: 38rem; }          /* md — the default */
+.modal-sm { width: 26rem; }
+.modal-md { width: 38rem; }
+.modal-lg { width: 52rem; }
+.modal-xl { width: 64rem; }
+.composer { width: 28rem; }       /* compact form */
 
 /* Auth "or" divider + guest banner. */
 .auth-or { display: flex; align-items: center; gap: 10px; color: var(--faint); font-size: 10.5px; text-transform: uppercase; letter-spacing: .1em; margin: 2px 0; }
@@ -531,10 +539,10 @@ h2.ed-canvas-title, .ed-canvas-input { margin: 0; }
 
 /* Count badge (trash, and reusable) + wider modal + trash affordances. */
 .count-badge { display: inline-flex; align-items: center; justify-content: center; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px; font-family: var(--k-font-mono); font-size: 10.5px; font-weight: 600; line-height: 1; color: var(--k-action-on); background: var(--bond); }
-.modal-wide { width: 920px; max-height: calc(100vh - 120px); }
+.modal-wide { width: 52rem; }   /* lg */
 /* Trash is a BROWSE modal — fixed frame, pinned header + search, scrolling list,
    so it doesn't resize as items are added or as search filters them. */
-.trash-modal { height: min(820px, calc(100vh - 96px)); max-height: none; display: flex; flex-direction: column; overflow: hidden; }
+.trash-modal { height: min(85vh, 100vh - 3rem); max-height: none; display: flex; flex-direction: column; overflow: hidden; }
 .trash-modal > .row, .trash-modal > p { flex: 0 0 auto; }
 .trash-root { display: flex; flex-direction: column; min-height: 0; flex: 1 1 auto; }
 .trash-scroll { flex: 1 1 auto; overflow-y: auto; min-height: 0; }
@@ -649,7 +657,7 @@ h2.ed-canvas-title, .ed-canvas-input { margin: 0; }
 .toast-info .toast-ic { color: color-mix(in srgb, var(--bond) 60%, #fff); }
 @keyframes toast-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 @media (prefers-reduced-motion: reduce) { .toast { animation: none; } }
-.confirm { width: 430px; max-width: calc(100vw - 32px); background: var(--surface); border: 1px solid var(--lineStrong); border-radius: 14px; padding: 20px 22px; box-shadow: var(--pop); }
+.confirm { width: 26rem; max-width: calc(100vw - 2rem); background: var(--surface); border: 1px solid var(--lineStrong); border-radius: 14px; padding: 20px 22px; box-shadow: var(--pop); }   /* sm */
 .confirm-title { font-family: var(--serif); font-weight: 600; font-size: 17px; color: var(--ink); margin-bottom: 8px; }
 .confirm-msg { color: var(--sub); font-size: 13.5px; line-height: 1.55; white-space: pre-line; }
 .confirm-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 22px; }
@@ -763,7 +771,7 @@ button.danger:hover:not(:disabled) { filter: brightness(0.93); background: var(-
 /* Show-more modal: a BROWSE modal, so its frame is FIXED — width AND height —
    and must NOT resize as notes are added or as search filters the list. Only the
    inner list scrolls; the header + search stay pinned. */
-.notes-all { width: min(1100px, 94vw); height: min(900px, calc(100vh - 96px)); display: flex; flex-direction: column; overflow: hidden; }
+.notes-all { width: 64rem; max-width: calc(100vw - 2rem); height: min(85vh, 100vh - 3rem); display: flex; flex-direction: column; overflow: hidden; }   /* xl, fixed browse frame */
 .notes-all .notepad-head, .notes-all .notes-all-search { flex: 0 0 auto; }
 .notes-all .leftnote-grid { grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); align-content: start; }
 .notes-all-search { width: 100%; margin: 2px 0 12px; }
@@ -1269,7 +1277,11 @@ button.ghost:hover:not(:disabled) { background: var(--wash); border-color: var(-
 .trail-x { color: var(--muted); font-size: 15px; line-height: 1; padding: 2px 8px; }
 .trail-x:hover { background: color-mix(in srgb, var(--k-system-error) 12%, transparent); color: var(--k-system-error); }
 /* Notepad modal — a tall writing surface for one note (capture + open-to-edit) */
-.modal.notepad { width: 540px; padding: 20px 22px 18px; }
+.modal.notepad { padding: 20px 22px 18px; }   /* md width inherited from .modal */
+/* Import is a multi-step wizard — a fixed frame so it doesn't shrink to a tiny box
+   on the chooser/success steps then balloon on preview. Inner lists keep their own
+   scroll so the action buttons stay reachable. */
+.import-modal { height: min(68vh, 100vh - 3rem); }
 .notepad-head { display: flex; align-items: center; margin-bottom: 2px; }
 .notepad-title { font-family: var(--serif); font-weight: 600; font-size: 20px; margin: 0; color: var(--ink); }
 .notepad-close { background: none; border: none; color: var(--muted); cursor: pointer; display: inline-flex; padding: 2px; border-radius: 6px; }
@@ -1354,7 +1366,7 @@ button.chron-more:hover { background: var(--wash); }
 /* First-run onboarding / New project: the chooser card alone on the canvas,
    no dashboard behind it. `onboard-over` covers the shell when opened later. */
 .onboard-page { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px; background: var(--paper); overflow-y: auto; }
-.onboard-over { position: fixed; inset: 0; z-index: 60; }
+.onboard-over { position: fixed; inset: 0; z-index: 60; background: rgba(31,29,24,.4); }   /* scrim like every other modal (overrides the opaque first-run page) */
 .np-foot { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 6px; padding-top: 14px; border-top: 1px solid var(--line); }
 .np-foot-note { font-size: 12px; color: var(--muted); }
 .np-import-toggle { display: inline-flex; align-items: center; gap: 7px; font-size: 12.5px; color: var(--sub); cursor: pointer; user-select: none; }

@@ -357,7 +357,7 @@ function Workspace({ session }: { session: Session }) {
       </div>
     );
     return (
-      <div className={"modal np-modal" + (first ? " np-first" : "")} onClick={(e) => e.stopPropagation()} style={{ width: first ? 620 : 460 }}>
+      <div className={"modal np-modal " + (first ? "modal-lg np-first" : "modal-md")} onClick={(e) => e.stopPropagation()}>
         <div className="row" style={{ borderBottom: "none", padding: 0, marginBottom: 4 }}>
           <h3 style={{ fontFamily: "var(--serif)", fontWeight: 500, margin: 0, fontSize: first ? 24 : 19 }}>{first ? "Start your first project" : "New project"}</h3>
           <span className="spacer" />

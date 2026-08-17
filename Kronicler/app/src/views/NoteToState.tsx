@@ -60,7 +60,7 @@ export function NoteToState({ worldId, note, entities, types, chapters, onClose,
 
   return (
     <div className="overlay" onClick={onClose}>
-      <div className="composer" onClick={(e) => e.stopPropagation()} style={{ width: 480 }}>
+      <div className="composer" onClick={(e) => e.stopPropagation()}>
         <div className="row" style={{ borderBottom: "none", padding: 0, marginBottom: 10 }}>
           <span className="label" style={{ margin: 0 }}>Turn this note into a secret</span>
           <span className="spacer" />

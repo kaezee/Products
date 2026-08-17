@@ -8,6 +8,7 @@ import {
 import type { Chapter, ChapterStatus, Entity, RelationshipType, ChapterVersion, ChapterEntity, StreamRow, Comment } from "../lib/types";
 import { CHAPTER_STATUSES, statusMeta } from "../lib/chapterStatus";
 import { resolveAnchor, makeAnchor } from "../lib/anchor";
+import { markResume } from "../lib/resume";
 import { firstCoOccurrence } from "../lib/offers";
 import { VALENCE_COLOR } from "../lib/valence";
 import type { ActiveFormats } from "../lib/blocks";
@@ -74,6 +75,7 @@ function ChapterBlock({
 
   const scheduleSave = useCallback((next: string) => {
     pendingRef.current = next;                     // remember the unsaved tail for flush-on-unmount
+    markResume(worldId, chapter.id);               // an edit — this is now "where you stopped"
     setSaveState("dirty");
     window.clearTimeout(saveTimer.current);
     saveTimer.current = window.setTimeout(async () => {
@@ -89,7 +91,7 @@ function ChapterBlock({
         }
       } catch { setSaveState("dirty"); }
     }, 1200);
-  }, [chapter.id, onDateChanged]);
+  }, [chapter.id, worldId, onDateChanged]);
 
   function pickStatus(k: ChapterStatus) {
     setStatus(k);

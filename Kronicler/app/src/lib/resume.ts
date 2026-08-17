@@ -4,9 +4,9 @@
 //
 // `chapters.updated_at` isn't wired yet (a deferred additive migration), so we
 // use a per-world, per-browser signal — the same family as the recap's
-// `k.seen` — recorded whenever a chapter is opened in the editor. Fall back to
-// the furthest-along written chapter when there's no record yet (fresh browser,
-// or nothing opened since).
+// `k.seen` — recorded whenever the writer EDITS a chapter (a body change), not
+// merely opens it. Fall back to the furthest-along written chapter when there's
+// no record yet (fresh browser, or nothing edited since).
 import type { Chapter } from "./types";
 
 const KEY = (worldId: string) => `k.lastch.${worldId}`;

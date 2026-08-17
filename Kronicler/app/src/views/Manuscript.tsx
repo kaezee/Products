@@ -8,7 +8,7 @@ import type { Chapter, Entity, Segment, SegmentKind } from "../lib/types";
 import { buildKindSwatches } from "../lib/segmentKinds";
 import { getLevelNames } from "../lib/levelNames";
 import { statusMeta } from "../lib/chapterStatus";
-import { resumeChapterId, markResume } from "../lib/resume";
+import { resumeChapterId } from "../lib/resume";
 import { BookCanvas } from "./BookCanvas";
 import { ImportDocx } from "./ImportDocx";
 import type { Nav, LeafCrumb } from "../App";
@@ -65,8 +65,6 @@ export function Manuscript({ worldId, focusChapterId, openImport, go, onLeaf }: 
   useEffect(() => {
     const oc = openId && chapters ? chapters.find((c) => c.id === openId) : null;
     onLeaf?.(oc ? { label: `Ch. ${oc.manuscript_order} · ${oc.title}`, onClear: () => { setOpenId(null); void reload(); } } : null);
-    // Opening a chapter is "touching" it — remember it as the resume point.
-    if (oc) markResume(worldId, oc.id);
     // eslint-disable-next-line
   }, [openId, chapters]);
   useEffect(() => () => onLeaf?.(null), []); // eslint-disable-line

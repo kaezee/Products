@@ -622,16 +622,23 @@ export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) =
     });
   };
 
-  // Nothing on the timeline yet — no chapters or sections. Show only the way in,
-  // not the ruler, toolbar, and inspector wrapped around empty space.
-  if (chapters.length === 0 && segments.length === 0) {
+  // Nothing DATED yet — the timeline is a picture of in-world time, and with no
+  // dated chapter (and no manually-dated book span) there's nothing to draw. Show
+  // the way in instead of a manuscript-order fallback axis nobody asked for. The
+  // ruler only appears once at least one chapter has a date.
+  const datedCount = chapters.filter((c) => c.day_num_start != null).length;
+  const hasDatedSpan = segments.some((s) => s.start_ref != null);
+  if (datedCount === 0 && !hasDatedSpan) {
+    const noChapters = chapters.length === 0;
     return (
       <div className="fi">
         <h2 className="scope-title" style={{ marginBottom: 12 }}>World Timeline</h2>
         <EmptyState icon="nav-timeline"
           title="Your story hasn’t reached the timeline yet"
-          desc="The timeline draws itself from your chapters. Write one, give it an in-world date, and it drops onto the line here — no manual plotting."
-          steps={["Write a chapter", "Give it a date", "It lands here"]}
+          desc={noChapters
+            ? "The timeline draws itself from your chapters. Write one, give it an in-world date, and it drops onto the line here — no manual plotting."
+            : "The timeline draws itself from your chapters. Give one an in-world date and it drops onto the line here — no manual plotting."}
+          steps={noChapters ? ["Write a chapter", "Give it a date", "It lands here"] : ["Open a chapter", "Give it a date", "It lands here"]}
           action={{ label: "Open the Manuscript", onClick: () => go({ scope: "manuscript" }) }} />
       </div>
     );

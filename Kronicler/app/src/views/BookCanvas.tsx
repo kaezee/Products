@@ -310,12 +310,16 @@ export function BookCanvas(props: {
   // and reads back "n of m" for the counter.
   const [findOpen, setFindOpen] = useState(false);
   const [findQuery, setFindQuery] = useState("");
+  const [findCase, setFindCase] = useState(false);
   const [findRes, setFindRes] = useState<{ count: number; index: number }>({ count: 0, index: -1 });
   const findInputRef = useRef<HTMLInputElement>(null);
-  const runFind = useCallback((q: string) => {
+  const runFind = useCallback((q: string, cs = findCase) => {
     const api = proseApis.current.get(openId);
-    setFindRes(api ? api.find(q) : { count: 0, index: -1 });
-  }, [openId]);
+    setFindRes(api ? api.find(q, cs) : { count: 0, index: -1 });
+  }, [openId, findCase]);
+  const toggleFindCase = useCallback(() => {
+    setFindCase((v) => { const next = !v; runFind(findQuery, next); return next; });
+  }, [runFind, findQuery]);
   const stepFind = useCallback((dir: 1 | -1) => {
     const api = proseApis.current.get(openId);
     if (api) setFindRes(api.findStep(dir));
@@ -597,20 +601,25 @@ export function BookCanvas(props: {
       <div className={"ed-body" + (panel ? " has-panel" : "")}>
         {findOpen && (
           <div className="ed-find" role="search">
-            <Icon name="search" size={14} style={{ color: "var(--faint)", flex: "0 0 auto" }} />
-            <input ref={findInputRef} className="ed-find-input" value={findQuery} placeholder="Find in chapter"
-              aria-label="Find in chapter"
-              onChange={(e) => { const v = e.target.value; setFindQuery(v); runFind(v); }}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") { e.preventDefault(); stepFind(e.shiftKey ? -1 : 1); }
-                else if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); closeFind(); }
-              }} />
-            <span className="ed-find-count" aria-live="polite">
-              {findQuery.trim() === "" ? "" : findRes.count === 0 ? "No results" : `${findRes.index + 1} of ${findRes.count}`}
-            </span>
-            <button className="ed-find-nav" disabled={findRes.count === 0} onClick={() => stepFind(-1)} aria-label="Previous match" title="Previous (⇧⏎)"><Icon name="chevron-up" size={15} /></button>
-            <button className="ed-find-nav" disabled={findRes.count === 0} onClick={() => stepFind(1)} aria-label="Next match" title="Next (⏎)"><Icon name="chevron-down" size={15} /></button>
-            <button className="ed-find-nav" onClick={closeFind} aria-label="Close find" title="Close (Esc)"><Icon name="close" size={15} /></button>
+            <div className="ed-find-field">
+              <Icon name="search" size={15} style={{ color: "var(--faint)", flex: "0 0 auto" }} />
+              <input ref={findInputRef} className="ed-find-input" value={findQuery} placeholder="Find in chapter"
+                aria-label="Find in chapter"
+                onChange={(e) => { const v = e.target.value; setFindQuery(v); runFind(v); }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") { e.preventDefault(); stepFind(e.shiftKey ? -1 : 1); }
+                  else if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); closeFind(); }
+                }} />
+              <span className="ed-find-count" aria-live="polite">
+                {findQuery.trim() === "" ? "" : findRes.count === 0 ? "0/0" : `${findRes.index + 1}/${findRes.count}`}
+              </span>
+            </div>
+            <button className={"ed-find-btn ed-find-case" + (findCase ? " on" : "")} aria-pressed={findCase}
+              onClick={toggleFindCase} title="Match case">Aa</button>
+            <span className="ed-find-div" />
+            <button className="ed-find-btn" disabled={findRes.count === 0} onClick={() => stepFind(-1)} aria-label="Previous match" title="Previous (⇧⏎)"><Icon name="chevron-up" size={16} /></button>
+            <button className="ed-find-btn" disabled={findRes.count === 0} onClick={() => stepFind(1)} aria-label="Next match" title="Next (⏎)"><Icon name="chevron-down" size={16} /></button>
+            <button className="ed-find-btn" onClick={closeFind} aria-label="Close find" title="Close (Esc)"><Icon name="close" size={16} /></button>
           </div>
         )}
         <div className={"ed-prose" + (cleanText ? " clean" : "")} ref={scroller}>

@@ -445,27 +445,44 @@ h2.ed-canvas-title, .ed-canvas-input { margin: 0; }
    slides under it — the page position is fixed, only the empty gutter changes. */
 .ed-body.has-panel .ed-prose { padding-right: 356px; }
 
-/* ⌘F find-in-chapter: a small raised bar pinned to the top-right of the writing
-   surface (raised is the only tier a shadow is allowed on). Matches are painted
-   in the prose itself via ::highlight below. */
+/* ⌘F find-in-chapter: a floating card pinned to the top-right of the writing
+   surface (raised is the only tier a shadow is allowed on). Docs-like layout —
+   a prominent field with a live count, match-case, prev/next, close — in
+   Kronicler's skin (woad focus, radius 8, Public Sans). Matches are painted in
+   the prose itself via ::highlight below. */
 .ed-find {
-  position: absolute; top: 8px; right: 8px; z-index: 40;
-  display: flex; align-items: center; gap: 6px;
-  padding: 6px 8px; background: var(--raised);
+  position: absolute; top: 10px; right: 10px; z-index: 40;
+  display: flex; align-items: center; gap: 4px;
+  padding: 8px; background: var(--raised);
   border: 1px solid var(--lineStrong); border-radius: 8px; box-shadow: var(--pop);
 }
-.ed-find-input { width: 200px; padding: 6px 9px; }
+/* The field: one bordered group that owns the woad focus ring, so the search
+   icon + input + count read as a single control (like Docs' outlined field). */
+.ed-find-field {
+  display: flex; align-items: center; gap: 8px;
+  padding: 0 10px; background: var(--inset);
+  border: 1px solid var(--line); border-radius: 8px;
+}
+.ed-find-field:focus-within { border-color: var(--bond); box-shadow: 0 0 0 3px var(--bondBg); }
+.ed-find-input {
+  width: 208px; padding: 8px 0; border: none; background: transparent;
+  box-shadow: none; font-size: 13px; color: var(--ink);
+}
+.ed-find-input:focus { outline: none; border: none; box-shadow: none; }
 .ed-find-count {
   font-family: var(--k-font-mono); font-size: 11px; color: var(--muted);
-  min-width: 64px; text-align: right; white-space: nowrap;
+  min-width: 40px; text-align: right; white-space: nowrap; flex: 0 0 auto;
 }
-.ed-find-nav {
+.ed-find-div { width: 1px; align-self: stretch; margin: 2px 3px; background: var(--line); }
+.ed-find-btn {
   display: inline-flex; align-items: center; justify-content: center;
-  width: 28px; height: 28px; padding: 0; border: 1px solid transparent;
-  background: transparent; color: var(--sub); border-radius: 6px;
+  width: 32px; height: 32px; padding: 0; border: 1px solid transparent;
+  background: transparent; color: var(--sub); border-radius: 8px; font-weight: 600;
 }
-.ed-find-nav:hover:not(:disabled) { background: var(--wash); color: var(--ink); }
-.ed-find-nav:disabled { opacity: .4; cursor: default; }
+.ed-find-btn:hover:not(:disabled) { background: var(--wash); color: var(--ink); }
+.ed-find-btn:disabled { opacity: .4; cursor: default; }
+.ed-find-case { font-size: 12.5px; }
+.ed-find-case.on { background: var(--bondBg); color: var(--bond); }
 
 /* The search-match channel (§8), rendered live: every hit gets a soft amber
    band, the current one a stronger one. Amber (the "here" marker) keeps find

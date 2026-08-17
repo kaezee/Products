@@ -42,7 +42,7 @@ export interface ProseApi {
   currentSelection: () => Anchor | null;
   // In-chapter find (⌘F). Highlights every match over the live prose without
   // touching the DOM (CSS Custom Highlight API), and steps the "current" one.
-  find: (query: string) => FindResult;
+  find: (query: string, caseSensitive?: boolean) => FindResult;
   findStep: (dir: 1 | -1) => FindResult;
   findClear: () => void;
 }
@@ -95,6 +95,7 @@ export function RichProse({ value, entities, onChange, onSelectText, onActive, o
   // text offsets, re-mapped to DOM ranges after every decorate — the same
   // offset→node trick the margin marks use.
   const findQ = useRef("");
+  const findCase = useRef(false);
   const findHits = useRef<FindMatch[]>([]);
   const findIdx = useRef(-1);
   const HL_SUPPORTED = typeof CSS !== "undefined" && "highlights" in CSS && typeof (window as unknown as { Highlight?: unknown }).Highlight === "function";
@@ -287,7 +288,7 @@ export function RichProse({ value, entities, onChange, onSelectText, onActive, o
   function recomputeFind(pickNearCaret: boolean) {
     const el = edRef.current;
     const text = el?.textContent ?? "";
-    findHits.current = findMatches(text, findQ.current);
+    findHits.current = findMatches(text, findQ.current, findCase.current);
     const n = findHits.current.length;
     if (n === 0) { findIdx.current = -1; return; }
     if (pickNearCaret) {
@@ -298,8 +299,9 @@ export function RichProse({ value, entities, onChange, onSelectText, onActive, o
       findIdx.current = Math.min(Math.max(findIdx.current, 0), n - 1);
     }
   }
-  function find(query: string): FindResult {
+  function find(query: string, caseSensitive = false): FindResult {
     findQ.current = query;
+    findCase.current = caseSensitive;
     if (!query) { findClear(); return { count: 0, index: -1 }; }
     recomputeFind(true);
     paintFind();

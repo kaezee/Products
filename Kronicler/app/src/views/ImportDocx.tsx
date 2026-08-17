@@ -64,7 +64,14 @@ export function ImportDocx({ worldId, mode, startOrder, existingTitles, onClose,
       setRawHtml(html);
       setFileName(file.name);
       setStage("preview");
-    } catch (x) { setErr("Couldn't read that file — is it a .docx? (" + String(x) + ")"); }
+    } catch (x) {
+      const msg = String(x);
+      // A failed dynamic import is a stale-deploy problem, not a bad file — don't
+      // blame the user's document. (The global vite:preloadError handler reloads.)
+      setErr(/dynamically imported module|failed to fetch/i.test(msg)
+        ? "The app updated in the background — please refresh the page, then try the import again."
+        : "Couldn't read that file — is it a .docx? (" + msg + ")");
+    }
   }
 
   function onPaste() {

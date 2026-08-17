@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
 import { getStream, getEntities, getEntityTypes, getRelationshipTypes, getChapters, getNotes, getWorldComments, getWorld, getBands, updateNote, softDeleteNote } from "../lib/api";
+import { resumeChapterId } from "../lib/resume";
 import { NotePad } from "../components/NotePad";
 import { confirmDialog } from "../components/confirm";
 import { toast } from "../components/toast";
@@ -284,12 +285,11 @@ export function Overview({ worldId, go, refreshKey }: { worldId: string; go: (n:
     return () => { document.removeEventListener("mousedown", onDown); document.removeEventListener("keydown", onKey); };
   }, [card]);
 
-  // Pick up where you left off: the furthest-along written chapter.
+  // Pick up where you left off: the chapter last opened (not the last in the book).
   const continueCh = useMemo(() => {
-    if (!chapters.length) return null;
-    const byOrder = [...chapters].sort((a, b) => b.manuscript_order - a.manuscript_order);
-    return byOrder.find((c) => !c.planned && (c.body || "").trim().length > 0) ?? byOrder.find((c) => !c.planned) ?? byOrder[0];
-  }, [chapters]);
+    const id = resumeChapterId(chapters, worldId);
+    return id ? chapters.find((c) => c.id === id) ?? null : null;
+  }, [chapters, worldId]);
 
   // Writer's trail (§2): unresolved comments + recent notes, deep-linked.
   const openComments = useMemo(() => comments.filter((c) => !c.resolved), [comments]);

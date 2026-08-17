@@ -8,6 +8,7 @@ import type { Chapter, Entity, Segment, SegmentKind } from "../lib/types";
 import { buildKindSwatches } from "../lib/segmentKinds";
 import { getLevelNames } from "../lib/levelNames";
 import { statusMeta } from "../lib/chapterStatus";
+import { resumeChapterId, markResume } from "../lib/resume";
 import { BookCanvas } from "./BookCanvas";
 import { ImportDocx } from "./ImportDocx";
 import type { Nav, LeafCrumb } from "../App";
@@ -64,6 +65,8 @@ export function Manuscript({ worldId, focusChapterId, openImport, go, onLeaf }: 
   useEffect(() => {
     const oc = openId && chapters ? chapters.find((c) => c.id === openId) : null;
     onLeaf?.(oc ? { label: `Ch. ${oc.manuscript_order} · ${oc.title}`, onClear: () => { setOpenId(null); void reload(); } } : null);
+    // Opening a chapter is "touching" it — remember it as the resume point.
+    if (oc) markResume(worldId, oc.id);
     // eslint-disable-next-line
   }, [openId, chapters]);
   useEffect(() => () => onLeaf?.(null), []); // eslint-disable-line
@@ -186,13 +189,8 @@ export function Manuscript({ worldId, focusChapterId, openImport, go, onLeaf }: 
 
   const open = openId ? chapters.find((c) => c.id === openId) : null;
 
-  // "Where you stopped" — the furthest-along written chapter, marked in the tree
-  // with the amber marker so the same "you are here" reads across the Overview
-  // grid, this tree, and the Timeline (redesign §7).
-  const resumeId = (() => {
-    const byOrder = [...chapters].sort((a, b) => b.manuscript_order - a.manuscript_order);
-    return (byOrder.find((c) => !c.planned && (c.body || "").trim().length > 0) ?? byOrder.find((c) => !c.planned) ?? byOrder[0])?.id ?? null;
-  })();
+  // "Where you stopped" — the chapter you last opened, not the last in the book.
+  const resumeId = resumeChapterId(chapters ?? [], worldId);
 
   const segIds = new Set(segments.map((s) => s.id));
   const chaptersOf = (segId: string) => chapters.filter((c) => c.segment_id === segId);

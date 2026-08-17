@@ -3,6 +3,7 @@ import {
   getSegments, createSegment, updateSegment, softDeleteSegment, restoreSegment, setChapterSegment,
   getChapters, getSegmentKinds, getWorld, setKnownTime, setChapterDate,
 } from "../lib/api";
+import { resumeChapterId } from "../lib/resume";
 import type { Segment, Chapter, SegmentKind } from "../lib/types";
 import type { Nav } from "../App";
 import { parseStoryTime } from "../lib/time";
@@ -77,8 +78,16 @@ export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) =
   const [axisMode, setAxisMode] = useState<"story" | "ms">("story");
   const modeChosen = useRef(false);
   const ms = axisMode === "ms";
-  const startU = (c: Chapter): number | null => (ms ? c.manuscript_order : c.day_num_start);
-  const endU = (c: Chapter): number | null => (ms ? c.manuscript_order : (c.day_num_end ?? c.day_num_start));
+  // In ms mode, position by RANK (1..N) not raw manuscript_order — orders can
+  // carry large gaps (imports, re-inserts), which would otherwise blow the axis
+  // out to hundreds of thousands of units and make "N chapters in view" nonsense.
+  const msRank = useMemo(() => {
+    const m = new Map<string, number>();
+    [...chapters].sort((a, b) => a.manuscript_order - b.manuscript_order).forEach((c, i) => m.set(c.id, i + 1));
+    return m;
+  }, [chapters]);
+  const startU = (c: Chapter): number | null => (ms ? (msRank.get(c.id) ?? null) : c.day_num_start);
+  const endU = (c: Chapter): number | null => (ms ? (msRank.get(c.id) ?? null) : (c.day_num_end ?? c.day_num_start));
 
   async function reload() {
     try {
@@ -202,6 +211,9 @@ export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) =
 
   // Story mode parks undated chapters in the sidebar; ms mode places them all.
   const undatedSidebar = useMemo(() => (ms ? [] : chapters.filter((c) => c.day_num_start == null)), [chapters, ms]);
+  // The TRUE undated count, independent of axis mode — drives the sidebar badge
+  // and empty-state copy so ms mode never falsely claims "every chapter is dated".
+  const undatedReal = useMemo(() => chapters.filter((c) => c.day_num_start == null).length, [chapters]);
 
   // Content bounds in the active unit (segment spans + every placed chapter).
   const content = useMemo(() => {
@@ -548,14 +560,9 @@ export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) =
     animRef.current = requestAnimationFrame(step);
   }
 
-  // "Where you stopped" — the furthest-along written chapter, marked with the
-  // amber marker so it reads the same on the Overview grid, the Write tree, and
-  // here (redesign §7).
-  const resumeId = (() => {
-    if (!chapters.length) return null;
-    const byOrder = [...chapters].sort((x, y) => y.manuscript_order - x.manuscript_order);
-    return (byOrder.find((c) => !c.planned && (c.body || "").trim().length > 0) ?? byOrder.find((c) => !c.planned) ?? byOrder[0])?.id ?? null;
-  })();
+  // "Where you stopped" — the chapter last opened, marked with the amber marker
+  // so it reads the same on the Overview grid, the Write tree, and here (§7).
+  const resumeId = resumeChapterId(chapters, worldId);
 
   // A dated chapter's band. Year/month precision → hatched band across its whole
   // span; day precision → a solid mark. Colour from its segment's swatch.
@@ -775,9 +782,11 @@ export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) =
 
         <SidePanel open={sideOpen} onToggle={() => setSideOpen((v) => !v)}>
           {/* Undated — the core loop. Type a year to drop a chapter on the line. */}
-          <Disclosure label="Undated" count={undatedSidebar.length} defaultOpen>
-            {undatedSidebar.length === 0
+          <Disclosure label="Undated" count={undatedReal} defaultOpen>
+            {undatedReal === 0
               ? <div className="wt2-sidesub" style={{ margin: 0, display: "inline-flex", alignItems: "center", gap: 5 }}><Icon name="done" size={13} style={{ color: "var(--bond)" }} /> Every chapter has a date</div>
+              : ms
+              ? <div className="wt2-sidesub" style={{ margin: 0 }}>Nothing's dated yet — chapters are laid out by manuscript order. Add a year to a chapter (in its editor) to start a dated timeline.</div>
               : <>
                   <div className="wt2-sidesub" style={{ marginTop: 0 }}>Type a year to place a chapter on the line.</div>
                   {sel.size > 0 && (

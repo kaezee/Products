@@ -227,9 +227,11 @@ input, textarea, select { font-size: 13px; padding: 9px 11px; border: 1px solid 
 /* ── editor + composer ─────────────────────────────────── */
 textarea { font-family: var(--serif); }
 .sel { padding: 5px 8px; border: none; border-bottom: 2px solid var(--bondLine); border-radius: 0; background: transparent; font-family: var(--serif); font-size: 14px; font-weight: 600; color: var(--bond); cursor: pointer; }
-.overlay { position: fixed; inset: 0; background: rgba(31,29,24,.4); display: flex; align-items: flex-start; justify-content: center; padding-top: 100px; z-index: 60; }
-/* Vertically-centred variant — for tall fixed-frame modals (browse/list). */
-.overlay.center { align-items: center; padding-top: 0; }
+/* Every modal is centred in the viewport with a consistent edge margin (Material/
+   Atlassian/Carbon all do this) — never pinned to the top. If a modal is taller
+   than the viewport the overlay itself scrolls. `.center` is now the default and
+   kept only for back-compat. */
+.overlay { position: fixed; inset: 0; background: rgba(31,29,24,.4); display: flex; align-items: center; justify-content: center; padding: 24px 16px; z-index: 60; overflow-y: auto; }
 .composer { width: 440px; max-width: calc(100vw - 32px); background: var(--surface); border: 1px solid var(--lineStrong); border-radius: 14px; padding: 18px 20px; box-shadow: var(--pop); }
 .modal { width: 760px; max-width: calc(100vw - 32px); max-height: calc(100vh - 160px); overflow-y: auto; background: var(--surface); border: 1px solid var(--lineStrong); border-radius: 14px; padding: 18px 20px; box-shadow: var(--pop); }
 
@@ -632,7 +634,7 @@ h2.ed-canvas-title, .ed-canvas-input { margin: 0; }
 .dash-count { font-family: var(--k-font-mono); font-size: 11px; font-weight: 600; color: var(--k-on-action-fill); background: var(--k-action-fill); border-radius: 999px; padding: 0 7px; line-height: 17px; }
 
 /* In-app confirmation dialog (replaces the native browser confirm). */
-.confirm-overlay { align-items: center; padding-top: 0; z-index: 90; }
+.confirm-overlay { z-index: 90; }   /* centred like every overlay; just sits above other modals */
 /* Toast / snackbar — transient, non-blocking action confirmation. The host is
    click-through; only the pills themselves take pointer events. */
 .toast-host { position: fixed; right: 24px; bottom: 24px; left: auto; transform: none; z-index: 200; display: flex; flex-direction: column; align-items: flex-end; gap: 10px; pointer-events: none; }

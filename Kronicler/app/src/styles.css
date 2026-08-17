@@ -1278,10 +1278,11 @@ button.ghost:hover:not(:disabled) { background: var(--wash); border-color: var(-
 .trail-x:hover { background: color-mix(in srgb, var(--k-system-error) 12%, transparent); color: var(--k-system-error); }
 /* Notepad modal — a tall writing surface for one note (capture + open-to-edit) */
 .modal.notepad { padding: 20px 22px 18px; }   /* md width inherited from .modal */
-/* Import is a multi-step wizard — a fixed frame so it doesn't shrink to a tiny box
-   on the chooser/success steps then balloon on preview. Inner lists keep their own
-   scroll so the action buttons stay reachable. */
-.import-modal { height: min(68vh, 100vh - 3rem); }
+/* Import is a multi-step wizard: it HUGS each step's content (no empty space on the
+   chooser/importing/done steps), capped at the shared max-height. On the preview,
+   ONLY the chapter list (.card below) scrolls — overflow:hidden here stops the whole
+   modal (and its header) from scrolling. */
+.import-modal { overflow: hidden; }
 .notepad-head { display: flex; align-items: center; margin-bottom: 2px; }
 .notepad-title { font-family: var(--serif); font-weight: 600; font-size: 20px; margin: 0; color: var(--ink); }
 .notepad-close { background: none; border: none; color: var(--muted); cursor: pointer; display: inline-flex; padding: 2px; border-radius: 6px; }

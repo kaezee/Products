@@ -7,6 +7,74 @@ accidentally undo it.
 
 ---
 
+## 2026-08-16 · One modal system: rem width tiers, always centred, browse=fixed / form=hug
+
+**Decision:** Every modal is centred in the viewport (never top-pinned) with a
+consistent edge margin. Widths are a small set of **rem** tiers — sm 26 / md 38
+(default) / lg 52 / xl 64 — capped at `100vw − 2rem`; height caps at
+`min(85vh, 100vh − 3rem)` and the body scrolls. **Browse/list modals** (Notes,
+Trash) use a **fixed frame** (they're always full of list); **forms and wizards**
+(confirm, notepad, New project, Import) **hug their content**, and if one part is
+a long list, only *that part* scrolls — not the whole modal.
+
+**Why:** rem scales modals with the user's text size (accessibility); tiers stop
+ad-hoc per-modal sizing; forms cap so the space becomes focus-margin, not a
+form stretched across a monitor (Material/Atlassian/Carbon convention). The
+fixed-vs-hug split is the crux — a fixed height on a *wizard* creates dead space
+on simple steps and scrolls the whole modal (clipping the header); hugging a
+*browse* modal makes it jump as items/search change.
+
+**Rules out:** hand-sized px modal widths; top-anchored overlays; fixed heights on
+wizards; content-hugging on list browsers.
+
+## 2026-08-16 · The project IS its own book (timeline main-book lane)
+
+**Decision:** Every dated chapter not filed into an explicit Book belongs to one
+implicit **main book** (the project), drawn as a single titled span-bar on the
+timeline — not a pile of one-chapter "standalone" lanes. Its span is the World
+Clock, so "this book runs 1000–2000" is directly settable. `+ Book` (was
+`+ Section`) only surfaces for a *second* container.
+
+**Why:** a first-time writer thinks "this project is my book"; forcing structure
+up front is confusing. Progressive disclosure — one book = zero structure work.
+
+**Rules out:** the old per-chapter "standalone lane" model; requiring structure
+before a writer has a second book. (No schema change — presentation over the
+existing segment + loose-chapter data.)
+
+## 2026-08-16 · Timeline notes retired; notes surface contextually
+
+**Decision:** Removed timeline "notes" (dated markers-as-notes). Notes live in two
+places — the global nav and the writing surface — and surface contextually
+(Overview, chapter, character), never as a third "notes" flavour on the timeline.
+
+**Why:** three things called "notes," two of them the same idea, was the
+confusion. A *dated non-chapter event* is a real but power-user concept; if it
+returns it comes back as **"events / milestones,"** a distinct concept, not a note.
+
+**Rules out:** a third notes surface on the timeline.
+
+## 2026-08-16 · Story time is year-precision — the ruler never shows sub-year
+
+**Decision:** The timeline ruler caps at whole years (no `1970.59`); "N in view"
+reports *real* story-years, not the warped/compressed span.
+
+**Why:** chapters store a year, not a calendar date — the ruler must not invent
+precision the data doesn't have.
+
+**Rules out:** fractional-year tick labels; reporting warped years as if real.
+
+## 2026-08-16 · A backup is a COMPLETE snapshot, or it's a false promise
+
+**Decision:** `exportWorld` captures **every** world-scoped table (it was silently
+dropping segments, comments, edit history, and the type registries). A prominent
+"Full backup" is the primary action in Settings. Format bumped to v2.
+
+**Why:** a "download everything" button that drops your book structure and
+comments is worse than a buried one. Data durability is the writer's #1 trust ask.
+
+**Rules out:** partial backups presented as complete.
+
 ## 2026-08-14 · Markers enclose — never a single-edge accent stroke
 
 **Decision:** A status / selection / "you-are-here" marker is always an

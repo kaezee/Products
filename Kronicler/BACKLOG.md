@@ -5,7 +5,40 @@ is the "not built yet" companion. Ordered roughly by value/urgency within sectio
 Each item notes **why** it's deferred and a rough **size/risk** so future-us can
 pick the right next thing without re-deriving context.
 
-_Last updated: 2026-08-03._
+_Last updated: 2026-08-17._
+
+---
+
+## ▶ From the dogfooding pass (2026-08-16/17)
+
+Surfaced while hardening for a real 61-chapter manuscript. Roughly value-ordered.
+
+- **⌘F / Ctrl+F find-in-chapter.** No integrated find in the editor (only ⌘K
+  project search). Wants: in-chapter find with highlight + next/prev, ideally
+  find-and-replace. _Size: M. Risk: med (contenteditable selection/highlight)._
+- **Shift-select multi-delete.** No range-select of chapters (or entities/notes)
+  to bulk-delete; only per-row delete. _Size: S–M._
+- **Keyboard-shortcut cheat-sheet** (a `?` overlay). Shortcuts exist (⌘K,
+  Alt+←/→, ⌘Z, ⌘B/I, Esc) but aren't discoverable. _Size: S._
+- **Import "Start writing →" should auto-open Chapter 1.** Today it closes to the
+  populated manuscript; true auto-advance needs the caller to expose nav + the
+  new chapter ids. _Size: S._
+- **A real seal glyph for the import success moment.** Currently reuses `check`;
+  there's no stamp/seal icon in the set. _Size: XS._
+- **Trust / privacy page.** Architecture supports a strong honest claim (no AI, RLS,
+  only-you, export, Trash recovery); the *page* isn't built. High-leverage before
+  external users. _Size: M (+ ToS is legal, not code)._
+- **Account deletion self-service.** In-app button files a *request*; an operator
+  triggers the actual auth-user delete (which fires the purge). _Size: M._
+- **Second bug-sweep round.** Not deep-swept: the client-side continuity
+  computation (`statesAsOf`) and the relationships editor (display correctness,
+  not data loss). _Size: M._
+- **Run Supabase `get_advisors` (security) once from an approved session** — gated
+  in web sessions; RLS verified from source but a live advisor run is worth it.
+- **`purge_expired_trash` doesn't sweep individually-trashed comments** after 30
+  days (they linger; no error, RLS-hidden). _Size: XS (add one delete)._
+- **Notes: sort/show "edited" (updated_at).** Now fetched but unused for ordering.
+  _Size: XS._
 
 ---
 

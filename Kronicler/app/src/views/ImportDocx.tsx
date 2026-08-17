@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createChapter, createEntity } from "../lib/api";
 import { parseDocxHtml, suggestEntityStrategy, textToHtml, type ParsedItem } from "../lib/docimport";
 import { detectEntities } from "../lib/entityDetect";
@@ -34,7 +34,25 @@ export function ImportDocx({ worldId, mode, startOrder, existingTitles, onClose,
   const [cast, setCast] = useState<CastPick[]>([]);
   const [castBusy, setCastBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [dragging, setDragging] = useState(false);   // drop-zone hover
+  const [count, setCount] = useState(0);              // success numeral, counts up
   const fileRef = useRef<HTMLInputElement>(null);
+  const cancelRef = useRef(false);
+
+  // The success moment: tick the count up to the total once, ease-out (~450ms).
+  useEffect(() => {
+    if (stage !== "done") return;
+    const target = progress.total;
+    if (typeof matchMedia !== "undefined" && matchMedia("(prefers-reduced-motion: reduce)").matches) { setCount(target); return; }
+    let raf = 0; const t0 = performance.now(); const dur = 450;
+    const tick = (now: number) => {
+      const p = Math.min(1, (now - t0) / dur);
+      setCount(Math.round(target * (1 - Math.pow(1 - p, 3))));
+      if (p < 1) raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [stage, progress.total]);
 
   function applyParse(html: string, name: string, strat: string) {
     const parsed = parseDocxHtml(html, mode, {
@@ -105,20 +123,26 @@ export function ImportDocx({ worldId, mode, startOrder, existingTitles, onClose,
   }
 
   async function runImport() {
+    cancelRef.current = false;
     setStage("importing");
     const picked = items.map((it, i) => ({ it, type: types[i] })).filter((_, i) => keep[i]);
     setProgress({ done: 0, total: picked.length });
     try {
       let order = startOrder;
       const bodies: string[] = [];
+      let n = 0;
       for (let i = 0; i < picked.length; i++) {
+        if (cancelRef.current) break;   // stop after the current chapter; what's in stays
         const { it, type } = picked[i];
         if (mode === "chapters") { await createChapter(worldId, it.title || "Untitled", order++, it.body); bodies.push(it.body); }
         else await createEntity(worldId, type || "Character", it.title, it.body);
-        setProgress({ done: i + 1, total: picked.length });
+        n = i + 1;
+        setProgress({ done: n, total: picked.length });
       }
       onDone();
-      if (mode === "chapters") buildCast(bodies);
+      // Land on the success screen showing exactly what came in (total = what we made).
+      setProgress({ done: n, total: n });
+      if (mode === "chapters" && !cancelRef.current) buildCast(bodies);
       else setStage("done");
     } catch (x) { setErr(String(x)); setStage("preview"); }
   }
@@ -151,34 +175,42 @@ export function ImportDocx({ worldId, mode, startOrder, existingTitles, onClose,
         {err && <p className="err">{err}</p>}
 
         {stage === "pick" && (
-          <div>
-            <p className="muted" style={{ marginTop: 0 }}>
+          <div className="imp-stack">
+            <span className="imp-tile"><Icon name="manuscript" size={26} /></span>
+            <div className="imp-desc" style={{ marginTop: -2 }}>
               {mode === "chapters"
                 ? "Bring your manuscript from Google Docs or Word. A “Chapter 1” / “Prologue” line starts a new chapter; the text beneath becomes the body. No such lines → one chapter."
                 : "Each heading becomes an entity; text under it becomes its description. A heading named for a type (Characters, Places…) sets the type for the entries beneath it."}
-            </p>
-            <div className="seg" style={{ marginBottom: 12 }}>
+            </div>
+            <div className="seg">
               <span className={source === "file" ? "on" : ""} onClick={() => { setSource("file"); setErr(null); }}>Upload a file</span>
               <span className={source === "paste" ? "on" : ""} onClick={() => { setSource("paste"); setErr(null); }}>Paste text</span>
             </div>
             {source === "file" ? (
-              <div>
-                <button className="primary" onClick={() => fileRef.current?.click()}>Choose a .docx file</button>
-                <input ref={fileRef} type="file" accept=".docx" style={{ display: "none" }}
-                  onChange={(e) => { const f = e.target.files?.[0]; if (f) onFile(f); }} />
-                <p className="faint" style={{ fontSize: 12, marginBottom: 0 }}>In Google Docs: File → Download → Microsoft Word (.docx).</p>
-              </div>
+              <>
+                <div className={"imp-drop" + (dragging ? " over" : "")}
+                  onDragOver={(e) => { e.preventDefault(); if (!dragging) setDragging(true); }}
+                  onDragLeave={() => setDragging(false)}
+                  onDrop={(e) => { e.preventDefault(); setDragging(false); const f = e.dataTransfer.files?.[0]; if (f) onFile(f); }}>
+                  <Icon name="manuscript" size={22} style={{ color: "var(--muted)" }} />
+                  <span className="faint" style={{ fontSize: 12.5 }}>Drag a .docx here, or</span>
+                  <button className="primary" onClick={() => fileRef.current?.click()}>Choose a .docx file</button>
+                  <input ref={fileRef} type="file" accept=".docx" style={{ display: "none" }}
+                    onChange={(e) => { const f = e.target.files?.[0]; if (f) onFile(f); }} />
+                </div>
+                <p className="faint" style={{ fontSize: 12, margin: 0 }}>In Google Docs: File → Download → Microsoft Word (.docx).</p>
+              </>
             ) : (
-              <div>
+              <div style={{ width: "100%", maxWidth: "30rem" }}>
                 <textarea value={pasteText} onChange={(e) => setPasteText(e.target.value)}
                   placeholder={mode === "chapters"
                     ? "Paste your manuscript here — select all in Docs or Word (⌘A / Ctrl-A) and paste.\n\nStart a chapter with a line like “Chapter 1” or “Prologue”."
                     : "Paste your notes here — one entity per line or per heading."}
-                  style={{ width: "100%", minHeight: 200, resize: "vertical", fontFamily: "var(--serif)", fontSize: 14, lineHeight: 1.5, padding: 10 }} />
-                <div className="row" style={{ borderBottom: "none", padding: 0, marginTop: 8, gap: 10 }}>
+                  style={{ width: "100%", minHeight: 180, resize: "vertical", fontFamily: "var(--serif)", fontSize: 14, lineHeight: 1.5, padding: 10 }} />
+                <div className="imp-actions" style={{ marginTop: 10 }}>
                   <button className="primary" disabled={!pasteText.trim()} onClick={onPaste}>Preview {mode === "chapters" ? "chapters" : "entities"}</button>
-                  <span className="faint" style={{ fontSize: 12 }}>Nothing is saved until you confirm on the next step.</span>
                 </div>
+                <p className="faint" style={{ fontSize: 12, textAlign: "center", margin: "6px 0 0" }}>Nothing is saved until you confirm on the next step.</p>
               </div>
             )}
           </div>
@@ -245,11 +277,14 @@ export function ImportDocx({ worldId, mode, startOrder, existingTitles, onClose,
         )}
 
         {stage === "importing" && (
-          <div>
-            <p className="muted">Importing {progress.done} / {progress.total}…</p>
-            <div style={{ height: 8, background: "var(--inset)", borderRadius: 999, overflow: "hidden" }}>
-              <div style={{ height: "100%", width: `${progress.total ? (progress.done / progress.total) * 100 : 0}%`, background: "var(--bond)", transition: "width .2s" }} />
+          <div className="imp-stack">
+            <span className="imp-tile imp-pulse"><Icon name="manuscript" size={26} /></span>
+            <div className="imp-count">{progress.done} <span style={{ opacity: .4 }}>/ {progress.total}</span></div>
+            <div className="imp-count-sub">Bringing in your {mode === "chapters" ? "chapters" : "entities"}…</div>
+            <div className="imp-progress-bar">
+              <div style={{ height: "100%", width: `${progress.total ? (progress.done / progress.total) * 100 : 0}%`, background: "var(--bond)", transition: "width .2s", borderRadius: 999 }} />
             </div>
+            <div className="imp-actions"><button onClick={() => { cancelRef.current = true; }}>Cancel</button></div>
           </div>
         )}
 
@@ -289,9 +324,18 @@ export function ImportDocx({ worldId, mode, startOrder, existingTitles, onClose,
         )}
 
         {stage === "done" && (
-          <div>
-            <p style={{ fontFamily: "var(--serif)", fontSize: 16, display: "inline-flex", alignItems: "center", gap: 6 }}><Icon name="done" size={16} style={{ color: "var(--bond)" }} /> Imported <b>{progress.total}</b> {mode === "chapters" ? "chapters" : "entities"}.</p>
-            <button className="primary" onClick={onClose}>Done</button>
+          <div className="imp-stack">
+            <span className="imp-tile">
+              <span className="imp-seal"><Icon name="check" size={28} /></span>
+              <span className="imp-marks" aria-hidden>
+                <span className="imp-mark m1">✳</span><span className="imp-mark m2">✳</span><span className="imp-mark m3">✳</span>
+              </span>
+            </span>
+            <div className="imp-count">{count}</div>
+            <div className="imp-head" style={{ marginTop: -6 }}>
+              {mode === "chapters" ? (progress.total === 1 ? "chapter" : "chapters") : (progress.total === 1 ? "entity" : "entities")} in your world
+            </div>
+            <div className="imp-actions"><button className="primary" onClick={onClose}>Start writing →</button></div>
           </div>
         )}
       </div>

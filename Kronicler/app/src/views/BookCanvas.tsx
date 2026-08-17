@@ -313,21 +313,26 @@ export function BookCanvas(props: {
   const [findCase, setFindCase] = useState(false);
   const [findRes, setFindRes] = useState<{ count: number; index: number }>({ count: 0, index: -1 });
   const findInputRef = useRef<HTMLInputElement>(null);
+  // The editor's find handle. Prefer the one keyed by the open chapter, but fall
+  // back to the sole registered editor — only ever one ChapterBlock is mounted,
+  // and keying by openId alone left find dead whenever that key lagged the
+  // mounted chapter (the "⌘F finds nothing" bug).
+  const findApi = useCallback(() => proseApis.current.get(openId) ?? [...proseApis.current.values()][0] ?? null, [openId]);
   const runFind = useCallback((q: string, cs = findCase) => {
-    const api = proseApis.current.get(openId);
+    const api = findApi();
     setFindRes(api ? api.find(q, cs) : { count: 0, index: -1 });
-  }, [openId, findCase]);
+  }, [findApi, findCase]);
   const toggleFindCase = useCallback(() => {
     setFindCase((v) => { const next = !v; runFind(findQuery, next); return next; });
   }, [runFind, findQuery]);
   const stepFind = useCallback((dir: 1 | -1) => {
-    const api = proseApis.current.get(openId);
+    const api = findApi();
     if (api) setFindRes(api.findStep(dir));
-  }, [openId]);
+  }, [findApi]);
   const closeFind = useCallback(() => {
     setFindOpen(false); setFindQuery("");
-    proseApis.current.get(openId)?.findClear();
-  }, [openId]);
+    findApi()?.findClear();
+  }, [findApi]);
   const onComment = useCallback((chapterId: string, range: { start: number; end: number; quote: string }) => {
     setActiveId(chapterId);
     setPendingComment({ chapterId, ...range });

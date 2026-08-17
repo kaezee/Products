@@ -1380,22 +1380,23 @@ button.ghost:hover:not(:disabled) { background: var(--wash); border-color: var(-
 .chron-x { flex: 0 0 auto; border: none; background: none; color: var(--faint); cursor: pointer; font-size: 16px; line-height: 1; padding: 2px 5px; border-radius: 6px; }
 .chron-x:hover { color: var(--muted); background: var(--inset); }
 
-/* Gone quiet (§7/§9): a derived nudge, not a system message — so it lives as a
-   quiet, collapsed-by-default strip (progressive disclosure), never a prominent
-   card or a system banner. Expanded rows stay calm chrome text, no serif pills. */
-.quiet { margin: 4px 0 14px; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+/* Gone quiet (§7/§9): a derived nudge, not a system message — collapsed by
+   default (progressive disclosure), never a prominent card or a system banner.
+   It sits IN a well (sunken surface, no border per §4) so its text is contained
+   like the entity lists below, but recessed — quieter than their white cards. */
+.quiet { margin: 4px 0 14px; background: var(--inset); border-radius: var(--k-radius-container, 8px); padding: 0 12px; }
 .quiet-head { display: flex; align-items: center; gap: 8px; padding: 9px 2px; cursor: pointer; user-select: none; }
 .quiet-chev { display: inline-flex; color: var(--faint); transition: transform .15s ease; }
 .quiet.open .quiet-chev { transform: rotate(90deg); }
 .quiet-lab { font: 700 11px/1.4 var(--sans); letter-spacing: .09em; text-transform: uppercase; color: var(--muted); }
-.quiet-count { font-family: var(--k-font-mono); font-size: 11px; color: var(--muted); background: var(--inset); border: 1px solid var(--line); border-radius: 999px; padding: 1px 7px; }
+.quiet-count { font-family: var(--k-font-mono); font-size: 11px; color: var(--muted); background: var(--surface); border: 1px solid var(--line); border-radius: 999px; padding: 1px 7px; }
 .quiet-hint { margin-left: auto; font-size: 11px; color: var(--faint); }
 .quiet-head:hover .quiet-hint { color: var(--muted); }
 .quiet-body { padding: 2px 0 10px; display: flex; flex-direction: column; gap: 1px; }
-.quiet-item { display: flex; align-items: center; gap: 8px; padding: 6px 6px; border-radius: 6px; font-size: 13px; color: var(--sub); cursor: pointer; }
-.quiet-item:hover { background: var(--wash); color: var(--ink); }
+.quiet-item { display: flex; align-items: center; gap: 8px; padding: 7px 8px; border-radius: 6px; font-size: 13px; color: var(--sub); cursor: pointer; }
+.quiet-item:hover { background: var(--surface); color: var(--ink); }
 .quiet-x { flex: 0 0 auto; border: none; background: none; color: var(--faint); cursor: pointer; font-size: 15px; line-height: 1; padding: 2px 5px; border-radius: 6px; }
-.quiet-x:hover { color: var(--muted); background: var(--inset); }
+.quiet-x:hover { color: var(--muted); background: var(--wash); }
 
 /* Relationship-type label rendered as a chip inside irony prose, so a transitive
    kind ("outfoxed by") reads as a tag rather than a dangling verb phrase. */

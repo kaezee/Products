@@ -59,6 +59,12 @@ export function Library({ worldId, focusEntityId, onLeaf }: { worldId: string; f
   const [quietHidden, setQuietHidden] = useState<Set<string>>(() => {
     try { return new Set<string>(JSON.parse(localStorage.getItem(`k.quiet.${worldId}`) || "[]")); } catch { return new Set<string>(); }
   });
+  // Gone quiet is a nudge, not a headline — collapsed by default, remembers the
+  // writer's last choice per world.
+  const [quietOpen, setQuietOpen] = useState<boolean>(() => localStorage.getItem(`k.quietopen.${worldId}`) === "1");
+  function toggleQuiet() {
+    setQuietOpen((v) => { const n = !v; localStorage.setItem(`k.quietopen.${worldId}`, n ? "1" : "0"); return n; });
+  }
   function dismissQuiet(id: string) {
     setQuietHidden((prev) => {
       const n = new Set(prev); n.add(id);
@@ -254,22 +260,32 @@ export function Library({ worldId, focusEntityId, onLeaf }: { worldId: string; f
           chapters — the dormancy signals rehomed from the Overview. Not errors,
           just a nudge; dismissable per item. Hidden while searching. */}
       {!query && quietCount > 0 && (
-        <div className="card" style={{ marginBottom: 14 }}>
-          <div className="chron-sec">
-            <div className="chron-lab">Gone quiet<Explain term="Gone quiet">Threads and cast that have dropped out of your recent chapters. Not errors — just a nudge, in case you meant to keep them alive.</Explain></div>
-            {dormantList.slice(0, 6).map((s) => (
-              <div className="chron-row click" key={"dor" + s.state_id} onClick={() => s.participants[0]?.entity_id && setOpenId(s.participants[0].entity_id)}>
-                <span style={{ flex: 1, minWidth: 0 }}>{s.participants.map((p) => p.title).join(" · ")} · {s.type_label} — untouched for a while.</span>
-                <button className="chron-x" title="Got it — hide this" onClick={(ev) => { ev.stopPropagation(); dismissQuiet("dor:" + s.state_id); }}>×</button>
-              </div>
-            ))}
-            {absentList.slice(0, Math.max(0, 6 - dormantList.slice(0, 6).length)).map(({ e, since }) => (
-              <div className="chron-row click" key={"abs" + e.id} onClick={() => setOpenId(e.id)}>
-                <span style={{ flex: 1, minWidth: 0 }}>{e.title} hasn't appeared since chapter {since}.</span>
-                <button className="chron-x" title="Got it — hide this" onClick={(ev) => { ev.stopPropagation(); dismissQuiet("abs:" + e.id); }}>×</button>
-              </div>
-            ))}
+        <div className={"quiet" + (quietOpen ? " open" : "")}>
+          <div className="quiet-head" onClick={toggleQuiet}>
+            <span className="quiet-chev"><Icon name="chevron" size={14} /></span>
+            <span className="quiet-lab">Gone quiet</span>
+            <span className="quiet-count">{quietCount}</span>
+            <span onClick={(ev) => ev.stopPropagation()} style={{ display: "inline-flex" }}>
+              <Explain term="Gone quiet">Threads and cast that have dropped out of your recent chapters. Not errors — just a nudge, in case you meant to keep them alive.</Explain>
+            </span>
+            <span className="quiet-hint">{quietOpen ? "hide" : "show"}</span>
           </div>
+          {quietOpen && (
+            <div className="quiet-body">
+              {dormantList.slice(0, 6).map((s) => (
+                <div className="quiet-item" key={"dor" + s.state_id} onClick={() => s.participants[0]?.entity_id && setOpenId(s.participants[0].entity_id)}>
+                  <span style={{ flex: 1, minWidth: 0 }}>{s.participants.map((p) => p.title).join(" · ")} · {s.type_label} — untouched for a while.</span>
+                  <button className="quiet-x" title="Got it — hide this" onClick={(ev) => { ev.stopPropagation(); dismissQuiet("dor:" + s.state_id); }}>×</button>
+                </div>
+              ))}
+              {absentList.slice(0, Math.max(0, 6 - dormantList.slice(0, 6).length)).map(({ e, since }) => (
+                <div className="quiet-item" key={"abs" + e.id} onClick={() => setOpenId(e.id)}>
+                  <span style={{ flex: 1, minWidth: 0 }}>{e.title} hasn't appeared since chapter {since}.</span>
+                  <button className="quiet-x" title="Got it — hide this" onClick={(ev) => { ev.stopPropagation(); dismissQuiet("abs:" + e.id); }}>×</button>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 

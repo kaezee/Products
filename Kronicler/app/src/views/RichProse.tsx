@@ -5,6 +5,7 @@ import { scanMentions } from "../lib/mentions";
 import { scanEmphasis, toggleMarker } from "../lib/emphasis";
 import { MARK_MOMENT } from "../lib/shortcuts";
 import { makeAnchor, type Anchor } from "../lib/anchor";
+import { findMatches, type FindMatch } from "../lib/find";
 import { toggleBlock, insertSceneBreak, enterEdit, activeFormats, type BlockKind, type ActiveFormats } from "../lib/blocks";
 import { getEntityTypes } from "../lib/api";
 import { buildTypeSwatches } from "../lib/entityTypes";
@@ -39,7 +40,13 @@ export interface ProseApi {
   format: (marker: "**" | "*") => void;
   block: (kind: BlockKind | "hr") => void;
   currentSelection: () => Anchor | null;
+  // In-chapter find (⌘F). Highlights every match over the live prose without
+  // touching the DOM (CSS Custom Highlight API), and steps the "current" one.
+  find: (query: string) => FindResult;
+  findStep: (dir: 1 | -1) => FindResult;
+  findClear: () => void;
 }
+export interface FindResult { count: number; index: number }
 
 export function RichProse({ value, entities, onChange, onSelectText, onActive, onOpenEntity, stateOf, onMarkEntity, onMarkMoment, onComment, apiRef, placeholder, marks, onMarkClick }: {
   value: string;
@@ -82,6 +89,15 @@ export function RichProse({ value, entities, onChange, onSelectText, onActive, o
   // type name (lowercased) → curated swatch, so every mention gets its colour
   // from the world's type registry (built-ins + custom), never a hardcoded hex.
   const swatchRef = useRef<Map<string, string>>(new Map());
+
+  // In-chapter find (⌘F). Query + match offsets + current index live in refs so
+  // painting is imperative and never re-renders the editor. Matches are plain-
+  // text offsets, re-mapped to DOM ranges after every decorate — the same
+  // offset→node trick the margin marks use.
+  const findQ = useRef("");
+  const findHits = useRef<FindMatch[]>([]);
+  const findIdx = useRef(-1);
+  const HL_SUPPORTED = typeof CSS !== "undefined" && "highlights" in CSS && typeof (window as unknown as { Highlight?: unknown }).Highlight === "function";
 
   // A run of plain text [from,to) with any mentions fully inside it decorated.
   // Mentions never straddle emphasis markers (the * chars are word boundaries),
@@ -226,8 +242,85 @@ export function RichProse({ value, entities, onChange, onSelectText, onActive, o
     reportSelection();
     return true;
   }
+  // ── In-chapter find ──────────────────────────────────────────────────────
+  // Paint the two highlights (all matches + the current one) over the live text
+  // nodes. Ranges are rebuilt from plain-text offsets each call, so this stays
+  // correct across re-decorates. No DOM mutation, no caret disturbance.
+  function paintFind() {
+    const el = edRef.current;
+    if (!el) return;
+    if (!HL_SUPPORTED) {
+      // Degraded path: at least select the current match so it's visible.
+      const m = findHits.current[findIdx.current];
+      if (m) setSelectionOffsets(el, m.start, m.end);
+      return;
+    }
+    const H = (window as unknown as { Highlight: new () => { add: (r: Range) => void } }).Highlight;
+    const all = new H(), cur = new H();
+    findHits.current.forEach((m, i) => {
+      const p1 = locate(el, m.start), p2 = locate(el, m.end);
+      if (!p1 || !p2) return;
+      const r = document.createRange();
+      try { r.setStart(p1.node, p1.off); r.setEnd(p2.node, p2.off); } catch { return; }
+      (i === findIdx.current ? cur : all).add(r);
+    });
+    const reg = (CSS as unknown as { highlights: Map<string, unknown> }).highlights;
+    reg.set("k-find", all);
+    reg.set("k-find-current", cur);
+  }
+  function clearFindPaint() {
+    if (!HL_SUPPORTED) return;
+    const reg = (CSS as unknown as { highlights: Map<string, unknown> }).highlights;
+    reg.delete("k-find");
+    reg.delete("k-find-current");
+  }
+  // Bring the current match into view without yanking the page for hits already
+  // on screen (block: "nearest").
+  function scrollFindIntoView() {
+    const el = edRef.current, m = findHits.current[findIdx.current];
+    if (!el || !m) return;
+    const p = locate(el, m.start);
+    (p?.node.parentElement ?? el).scrollIntoView({ block: "nearest" });
+  }
+  // Rescan the live text for the query; keep the index sensible. pickNearCaret
+  // lands the first match at/after the caret when a find is (re)started.
+  function recomputeFind(pickNearCaret: boolean) {
+    const el = edRef.current;
+    const text = el?.textContent ?? "";
+    findHits.current = findMatches(text, findQ.current);
+    const n = findHits.current.length;
+    if (n === 0) { findIdx.current = -1; return; }
+    if (pickNearCaret) {
+      const caret = (el && caretOffset(el)) ?? 0;
+      const at = findHits.current.findIndex((m) => m.start >= caret);
+      findIdx.current = at >= 0 ? at : 0;
+    } else {
+      findIdx.current = Math.min(Math.max(findIdx.current, 0), n - 1);
+    }
+  }
+  function find(query: string): FindResult {
+    findQ.current = query;
+    if (!query) { findClear(); return { count: 0, index: -1 }; }
+    recomputeFind(true);
+    paintFind();
+    scrollFindIntoView();
+    return { count: findHits.current.length, index: findIdx.current };
+  }
+  function findStep(dir: 1 | -1): FindResult {
+    const n = findHits.current.length;
+    if (n === 0) return { count: 0, index: -1 };
+    findIdx.current = (findIdx.current + dir + n) % n;
+    paintFind();
+    scrollFindIntoView();
+    return { count: n, index: findIdx.current };
+  }
+  function findClear() {
+    findQ.current = ""; findHits.current = []; findIdx.current = -1;
+    clearFindPaint();
+  }
+
   useEffect(() => {
-    apiRef?.({ selectRange, format: applyWrap, block: applyBlock, currentSelection });
+    apiRef?.({ selectRange, format: applyWrap, block: applyBlock, currentSelection, find, findStep, findClear });
     return () => apiRef?.(null);
     // eslint-disable-next-line
   }, [apiRef]);
@@ -302,6 +395,9 @@ export function RichProse({ value, entities, onChange, onSelectText, onActive, o
       if (focused) setCaret(el, off);
     }
     computeMarks();
+    // Re-map find highlights onto the freshly-rebuilt nodes (no scroll — the
+    // caret, not a find hit, is what the writer is looking at while typing).
+    if (findQ.current) { recomputeFind(false); paintFind(); }
   }
 
   // Vertical position of each anchored moment, relative to the wrapper the gutter
@@ -329,6 +425,7 @@ export function RichProse({ value, entities, onChange, onSelectText, onActive, o
     if (!el) return;
     el.contentEditable = SUPPORTS_PO ? "plaintext-only" : "true";
     el.innerHTML = decorateHtml(value);
+    return () => clearFindPaint();   // don't leave a stale highlight after unmount
     // eslint-disable-next-line
   }, []);
 

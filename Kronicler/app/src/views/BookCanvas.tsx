@@ -304,6 +304,26 @@ export function BookCanvas(props: {
   const registerApi = useCallback((chapterId: string, api: ProseApi | null) => {
     if (api) proseApis.current.set(chapterId, api); else proseApis.current.delete(chapterId);
   }, []);
+
+  // ⌘F find-in-chapter. The bar is chrome the writer already knows; the actual
+  // highlighting lives in the prose (ProseApi), so this only drives the query
+  // and reads back "n of m" for the counter.
+  const [findOpen, setFindOpen] = useState(false);
+  const [findQuery, setFindQuery] = useState("");
+  const [findRes, setFindRes] = useState<{ count: number; index: number }>({ count: 0, index: -1 });
+  const findInputRef = useRef<HTMLInputElement>(null);
+  const runFind = useCallback((q: string) => {
+    const api = proseApis.current.get(openId);
+    setFindRes(api ? api.find(q) : { count: 0, index: -1 });
+  }, [openId]);
+  const stepFind = useCallback((dir: 1 | -1) => {
+    const api = proseApis.current.get(openId);
+    if (api) setFindRes(api.findStep(dir));
+  }, [openId]);
+  const closeFind = useCallback(() => {
+    setFindOpen(false); setFindQuery("");
+    proseApis.current.get(openId)?.findClear();
+  }, [openId]);
   const onComment = useCallback((chapterId: string, range: { start: number; end: number; quote: string }) => {
     setActiveId(chapterId);
     setPendingComment({ chapterId, ...range });
@@ -433,6 +453,27 @@ export function BookCanvas(props: {
     return () => window.removeEventListener("keydown", h);
   }, [prevCh, nextCh, onNavigate]);
 
+  // ⌘F / Ctrl+F opens the in-chapter find, seeded from the selection if any.
+  useEffect(() => {
+    const h = (e: KeyboardEvent) => {
+      if (!(e.metaKey || e.ctrlKey) || e.altKey || e.shiftKey || e.key.toLowerCase() !== "f") return;
+      e.preventDefault();
+      const seed = selText.trim() && !selText.includes("\n") ? selText.trim() : "";
+      setFindOpen(true);
+      if (seed) setFindQuery(seed);
+      requestAnimationFrame(() => {
+        findInputRef.current?.focus();
+        findInputRef.current?.select();
+        if (seed) runFind(seed);
+      });
+    };
+    window.addEventListener("keydown", h);
+    return () => window.removeEventListener("keydown", h);
+  }, [selText, runFind]);
+
+  // A find is scoped to one chapter's prose — switching chapters closes it.
+  useEffect(() => { setFindOpen(false); setFindQuery(""); }, [openId]);
+
   // §3.6: one "Mark entity" flow — find an existing entity (records an alias) or
   // create a new one (adds it to the world). No separate New/Alias buttons.
   function openMarkEntity(chapterId: string, at?: { x: number; y: number }) {
@@ -554,6 +595,24 @@ export function BookCanvas(props: {
       {err && <p className="err">{err}</p>}
 
       <div className={"ed-body" + (panel ? " has-panel" : "")}>
+        {findOpen && (
+          <div className="ed-find" role="search">
+            <Icon name="search" size={14} style={{ color: "var(--faint)", flex: "0 0 auto" }} />
+            <input ref={findInputRef} className="ed-find-input" value={findQuery} placeholder="Find in chapter"
+              aria-label="Find in chapter"
+              onChange={(e) => { const v = e.target.value; setFindQuery(v); runFind(v); }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") { e.preventDefault(); stepFind(e.shiftKey ? -1 : 1); }
+                else if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); closeFind(); }
+              }} />
+            <span className="ed-find-count" aria-live="polite">
+              {findQuery.trim() === "" ? "" : findRes.count === 0 ? "No results" : `${findRes.index + 1} of ${findRes.count}`}
+            </span>
+            <button className="ed-find-nav" disabled={findRes.count === 0} onClick={() => stepFind(-1)} aria-label="Previous match" title="Previous (⇧⏎)"><Icon name="chevron-up" size={15} /></button>
+            <button className="ed-find-nav" disabled={findRes.count === 0} onClick={() => stepFind(1)} aria-label="Next match" title="Next (⏎)"><Icon name="chevron-down" size={15} /></button>
+            <button className="ed-find-nav" onClick={closeFind} aria-label="Close find" title="Close (Esc)"><Icon name="close" size={15} /></button>
+          </div>
+        )}
         <div className={"ed-prose" + (cleanText ? " clean" : "")} ref={scroller}>
           {/* Mark-entity card floats over the prose, anchored to the selection
               (portaled to <body> so the prose column's overflow can't clip it —

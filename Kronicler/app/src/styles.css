@@ -445,6 +445,34 @@ h2.ed-canvas-title, .ed-canvas-input { margin: 0; }
    slides under it — the page position is fixed, only the empty gutter changes. */
 .ed-body.has-panel .ed-prose { padding-right: 356px; }
 
+/* ⌘F find-in-chapter: a small raised bar pinned to the top-right of the writing
+   surface (raised is the only tier a shadow is allowed on). Matches are painted
+   in the prose itself via ::highlight below. */
+.ed-find {
+  position: absolute; top: 8px; right: 8px; z-index: 40;
+  display: flex; align-items: center; gap: 6px;
+  padding: 6px 8px; background: var(--raised);
+  border: 1px solid var(--lineStrong); border-radius: 8px; box-shadow: var(--pop);
+}
+.ed-find-input { width: 200px; padding: 6px 9px; }
+.ed-find-count {
+  font-family: var(--k-font-mono); font-size: 11px; color: var(--muted);
+  min-width: 64px; text-align: right; white-space: nowrap;
+}
+.ed-find-nav {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 28px; height: 28px; padding: 0; border: 1px solid transparent;
+  background: transparent; color: var(--sub); border-radius: 6px;
+}
+.ed-find-nav:hover:not(:disabled) { background: var(--wash); color: var(--ink); }
+.ed-find-nav:disabled { opacity: .4; cursor: default; }
+
+/* The search-match channel (§8), rendered live: every hit gets a soft amber
+   band, the current one a stronger one. Amber (the "here" marker) keeps find
+   distinct from the woad text-selection and the entity mention wash. */
+::highlight(k-find) { background-color: var(--k-find-match); }
+::highlight(k-find-current) { background-color: var(--k-find-current); }
+
 /* Fullscreen writing: the whole Write workspace (tree + editor + panels) takes
    the viewport and the Kronicler app shell (rail + top bar) falls away — so you
    can write through every chapter with navigation intact. Esc or the shrink

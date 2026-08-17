@@ -71,6 +71,11 @@
      tree, and Timeline. Amber: the complement of the woad-blue grid cells, so a
      ring of it pops off the blue; rendered as a ring, not a fill. */
   --k-marker: #B5820F;
+  /* In-chapter find (⌘F). Amber, like the "here" marker: a match is "where you
+     are looking", visibly distinct from the woad text-selection. Translucent so
+     it re-resolves against --k-marker per theme and reads over any surface. */
+  --k-find-match:   color-mix(in srgb, var(--k-marker) 22%, transparent);
+  --k-find-current: color-mix(in srgb, var(--k-marker) 48%, transparent);
   --k-bg-canvas:  var(--k-warm-50);
   --k-bg-surface: #FFFFFF;
   --k-bg-sunken:  #F7F6F1;              /* well — lightened from #F5F4EF (§4) */

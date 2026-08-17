@@ -206,9 +206,19 @@ from system messages, which are always contained).
 |---|---|---|
 | Entity mention | underline + wash | 2px underline in the entity colour, wash = `--k-entity-<sw>-tint`, radius 2 |
 | Comment anchor | dashed underline | 1.5px dashed, text-tertiary |
-| Search match | outline | 1px box, border-strong, radius 2, no fill |
+| Search match (static) | outline | 1px box, border-strong, radius 2, no fill |
+| Find match (live, ⌘F) | fill | amber band: `--k-find-match`, current hit `--k-find-current` |
 | Text selection | background | `--k-selection-bg` |
 | Moment | left margin | 5px dot, text-tertiary, outside the text column |
+
+**Two search treatments, one meaning.** A *static* search match (results/context
+views, rendered in our own markup) keeps the outline box. The *live* in-editor
+find (⌘F) is a different object: it paints over the writer's untouched prose via
+the CSS Custom Highlight API, which can only fill — not outline — a range. It
+uses amber (the "here / where you stopped" marker family), so a hit reads as
+"where you're looking", stays clear of the woad text-selection and the entity
+mention wash, and honours the "markers enclose — a fill counts" rule
+(`DECISIONS.md`, 2026-08-14). The current hit is a stronger amber than the rest.
 
 Mention-bearing text uses a 28px line-height so underlines and margin marks have
 room. The margin channel sits outside the text column (reserve 32px left padding
@@ -245,6 +255,11 @@ the mention channel too, via `<Mention name swatch>`.
 
 ## Amendment log
 
+- **2026-08-17** — §8: split the search channel into *static* (outline box, as
+  before) and *live ⌘F find* (amber fill via the CSS Custom Highlight API, which
+  cannot paint an outline). Added semantic tokens `--k-find-match` /
+  `--k-find-current` (derived from `--k-marker`, so they re-resolve per theme).
+  In-chapter find ships in the Write editor.
 - **2026-08-08** — Applied `PATCH-scale-surfaces-and-colour-roles`: lightened
   surfaces (White canvas `#F7F8FA`, wells `#F1F3F6` / `#F7F6F1`); split action
   into fill / container / text with `on-` partners (retired `--k-action-default`);

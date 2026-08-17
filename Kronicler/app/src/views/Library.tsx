@@ -271,17 +271,19 @@ export function Library({ worldId, focusEntityId, onLeaf }: { worldId: string; f
             <span className="quiet-hint">{quietOpen ? "hide" : "show"}</span>
           </div>
           {quietOpen && (
-            <div className="quiet-body">
+            <div className="card quiet-card">
               {dormantList.slice(0, 6).map((s) => (
-                <div className="quiet-item" key={"dor" + s.state_id} onClick={() => s.participants[0]?.entity_id && setOpenId(s.participants[0].entity_id)}>
+                <div className="row click quiet-row" key={"dor" + s.state_id} onClick={() => s.participants[0]?.entity_id && setOpenId(s.participants[0].entity_id)}>
                   <span style={{ flex: 1, minWidth: 0 }}>{s.participants.map((p) => p.title).join(" · ")} · {s.type_label} — untouched for a while.</span>
-                  <button className="quiet-x" title="Got it — hide this" onClick={(ev) => { ev.stopPropagation(); dismissQuiet("dor:" + s.state_id); }}>×</button>
+                  <span className="rowact" title="Got it — hide this" onClick={(ev) => { ev.stopPropagation(); dismissQuiet("dor:" + s.state_id); }}
+                    style={{ color: "var(--faint)", cursor: "pointer", padding: "0 4px", display: "inline-flex" }}><Icon name="close" size={13} /></span>
                 </div>
               ))}
               {absentList.slice(0, Math.max(0, 6 - dormantList.slice(0, 6).length)).map(({ e, since }) => (
-                <div className="quiet-item" key={"abs" + e.id} onClick={() => setOpenId(e.id)}>
+                <div className="row click quiet-row" key={"abs" + e.id} onClick={() => setOpenId(e.id)}>
                   <span style={{ flex: 1, minWidth: 0 }}>{e.title} hasn't appeared since chapter {since}.</span>
-                  <button className="quiet-x" title="Got it — hide this" onClick={(ev) => { ev.stopPropagation(); dismissQuiet("abs:" + e.id); }}>×</button>
+                  <span className="rowact" title="Got it — hide this" onClick={(ev) => { ev.stopPropagation(); dismissQuiet("abs:" + e.id); }}
+                    style={{ color: "var(--faint)", cursor: "pointer", padding: "0 4px", display: "inline-flex" }}><Icon name="close" size={13} /></span>
                 </div>
               ))}
             </div>

@@ -235,11 +235,14 @@ export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) =
   const axisWarp = useMemo(() => {
     const id = (d: number) => d;
     const frameOf = (lo: number, hi: number) => { const m = Math.max((hi - lo) * 0.05, dpy); return { lo: lo - m, hi: hi + m }; };
-    // Known-time span in days. The frame includes it, so a manual world-clock
-    // change is visible immediately (the axis extends), not just a silent readout.
-    const kLo = yearToDay(known.start), kHi = yearToDay(known.end) + dpy - 1;
+    // Known-time span in days. The frame includes it (story mode only), so a
+    // manual world-clock change is visible immediately. In MS mode the axis is
+    // ranks (1..N), not days — folding the known YEAR range in here would blow
+    // the frame out to hundreds of thousands of units, so neutralise it.
+    const kLo = ms ? Infinity : yearToDay(known.start);
+    const kHi = ms ? -Infinity : yearToDay(known.end) + dpy - 1;
     const idResult = (lo: number, hi: number, cls: [number, number][] = []) => ({ warp: id, unwarp: id, gaps: [] as Gap[], frame: frameOf(Math.min(lo, kLo), Math.max(hi, kHi)), clusters: cls });
-    if (!content) return idResult(kLo, kHi);
+    if (!content) return idResult(ms ? 1 : kLo, ms ? Math.max(1, chapters.length) : kHi);
 
     // Occupied intervals, each PADDED into a clean-canvas band so even a single-day
     // chapter shows the years around it; overlapping bands merge into one cluster.

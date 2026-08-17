@@ -275,13 +275,34 @@ export function RichProse({ value, entities, onChange, onSelectText, onActive, o
     reg.delete("k-find");
     reg.delete("k-find-current");
   }
-  // Bring the current match into view without yanking the page for hits already
-  // on screen (block: "nearest").
+  // Jump to the current match — centre it so the writer actually sees it, even
+  // far down the chapter. Scroll by the match's RANGE rect, not a parent element:
+  // in undecorated prose the match's text node is a direct child of the editor,
+  // so element.scrollIntoView would centre the whole chapter, not the hit.
   function scrollFindIntoView() {
     const el = edRef.current, m = findHits.current[findIdx.current];
     if (!el || !m) return;
-    const p = locate(el, m.start);
-    (p?.node.parentElement ?? el).scrollIntoView({ block: "nearest" });
+    const p1 = locate(el, m.start), p2 = locate(el, m.end);
+    if (!p1 || !p2) return;
+    const r = document.createRange();
+    try { r.setStart(p1.node, p1.off); r.setEnd(p2.node, p2.off); } catch { return; }
+    const rect = r.getBoundingClientRect();
+    if (!rect.height && !rect.width) return;
+    // Nearest scrollable ancestor (the editor's scroll column), else the window.
+    let sc: HTMLElement | null = el.parentElement;
+    while (sc && sc !== document.body) {
+      const oy = getComputedStyle(sc).overflowY;
+      if ((oy === "auto" || oy === "scroll") && sc.scrollHeight > sc.clientHeight + 1) break;
+      sc = sc.parentElement;
+    }
+    if (sc && sc !== document.body) {
+      const sr = sc.getBoundingClientRect();
+      const already = rect.top >= sr.top + 8 && rect.bottom <= sr.bottom - 8;
+      if (!already) sc.scrollTop += (rect.top - sr.top) - sc.clientHeight / 2 + rect.height / 2;
+    } else {
+      const already = rect.top >= 8 && rect.bottom <= window.innerHeight - 8;
+      if (!already) window.scrollTo({ top: window.scrollY + rect.top - window.innerHeight / 2 + rect.height / 2 });
+    }
   }
   // Rescan the live text for the query; keep the index sensible. pickNearCaret
   // lands the first match at/after the caret when a find is (re)started.
@@ -303,7 +324,10 @@ export function RichProse({ value, entities, onChange, onSelectText, onActive, o
     findQ.current = query;
     findCase.current = caseSensitive;
     if (!query) { findClear(); return { count: 0, index: -1 }; }
-    recomputeFind(true);
+    recomputeFind(false);
+    // A fresh query starts at the first match (top of the chapter), so stepping
+    // is predictable — not wherever the caret happened to be.
+    if (findHits.current.length) findIdx.current = 0;
     paintFind();
     scrollFindIntoView();
     return { count: findHits.current.length, index: findIdx.current };

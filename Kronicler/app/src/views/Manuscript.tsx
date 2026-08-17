@@ -112,8 +112,7 @@ export function Manuscript({ worldId, focusChapterId, openImport, go, onLeaf }: 
     const movedId = list[dragIndex].id;
     const next = [...list];
     const [moved] = next.splice(dragIndex, 1);
-    moved.segment_id = adopted;
-    next.splice(target, 0, moved);
+    next.splice(target, 0, { ...moved, segment_id: adopted });   // Option A: moved lands in the dropped-on row
     setChapters(next.map((c, i) => ({ ...c, manuscript_order: i + 1 })));
     setDragIndex(null); setOverIndex(null);
     try {

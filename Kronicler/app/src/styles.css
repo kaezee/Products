@@ -1429,8 +1429,20 @@ button.chron-more:hover { background: var(--wash); }
 .rel-dir { flex-direction: row; align-items: center; gap: 10px; }
 .rel-q { display: flex; flex-direction: column; gap: 6px; }
 .rel-standing span { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; }
-.rel-standing-dot { flex: 0 0 8px; width: 8px; height: 8px; min-width: 8px; min-height: 8px; border-radius: 999px; }
+.rel-standing-dot { display: inline-block; flex: 0 0 auto; width: 8px; height: 8px; min-width: 8px; min-height: 8px; border-radius: 50%; }
 .rel-actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+
+/* Entity page (§1): a constrained column of stacked full-width cards, so nothing
+   sprawls and no control floats on the canvas. */
+.ent-page { max-width: 880px; }
+.ent-card { padding: 18px 20px; margin-bottom: 4px; }
+.ent-identity-head { display: flex; align-items: center; gap: 10px; }
+.ent-identity-name { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; min-width: 0; }
+.ent-identity-name h2 { font-size: 26px; }
+.ent-del { color: var(--k-system-error, var(--hostile)); border-color: color-mix(in srgb, var(--hostile) 35%, var(--line)); }
+.ent-del:hover:not(:disabled) { background: color-mix(in srgb, var(--hostile) 8%, transparent); border-color: var(--hostile); color: var(--hostile); }
+.ent-sec-head { display: flex; align-items: baseline; gap: 10px; margin: 20px 0 8px; }
+.ent-edit { display: flex; flex-direction: column; gap: 10px; }
 
 /* Selection is a toggle, not a fade — no transition, so the pressed chip/card
    flips to its selected look on the same frame as the click (no perceived lag). */

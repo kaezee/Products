@@ -309,30 +309,12 @@ export function EntityPage({ entity, onBack, onChanged, startEditing, onOpenEnti
   }
 
   return (
-    <div className="fi">
-      <div className="row" style={{ borderBottom: "none", padding: 0, marginBottom: 8 }}>
-        {/* Back to World is the app breadcrumb ("World › <name>") above this view;
-            a second in-view back link was redundant, so it's gone. */}
-        <span className="spacer" />
-        {!editing ? (
-          <>
-            <span className="tab" onClick={() => setEditing(true)}>Edit</span>
-            <span className="tab" style={{ color: "var(--hostile)" }} onClick={del}>Delete</span>
-          </>
-        ) : (
-          <>
-            <button className="primary" onClick={save} disabled={busy}>{busy ? "…" : "Save"}</button>
-            <button onClick={() => {
-              setTitle(ent.title); setType(ent.type); setAliases(ent.aliases.join(", ")); setBody(ent.body); setEditing(false);
-            }}>Cancel</button>
-          </>
-        )}
-      </div>
-
+    <div className="fi ent-page">
       {err && <p className="err">{err}</p>}
 
+      {/* §1 identity card — name · type · description, with Edit/Delete inside it. */}
       {editing ? (
-        <div className="card" style={{ padding: 16, maxWidth: 720, display: "flex", flexDirection: "column", gap: 10, marginBottom: 18 }}>
+        <div className="card ent-card ent-edit">
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Name"
               style={{ fontFamily: "var(--serif)", fontSize: 18, flex: 1, minWidth: 200 }} />
@@ -349,25 +331,34 @@ export function EntityPage({ entity, onBack, onChanged, startEditing, onOpenEnti
           <textarea value={body} onChange={(e) => setBody(e.target.value)} placeholder="Describe this entity…"
             style={{ minHeight: 160, fontSize: 15, lineHeight: 1.7, padding: 12 }} />
           <span className="muted">Aliases matter — they're how the mention scan and ⌘K recognize this entity by its nicknames.</span>
+          <div className="rel-actions">
+            <button className="primary" onClick={save} disabled={busy}>{busy ? "…" : "Save"}</button>
+            <button onClick={() => { setTitle(ent.title); setType(ent.type); setAliases(ent.aliases.join(", ")); setBody(ent.body); setEditing(false); }}>Cancel</button>
+          </div>
         </div>
       ) : (
-        <>
-          <div style={{ display: "flex", alignItems: "baseline", gap: 10, marginBottom: 4 }}>
-            <h2 style={{ fontFamily: "var(--serif)", fontWeight: 500, margin: 0 }}>{ent.title}</h2>
-            <span className="chip">{ent.type}</span>
-            {ent.aliases.length > 0 && <span className="note">also "{ent.aliases.join('", "')}"</span>}
+        <div className="card ent-card ent-identity">
+          <div className="ent-identity-head">
+            <div className="ent-identity-name">
+              <h2 style={{ fontFamily: "var(--serif)", fontWeight: 500, margin: 0 }}>{ent.title}</h2>
+              <span className="chip">{ent.type}</span>
+              {ent.aliases.length > 0 && <span className="note">also "{ent.aliases.join('", "')}"</span>}
+            </div>
+            <span className="spacer" />
+            <button onClick={() => setEditing(true)}>Edit</button>
+            <button className="ent-del" onClick={del}>Delete</button>
           </div>
           {ent.body
-            ? <p style={{ fontFamily: "var(--serif)", fontSize: 16, lineHeight: 1.7, maxWidth: 620, margin: "12px 0 8px" }}>{ent.body}</p>
-            : <p className="muted" style={{ margin: "8px 0" }}>No description yet — hit Edit to add one.</p>}
-        </>
+            ? <p style={{ fontFamily: "var(--serif)", fontSize: 16, lineHeight: 1.7, margin: "10px 0 0" }}>{ent.body}</p>
+            : <p className="muted" style={{ margin: "10px 0 0" }}>No description yet — hit Edit to add one.</p>}
+        </div>
       )}
 
-      <div className="row" style={{ borderBottom: "none", padding: 0, marginTop: 18, marginBottom: 6, alignItems: "baseline" }}>
+      <div className="ent-sec-head">
         <div className="label" style={{ margin: 0 }}>Connections</div>
         <span className="spacer" />
         {!addingConn && others.length > 0 &&
-          <button style={{ padding: "3px 10px", fontSize: 12 }} onClick={() => setAddingConn(true)}>+ Connection</button>}
+          <button style={{ padding: "3px 10px", fontSize: 12 }} onClick={() => setAddingConn(true)}>+ Add connection</button>}
       </div>
 
       {addingConn && (
@@ -386,7 +377,7 @@ export function EntityPage({ entity, onBack, onChanged, startEditing, onOpenEnti
         />
       )}
 
-      <div className="card" style={{ maxWidth: 720 }}>
+      <div className="card">
         {!rows && <div className="row"><span className="muted">Loading connections…</span></div>}
         {rows && groups.length === 0 && (
           <div className="row"><span className="muted">No connections yet — add one above, or record one from a chapter draft.</span></div>
@@ -491,33 +482,37 @@ export function EntityPage({ entity, onBack, onChanged, startEditing, onOpenEnti
         })}
       </div>
 
-      <div className="label">Appears in</div>
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-        {appears.length === 0 && <span className="muted">Not yet placed in any chapter.</span>}
-        {appears.map((c) => (
-          <span className="chip" key={c.chapter_id}>ch. {c.manuscript_order} · {c.role}</span>
-        ))}
+      <div className="ent-sec-head"><div className="label" style={{ margin: 0 }}>Appears in</div></div>
+      <div className="card">
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+          {appears.length === 0 && <span className="muted">Not yet placed in any chapter.</span>}
+          {appears.map((c) => (
+            <span className="chip" key={c.chapter_id}>ch. {c.manuscript_order} · {c.role}</span>
+          ))}
+        </div>
       </div>
 
       {/* Notes pinned to this character — the same notes that live on the planning
           board, surfaced where you'd look for them. Click one to read/edit. */}
-      <div className="row" style={{ borderBottom: "none", padding: 0, marginTop: 18, marginBottom: 6, alignItems: "baseline" }}>
+      <div className="ent-sec-head">
         <div className="label" style={{ margin: 0 }}>Notes</div>
         <span className="spacer" />
         <button style={{ padding: "3px 10px", fontSize: 12 }} onClick={() => setOpenNote("new")}>+ Note</button>
       </div>
-      {notes.length === 0
-        ? <span className="muted">No notes pinned to {ent.title} yet. A note you pin here also shows on the planning board.</span>
-        : (
-          <div className="ent-notes">
-            {notes.map((n) => (
-              <button className="ent-note" key={n.id} onClick={() => setOpenNote(n)}>
-                {n.is_secret && <span className="ent-note-secret">secret</span>}
-                <span className="ent-note-body">{n.body}</span>
-              </button>
-            ))}
-          </div>
-        )}
+      <div className="card">
+        {notes.length === 0
+          ? <span className="muted">No notes pinned to {ent.title} yet. A note you pin here also shows on the planning board.</span>
+          : (
+            <div className="ent-notes">
+              {notes.map((n) => (
+                <button className="ent-note" key={n.id} onClick={() => setOpenNote(n)}>
+                  {n.is_secret && <span className="ent-note-secret">secret</span>}
+                  <span className="ent-note-body">{n.body}</span>
+                </button>
+              ))}
+            </div>
+          )}
+      </div>
 
       {openNote && (
         <NotePad
@@ -707,8 +702,7 @@ function AddConnection({ worldId, selfId, selfTitle, others, types, swatchFor, o
             <span className="rel-lab">How do they stand?</span>
             <span className="seg rel-standing">
               {VALENCES.map((v) => (
-                <span key={v} className={standing === v ? "on" : ""} onClick={() => setStanding(v)}
-                  style={standing === v ? { background: VALENCE_COLOR[v], color: "#fff" } : undefined}>
+                <span key={v} className={standing === v ? "on" : ""} onClick={() => setStanding(v)}>
                   <span className="rel-standing-dot" style={{ background: VALENCE_COLOR[v] }} />{VALENCE_LABEL[v]}
                 </span>
               ))}

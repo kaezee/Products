@@ -1411,6 +1411,27 @@ button.chron-more:hover { background: var(--wash); }
 .conn-name.click { cursor: pointer; }
 .conn-name.click:hover .ment-x { background: color-mix(in srgb, var(--mc) 22%, transparent); }
 
+/* Add-connection composer (§3): closed by default, an object when open (action
+   ring). Two search fields, a mint well, a direction well with Swap, a footer. */
+.rel-composer { padding: 16px 18px; margin-bottom: 12px; display: flex; flex-direction: column; gap: 14px; box-shadow: 0 0 0 1px var(--k-action-container, var(--bondBg)); }
+.rel-comp-head { font-size: 13px; color: var(--sub); }
+.rel-comp-fields { display: flex; gap: 14px; flex-wrap: wrap; }
+.rel-field2 { display: flex; flex-direction: column; gap: 6px; min-width: 220px; }
+.rel-lab { font: 700 10px/1.4 var(--sans); letter-spacing: .09em; text-transform: uppercase; color: var(--muted); }
+.rel-search { position: relative; }
+.rel-search > .rel-search-input { width: 100%; }
+.rel-chips { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; border: 1px solid var(--line); border-radius: 8px; background: var(--inset); padding: 5px 8px; }
+.rel-chips .rel-search-input { flex: 1; min-width: 150px; border: none; background: transparent; padding: 4px 2px; box-shadow: none; }
+.rel-chips .rel-search-input:focus { outline: none; border: none; box-shadow: none; }
+.rel-chips:focus-within { border-color: var(--bond); box-shadow: 0 0 0 3px var(--bondBg); }
+.rel-drop { width: 100%; }
+.rel-well { padding: 12px 14px; background: var(--inset); border-radius: 8px; display: flex; flex-direction: column; gap: 10px; }
+.rel-dir { flex-direction: row; align-items: center; gap: 10px; }
+.rel-q { display: flex; flex-direction: column; gap: 6px; }
+.rel-standing span { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; }
+.rel-standing-dot { flex: 0 0 8px; width: 8px; height: 8px; min-width: 8px; min-height: 8px; border-radius: 999px; }
+.rel-actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+
 /* Selection is a toggle, not a fade — no transition, so the pressed chip/card
    flips to its selected look on the same frame as the click (no perceived lag). */
 .np-chip { font-size: 12.5px; font-weight: 550; padding: 5px 11px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); color: var(--sub); transition: none; }

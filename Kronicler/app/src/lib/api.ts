@@ -491,10 +491,11 @@ export async function createRelationshipType(
   worldId: string,
   label: string,
   valence: RelationshipType["valence"],
+  directed = false,
 ): Promise<RelationshipType> {
   const { data, error } = await supabase
     .from("relationship_types")
-    .insert({ world_id: worldId, label, valence })
+    .insert({ world_id: worldId, label, valence, directed })
     .select("id, world_id, label, valence, color, is_ambient, is_terminal, directed, converse")
     .single();
   if (error) throw error;

@@ -519,7 +519,7 @@ export function EntityPage({ entity, onBack, onChanged, startEditing, onOpenEnti
       </div>
 
       <div className="ent-sec-head"><div className="label" style={{ margin: 0 }}>Appears in</div></div>
-      <div className="card">
+      <div className="card ent-body">
         {!presence || presence.presentCount === 0 ? (
           <span className="muted">Not yet placed in any chapter.</span>
         ) : (
@@ -551,7 +551,7 @@ export function EntityPage({ entity, onBack, onChanged, startEditing, onOpenEnti
         <span className="spacer" />
         <button style={{ padding: "3px 10px", fontSize: 12 }} onClick={() => setOpenNote("new")}>+ Note</button>
       </div>
-      <div className="card">
+      <div className="card ent-body">
         {notes.length === 0
           ? <span className="muted">No notes pinned to {ent.title} yet. A note you pin here also shows on the planning board.</span>
           : (

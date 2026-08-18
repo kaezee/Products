@@ -202,6 +202,7 @@ export function Library({ worldId, focusEntityId, onLeaf }: { worldId: string; f
         entity={openEntity}
         startEditing={openNew}
         entityTypes={entityTypes}
+        chapters={chapters}
         onOpenEntity={(id) => { setOpenId(id); setOpenNew(false); }}
         onBack={() => { setOpenId(null); setOpenNew(false); void reload(); }}
         onChanged={() => reload()}

@@ -1,12 +1,12 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import {
   getEntityStream, getEntityChapters, getEntities, getRelationshipTypes,
-  createRelationshipType, updateRelationshipType, appendPairwiseState, appendGroupState, updateEntity, softDeleteEntity,
+  createRelationshipType, updateRelationshipType, appendPairwiseState, appendGroupState, updateEntity, softDeleteEntity, getBands,
   updateStateType, softDeleteRelationship, swapParticipant,
   relationshipIdForState, setConnectionRoles,
   getNotes, createNote, updateNote, softDeleteNote,
 } from "../lib/api";
-import type { Entity, EntityType, StreamRow, RelationshipType, Valence, Note } from "../lib/types";
+import type { Entity, EntityType, StreamRow, RelationshipType, Valence, Note, Chapter, Band } from "../lib/types";
 import type { EntityChapter } from "../lib/api";
 import { VALENCE_COLOR, VALENCE_LABEL } from "../lib/valence";
 import { CANONICAL_ENTITY_TYPES, CUSTOM_TYPE, buildTypeSwatches } from "../lib/entityTypes";
@@ -139,14 +139,16 @@ const VALENCES: Valence[] = ["bond", "obligation", "neutral", "hostile"];
 // grouped by relationship, latest state shown, full history expandable. Also
 // editable: title, type, aliases, body. Connections can be declared directly
 // here (a standing fact like "wife/father"), not only from chapter prose.
-export function EntityPage({ entity, onBack, onChanged, startEditing, onOpenEntity, entityTypes }: {
+export function EntityPage({ entity, onBack, onChanged, startEditing, onOpenEntity, entityTypes, chapters }: {
   entity: Entity;
   onBack: () => void;
   onChanged?: () => void;
   startEditing?: boolean;
   onOpenEntity?: (id: string) => void;
   entityTypes?: EntityType[];
+  chapters?: Chapter[];
 }) {
+  const [bands, setBands] = useState<Band[]>([]);
   const [ent, setEnt] = useState<Entity>(entity);
   const [rows, setRows] = useState<StreamRow[] | null>(null);
   const [appears, setAppears] = useState<EntityChapter[]>([]);
@@ -181,6 +183,7 @@ export function EntityPage({ entity, onBack, onChanged, startEditing, onOpenEnti
     getEntityChapters(ent.id).then((c) => alive && setAppears(c)).catch((x) => alive && setErr(String(x)));
     getRelationshipTypes(ent.world_id).then((t) => alive && setTypes(t)).catch((x) => alive && setErr(String(x)));
     getNotes(ent.world_id).then((ns) => alive && setNotes(pinnedOf(ns))).catch((x) => alive && setErr(String(x)));
+    getBands(ent.world_id).then((b) => alive && setBands(b)).catch(() => {});
     getEntities(ent.world_id)
       .then((es) => alive && setOthers(es.filter((e) => e.id !== ent.id)))
       .catch((x) => alive && setErr(String(x)));
@@ -267,6 +270,38 @@ export function EntityPage({ entity, onBack, onChanged, startEditing, onOpenEnti
       setConverseFor(null); setConverseDraft("");
     } catch (x) { setErr(String(x)); }
   }
+
+  // §4 presence grid — binary shade (present vs absent), grouped by book, reusing
+  // the Overview manuscript cells. Presence comes from mention detection (appears).
+  const presence = useMemo(() => {
+    const chs = chapters ?? [];
+    if (chs.length === 0) return null;
+    const present = new Set(appears.map((a) => a.chapter_id));
+    const ordered = [...chs].sort((a, b) => a.manuscript_order - b.manuscript_order);
+    const bandName = new Map(bands.map((b) => [b.id, b.name]));
+    const bandOrder = new Map(bands.map((b) => [b.id, b.band_order]));
+    const byBand = new Map<string, { name: string; order: number; chapters: Chapter[] }>();
+    for (const c of ordered) {
+      const key = c.band_id ?? "__none";
+      if (!byBand.has(key)) byBand.set(key, {
+        name: c.band_id ? (bandName.get(c.band_id) ?? "Book") : "Unfiled",
+        order: c.band_id ? (bandOrder.get(c.band_id) ?? 998) : 999,
+        chapters: [],
+      });
+      byBand.get(key)!.chapters.push(c);
+    }
+    const books = [...byBand.values()].sort((a, b) => a.order - b.order);
+    const orders = ordered.filter((c) => present.has(c.id)).map((c) => c.manuscript_order).sort((a, b) => a - b);
+    const ranges: string[] = [];
+    for (let i = 0; i < orders.length; i++) {
+      let j = i;
+      while (j + 1 < orders.length && orders[j + 1] === orders[j] + 1) j++;
+      ranges.push(i === j ? `${orders[i]}` : `${orders[i]}–${orders[j]}`);
+      i = j;
+    }
+    return { books, present, presentCount: orders.length, total: ordered.length, ranges: ranges.join(", ") };
+  }, [chapters, appears, bands]);
+  const shade = (on: boolean) => `color-mix(in srgb, var(--k-action-fill) ${on ? 55 : 8}%, var(--surface))`;
 
   async function save() {
     setBusy(true);
@@ -368,6 +403,7 @@ export function EntityPage({ entity, onBack, onChanged, startEditing, onOpenEnti
           selfTitle={ent.title}
           others={others}
           types={types}
+          chapters={chapters}
           swatchFor={swatchFor}
           onClose={() => setAddingConn(false)}
           onAdded={() => {
@@ -484,12 +520,28 @@ export function EntityPage({ entity, onBack, onChanged, startEditing, onOpenEnti
 
       <div className="ent-sec-head"><div className="label" style={{ margin: 0 }}>Appears in</div></div>
       <div className="card">
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-          {appears.length === 0 && <span className="muted">Not yet placed in any chapter.</span>}
-          {appears.map((c) => (
-            <span className="chip" key={c.chapter_id}>ch. {c.manuscript_order} · {c.role}</span>
-          ))}
-        </div>
+        {!presence || presence.presentCount === 0 ? (
+          <span className="muted">Not yet placed in any chapter.</span>
+        ) : (
+          <>
+            <div className="ms-grid-stat" style={{ marginBottom: 14 }}>Chapters <b>{presence.ranges}</b> · {presence.presentCount} of {presence.total}</div>
+            {presence.books.map((bk, i) => (
+              <div className="ms-book" key={i}>
+                {(presence.books.length > 1 || bk.name !== "Unfiled") && <div className="ms-book-lab"><b>{bk.name}</b></div>}
+                <div className="ms-cells">
+                  {bk.chapters.map((c) => (
+                    <div key={c.id} className="ms-cell" style={{ "--sh": shade(presence.present.has(c.id)), cursor: "default" } as CSSProperties}
+                      title={`Ch. ${c.manuscript_order} · ${c.title}${presence.present.has(c.id) ? " — appears" : ""}`} />
+                  ))}
+                </div>
+              </div>
+            ))}
+            <div className="ms-legend" style={{ marginTop: 14, display: "flex", alignItems: "center", gap: 7 }}>
+              <span className="ms-cell" style={{ width: 14, height: 14, "--sh": shade(true), cursor: "default" } as CSSProperties} />
+              <span className="muted" style={{ fontSize: 11.5 }}>shaded where {ent.title} appears</span>
+            </div>
+          </>
+        )}
       </div>
 
       {/* Notes pinned to this character — the same notes that live on the planning
@@ -547,16 +599,18 @@ export function EntityPage({ entity, onBack, onChanged, startEditing, onOpenEnti
 // The composer (§3): closed by default, revealed by "+ Add connection". Two
 // type-to-search fields (kind · with), a mint well when naming a new kind, a
 // direction well with Swap, then Add / Cancel. Nothing pre-filled or suggested.
-function AddConnection({ worldId, selfId, selfTitle, others, types, swatchFor, onAdded, onClose }: {
+function AddConnection({ worldId, selfId, selfTitle, others, types, chapters, swatchFor, onAdded, onClose }: {
   worldId: string;
   selfId: string;
   selfTitle: string;
   others: Entity[];
   types: RelationshipType[];
+  chapters?: Chapter[];
   swatchFor: (id: string | null) => string | undefined;
   onAdded: () => void;
   onClose: () => void;
 }) {
+  const [fromChapter, setFromChapter] = useState("");   // §3.4 optional, defaults to none
   const [kindQ, setKindQ] = useState("");
   const [kindId, setKindId] = useState<string | null>(null);
   const [minting, setMinting] = useState(false);          // chose "+ create x"
@@ -604,12 +658,13 @@ function AddConnection({ worldId, selfId, selfTitle, others, types, swatchFor, o
         tid = t.id;
       }
       if (!tid) { setErr("Choose or name a kind."); setBusy(false); return; }
+      const manuscriptRef = fromChapter || null;
       if (isGroup) {
-        await appendGroupState({ worldId, entityIds: [selfId, ...picked], typeId: tid });
+        await appendGroupState({ worldId, entityIds: [selfId, ...picked], typeId: tid, manuscriptRef });
       } else {
         const subject = subjectIsSelf ? selfId : picked[0];
         const object = subjectIsSelf ? picked[0] : selfId;
-        const stateId = await appendPairwiseState({ worldId, entityA: subject, entityB: object, typeId: tid });
+        const stateId = await appendPairwiseState({ worldId, entityA: subject, entityB: object, typeId: tid, manuscriptRef });
         if (isDirected) {
           const relId = await relationshipIdForState(stateId);
           // subject owns the forward reading (role == the kind label) so §2.3
@@ -734,9 +789,21 @@ function AddConnection({ worldId, selfId, selfTitle, others, types, swatchFor, o
 
       {/* §3.4 footer */}
       <div className="rel-actions">
+        {(chapters ?? []).length > 0 && (
+          <label style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+            <span className="rel-lab">From chapter — optional</span>
+            <select className="sel" value={fromChapter} onChange={(e) => setFromChapter(e.target.value)}>
+              <option value="">none</option>
+              {[...(chapters ?? [])].sort((a, b) => a.manuscript_order - b.manuscript_order).map((c) => (
+                <option key={c.id} value={c.id}>Ch. {c.manuscript_order} · {c.title}</option>
+              ))}
+            </select>
+          </label>
+        )}
+        <span className="spacer" style={{ flex: 1 }} />
         <button className="primary" onClick={commit} disabled={busy || !canAdd}>{busy ? "…" : "Add connection"}</button>
         <button onClick={onClose}>Cancel</button>
-        {err && <span className="err" style={{ marginLeft: 4 }}>{err}</span>}
+        {err && <span className="err">{err}</span>}
       </div>
     </div>
   );

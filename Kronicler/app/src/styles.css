@@ -1226,6 +1226,22 @@ button.danger:hover:not(:disabled) { filter: brightness(0.93); background: var(-
 .ta-row:last-child { border-bottom: none; }
 .ta-row:hover { background: var(--wash); }
 
+/* Add-connection composer: a labelled, full-width form (no floating typeahead,
+   no auto-suggested standing) so type · standing · with · direction each read as
+   a deliberate step and nothing overlaps. */
+.rel-add { padding: 16px 18px; margin-bottom: 12px; display: flex; flex-direction: column; gap: 14px; }
+.rel-field { display: flex; flex-direction: column; gap: 8px; }
+.rel-lab { font: 700 10px/1.4 var(--sans); letter-spacing: .09em; text-transform: uppercase; color: var(--muted); }
+.rel-line { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.rel-self { font-size: 15px; }
+.rel-typesel { min-width: 190px; }
+.rel-typeinput { min-width: 200px; flex: 1; max-width: 320px; }
+.rel-sublab { font-size: 11.5px; color: var(--muted); min-width: 56px; }
+.rel-valseg span { display: inline-flex; align-items: center; gap: 6px; padding: 6px 13px; }
+.rel-valseg .dot { width: 8px; height: 8px; border-radius: 999px; flex: 0 0 auto; }
+.rel-actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-top: 2px; }
+.rel-help { font-size: 11.5px; color: var(--muted); }
+
 /* ── ⌘K palette ────────────────────────────────────────── */
 .palette-scrim { position: fixed; inset: 0; background: rgba(31,29,24,.4); display: flex; align-items: flex-start; justify-content: center; padding-top: 120px; z-index: 70; }
 .palette { width: 460px; max-width: calc(100vw - 32px); background: var(--surface); border-radius: 15px; border: 1px solid var(--lineStrong); box-shadow: var(--pop); overflow: hidden; }

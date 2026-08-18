@@ -8,9 +8,9 @@ import {
 } from "../lib/api";
 import type { Entity, StreamRow, RelationshipType, Valence, Note } from "../lib/types";
 import type { EntityChapter } from "../lib/api";
-import { VALENCE_COLOR } from "../lib/valence";
+import { VALENCE_COLOR, VALENCE_LABEL } from "../lib/valence";
 import { CANONICAL_ENTITY_TYPES, CUSTOM_TYPE } from "../lib/entityTypes";
-import { sideLabel, suggestInverse } from "../lib/direction";
+import { sideLabel } from "../lib/direction";
 import { isBelief } from "../lib/knowledge";
 import { ArcSparkline } from "./ArcSparkline";
 import { Icon } from "../components/icons";
@@ -31,12 +31,11 @@ function DirectionPicker({ forward, mode, inverse, selfName, otherName, onMode, 
   onInverse: (s: string) => void;
   onInverseCommit?: (s: string) => void;
 }) {
-  const suggestion = suggestInverse(forward);
   const a = selfName || "this one", b = otherName || "the other";
   const rev = inverse.trim();
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: 12 }}>
-      <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+      <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
         <span className="seg" style={{ fontSize: 11 }}>
           <span className={mode === "mutual" ? "on" : ""} onClick={() => onMode("mutual")}>↔ both ways</span>
           <span className={mode === "directed" ? "on" : ""} onClick={() => onMode("directed")}>→ one direction</span>
@@ -47,8 +46,7 @@ function DirectionPicker({ forward, mode, inverse, selfName, otherName, onMode, 
             <input value={inverse} onChange={(e) => onInverse(e.target.value)}
               onBlur={(e) => onInverseCommit?.(e.target.value)}
               onKeyDown={(e) => { if (e.key === "Enter") onInverseCommit?.((e.target as HTMLInputElement).value); }}
-              placeholder={suggestion ? suggestion : "blank = one-way"} style={{ width: 130 }} />
-            {suggestion && !rev && <span className="faint" style={{ fontSize: 11 }}>suggested: {suggestion}</span>}
+              placeholder="blank = one-way" style={{ width: 150 }} />
           </>
         )}
       </div>
@@ -132,7 +130,7 @@ function EditConnection({ latest, selfId, selfName, otherId, others, types, onCh
 
 const isCanonical = (t: string) => (CANONICAL_ENTITY_TYPES as readonly string[]).includes(t);
 
-const VALENCES: Valence[] = ["bond", "hostile", "obligation", "neutral"];
+const VALENCES: Valence[] = ["bond", "obligation", "neutral", "hostile"];
 
 // Entity Document view (PRD §9.2): the body, with typed connections woven in —
 // grouped by relationship, latest state shown, full history expandable. Also
@@ -451,39 +449,28 @@ function AddConnection({ worldId, selfId, selfTitle, others, types, onAdded, onC
   const [picked, setPicked] = useState<string[]>(others[0] ? [others[0].id] : []);
   const [tq, setTq] = useState("");
   const [typeId, setTypeId] = useState<string | null>(null);
+  const [newMode, setNewMode] = useState(false);   // "+ New type…" chosen — name it inline
   const [valence, setValence] = useState<Valence>("bond");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [added, setAdded] = useState(0);
   const [mode, setMode] = useState<"mutual" | "directed">("mutual");
   const [inverse, setInverse] = useState("");
-  const [dirTouched, setDirTouched] = useState(false);
   const typeRef = useRef<HTMLInputElement>(null);
 
   const isGroup = picked.length >= 2; // 3+ participants incl. self → one group relationship
   const remaining = others.filter((e) => !picked.includes(e.id));
 
-  const q = tq.trim().toLowerCase();
-  const matches = types.filter((t) => t.label.toLowerCase().includes(q)).slice(0, 5);
-  const exact = types.find((t) => t.label.toLowerCase() === q);
-  const chosen = typeId ? types.find((t) => t.id === typeId) ?? null : exact ?? null;
-  const canMint = !chosen && q.length > 0;
-  const forward = chosen?.label ?? tq.trim();
-
-  // Auto-detect direction from the word — "wife"→two-way, "is a"→one-way — until
-  // the writer overrides it. Keeps simple relations one-click while offering
-  // sensible directional defaults.
-  useEffect(() => {
-    if (dirTouched) return;
-    const sug = suggestInverse(forward);
-    if (sug === null) { setMode("mutual"); setInverse(""); }
-    else { setMode("directed"); setInverse(sug); }
-  }, [forward, dirTouched]);
+  // Type is chosen explicitly: an existing type from the dropdown, or a named new
+  // one. No typeahead, no auto-suggested standing — the writer says what it is.
+  const chosen = typeId ? types.find((t) => t.id === typeId) ?? null : null;
+  const canMint = newMode && tq.trim().length > 0;
+  const forward = chosen?.label ?? (newMode ? tq.trim() : "");
 
   // Rapid entry: add and keep the form open, so several connections in a row
   // take one click each, not a full re-open.
   async function commit() {
-    if (picked.length === 0) { setErr("Pick at least one person to connect."); return; }
+    if (picked.length === 0) { setErr("Pick who or what to connect."); return; }
     setBusy(true);
     setErr(null);
     try {
@@ -508,79 +495,90 @@ function AddConnection({ worldId, selfId, selfTitle, others, types, onAdded, onC
       }
       onAdded();
       setAdded((n) => n + 1);
-      setTq(""); setTypeId(null); setDirTouched(false);
+      setTq(""); setTypeId(null); setNewMode(false); setMode("mutual"); setInverse("");
       setPicked(remaining[0] ? [remaining[0].id] : []);
       setBusy(false);
-      typeRef.current?.focus();
     } catch (x) { setErr(String(x)); setBusy(false); }
   }
 
+  const canAdd = picked.length > 0 && (chosen != null || canMint);
   return (
-    <div className="card" style={{ padding: 12, marginBottom: 10, maxWidth: 720, display: "flex", flexDirection: "column", gap: 8 }}>
-      <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-        <span className="title-serif">{selfTitle}</span>
-        <div style={{ position: "relative" }}>
-          <input
-            ref={typeRef}
-            autoFocus
-            value={chosen ? chosen.label : tq}
-            onChange={(e) => { setTq(e.target.value); setTypeId(null); }}
-            onKeyDown={(e) => { if (e.key === "Enter" && (chosen || canMint)) commit(); if (e.key === "Escape") onClose(); }}
-            placeholder="is / has…"
-            style={{ width: 150, borderColor: chosen ? VALENCE_COLOR[chosen.valence] : undefined }}
-          />
-          {q.length > 0 && !typeId && (
-            <div className="typeahead">
-              {matches.map((t) => (
-                <div key={t.id} className="ta-row" onClick={() => { setTypeId(t.id); setTq(""); }}>
-                  <span className="dot" style={{ background: VALENCE_COLOR[t.valence] }} />{t.label}
-                </div>
-              ))}
-              {canMint && (
-                <div className="ta-row" style={{ flexDirection: "column", alignItems: "flex-start", gap: 6 }}>
-                  <span className="muted">mint "{tq.trim()}" as a new type — pick a standing:</span>
-                  <span style={{ display: "flex", gap: 6 }}>
-                    {VALENCES.map((v) => (
-                      <span key={v} title={v} onClick={() => setValence(v)}
-                        style={{ width: 16, height: 16, borderRadius: "50%", background: VALENCE_COLOR[v], cursor: "pointer",
-                          outline: valence === v ? "2px solid var(--ink)" : "none", outlineOffset: 1 }} />
-                    ))}
-                  </span>
-                </div>
-              )}
-            </div>
+    <div className="card rel-add">
+      {/* Type — an explicit choice: an existing type, or a named new one. */}
+      <div className="rel-field">
+        <span className="rel-lab">Relationship</span>
+        <div className="rel-line">
+          <span className="title-serif rel-self">{selfTitle}</span>
+          <select className="sel rel-typesel" value={newMode ? "__new__" : (typeId ?? "")}
+            onChange={(e) => {
+              const v = e.target.value;
+              if (v === "__new__") { setNewMode(true); setTypeId(null); setTq(""); setTimeout(() => typeRef.current?.focus(), 0); }
+              else { setNewMode(false); setTypeId(v || null); setTq(""); }
+            }}>
+            <option value="">choose a type…</option>
+            {types.map((t) => <option key={t.id} value={t.id}>{t.label}</option>)}
+            <option value="__new__">+ New type…</option>
+          </select>
+          {newMode && (
+            <input ref={typeRef} autoFocus className="rel-typeinput" value={tq}
+              placeholder="name it — e.g. works in"
+              onChange={(e) => setTq(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter" && canAdd) commit(); if (e.key === "Escape") onClose(); }} />
           )}
         </div>
-        {picked.map((id) => {
-          const e = others.find((o) => o.id === id);
-          return (
-            <span key={id} className="chip on" style={{ cursor: "pointer" }} onClick={() => setPicked((p) => p.filter((x) => x !== id))}>
-              {e?.title ?? "?"} <Icon name="close" size={12} />
+        {newMode && (
+          <div className="rel-line">
+            <span className="rel-sublab">Standing</span>
+            <span className="seg rel-valseg">
+              {VALENCES.map((v) => (
+                <span key={v} className={valence === v ? "on" : ""} onClick={() => setValence(v)}>
+                  <span className="dot" style={{ background: VALENCE_COLOR[v] }} />{VALENCE_LABEL[v]}
+                </span>
+              ))}
             </span>
-          );
-        })}
-        {remaining.length > 0 && (
-          <select value="" className="sel" style={{ width: 130 }}
-            onChange={(e) => { if (e.target.value) setPicked((p) => [...p, e.target.value]); }}>
-            <option value="">{picked.length ? "+ add person…" : "pick a person…"}</option>
-            {remaining.map((e) => <option key={e.id} value={e.id}>{e.title}</option>)}
-          </select>
+          </div>
         )}
-        <button className="primary" onClick={commit} disabled={busy}>{busy ? "…" : "Add"}</button>
-        <button onClick={onClose}>Done{added > 0 ? ` (${added})` : ""}</button>
       </div>
-      {!isGroup && forward.length > 0 && (
-        <DirectionPicker forward={forward} mode={mode} inverse={inverse}
-          selfName={selfTitle} otherName={picked[0] ? others.find((o) => o.id === picked[0])?.title : undefined}
-          onMode={(m) => { setDirTouched(true); setMode(m); }}
-          onInverse={(s) => { setDirTouched(true); setInverse(s); }} />
+
+      {/* With whom or what — any entity, not only people. */}
+      <div className="rel-field">
+        <span className="rel-lab">With</span>
+        <div className="rel-line">
+          {picked.map((id) => {
+            const e = others.find((o) => o.id === id);
+            return (
+              <span key={id} className="chip on" style={{ cursor: "pointer" }} onClick={() => setPicked((p) => p.filter((x) => x !== id))}>
+                {e?.title ?? "?"} <Icon name="close" size={12} />
+              </span>
+            );
+          })}
+          {remaining.length > 0 && (
+            <select value="" className="sel" style={{ minWidth: 150 }}
+              onChange={(e) => { if (e.target.value) setPicked((p) => [...p, e.target.value]); }}>
+              <option value="">{picked.length ? "+ add another…" : "who or what…"}</option>
+              {remaining.map((e) => <option key={e.id} value={e.id}>{e.title}</option>)}
+            </select>
+          )}
+        </div>
+      </div>
+
+      {/* Direction — only meaningful for a one-to-one connection. */}
+      {!isGroup && forward.length > 0 && picked.length > 0 && (
+        <div className="rel-field">
+          <span className="rel-lab">Direction</span>
+          <DirectionPicker forward={forward} mode={mode} inverse={inverse}
+            selfName={selfTitle} otherName={picked[0] ? others.find((o) => o.id === picked[0])?.title : undefined}
+            onMode={setMode} onInverse={setInverse} />
+        </div>
       )}
       {isGroup && <span className="faint" style={{ fontSize: 11 }}>👥 group — one shared relationship among {selfTitle} + {picked.length} others, reads the same for everyone</span>}
+
+      <div className="rel-actions">
+        <button className="primary" onClick={commit} disabled={busy || !canAdd}>{busy ? "…" : "Add"}</button>
+        <button onClick={onClose}>Done{added > 0 ? ` (${added})` : ""}</button>
+        <span className="rel-help">{added > 0 ? `✓ ${added} added — keep going, or Done.` : "One link is a bond; add more for a group — a party, a faction."}</span>
+      </div>
       {err && <span className="err">{err}</span>}
-      <span className="muted">
-        {added > 0 ? `✓ ${added} added — keep going, or Done.  ` : ""}
-        one person = a bond (e.g. "wife" · "ally"); add more for a group (a party, a faction) — Enter to add
-      </span>
     </div>
   );
 }

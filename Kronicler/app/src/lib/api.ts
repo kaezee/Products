@@ -503,7 +503,7 @@ export async function createRelationshipType(
 
 export async function updateRelationshipType(
   id: string,
-  patch: Partial<Pick<RelationshipType, "label" | "valence" | "is_ambient" | "is_terminal" | "color">>,
+  patch: Partial<Pick<RelationshipType, "label" | "valence" | "is_ambient" | "is_terminal" | "color" | "directed" | "converse">>,
 ): Promise<void> {
   const { error } = await supabase.from("relationship_types").update(patch).eq("id", id);
   if (error) throw error;

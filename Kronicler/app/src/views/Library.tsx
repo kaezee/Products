@@ -198,8 +198,11 @@ export function Library({ worldId, focusEntityId, onLeaf }: { worldId: string; f
   if (openEntity) {
     return (
       <EntityPage
+        key={openEntity.id}
         entity={openEntity}
         startEditing={openNew}
+        entityTypes={entityTypes}
+        onOpenEntity={(id) => { setOpenId(id); setOpenNew(false); }}
         onBack={() => { setOpenId(null); setOpenNew(false); void reload(); }}
         onChanged={() => reload()}
       />

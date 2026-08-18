@@ -1407,6 +1407,9 @@ button.chron-more:hover { background: var(--wash); }
 /* §7 entity-mention channel (inline, derived sentences): solid underline in the
    entity colour + faint wash, radius 2. Linework only — no container. */
 .ment-x { border-bottom: 2px solid var(--mc); background: var(--mw); border-radius: var(--k-radius-mark, 2px); padding: 0 1.5px; font-weight: 600; color: inherit; }
+/* A connection name is a mention that navigates on click. */
+.conn-name.click { cursor: pointer; }
+.conn-name.click:hover .ment-x { background: color-mix(in srgb, var(--mc) 22%, transparent); }
 
 /* Selection is a toggle, not a fade — no transition, so the pressed chip/card
    flips to its selected look on the same frame as the click (no perceived lag). */

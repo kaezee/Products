@@ -1,16 +1,17 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   getEntityStream, getEntityChapters, getEntities, getRelationshipTypes,
-  createRelationshipType, appendPairwiseState, appendGroupState, updateEntity, softDeleteEntity,
+  createRelationshipType, updateRelationshipType, appendPairwiseState, appendGroupState, updateEntity, softDeleteEntity,
   updateStateType, softDeleteRelationship, swapParticipant,
   relationshipIdForState, setConnectionRoles,
   getNotes, createNote, updateNote, softDeleteNote,
 } from "../lib/api";
-import type { Entity, StreamRow, RelationshipType, Valence, Note } from "../lib/types";
+import type { Entity, EntityType, StreamRow, RelationshipType, Valence, Note } from "../lib/types";
 import type { EntityChapter } from "../lib/api";
 import { VALENCE_COLOR } from "../lib/valence";
-import { CANONICAL_ENTITY_TYPES, CUSTOM_TYPE } from "../lib/entityTypes";
-import { sideLabel, suggestInverse } from "../lib/direction";
+import { CANONICAL_ENTITY_TYPES, CUSTOM_TYPE, buildTypeSwatches } from "../lib/entityTypes";
+import { isDirectional, suggestInverse } from "../lib/direction";
+import { Mention } from "../components/Mention";
 import { isBelief } from "../lib/knowledge";
 import { ArcSparkline } from "./ArcSparkline";
 import { Icon } from "../components/icons";
@@ -138,11 +139,13 @@ const VALENCES: Valence[] = ["bond", "hostile", "obligation", "neutral"];
 // grouped by relationship, latest state shown, full history expandable. Also
 // editable: title, type, aliases, body. Connections can be declared directly
 // here (a standing fact like "wife/father"), not only from chapter prose.
-export function EntityPage({ entity, onBack, onChanged, startEditing }: {
+export function EntityPage({ entity, onBack, onChanged, startEditing, onOpenEntity, entityTypes }: {
   entity: Entity;
   onBack: () => void;
   onChanged?: () => void;
   startEditing?: boolean;
+  onOpenEntity?: (id: string) => void;
+  entityTypes?: EntityType[];
 }) {
   const [ent, setEnt] = useState<Entity>(entity);
   const [rows, setRows] = useState<StreamRow[] | null>(null);
@@ -185,6 +188,19 @@ export function EntityPage({ entity, onBack, onChanged, startEditing }: {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ent.id, ent.world_id]);
 
+  const typeById = useMemo(() => new Map(types.map((t) => [t.id, t])), [types]);
+
+  // Entity swatches for the mention treatment on connection names.
+  const swatchMap = useMemo(
+    () => buildTypeSwatches(entityTypes ?? [], others.map((e) => e.type)),
+    [entityTypes, others],
+  );
+  const swatchFor = (entityId: string | null) => {
+    const t = entityId ? others.find((o) => o.id === entityId)?.type : undefined;
+    return t ? swatchMap.get(t.toLowerCase()) : undefined;
+  };
+
+  type Shape = "outbound" | "inbound-converse" | "inbound-noconverse" | "group";
   const groups = useMemo(() => {
     const m = new Map<string, StreamRow[]>();
     for (const r of rows ?? []) {
@@ -195,12 +211,62 @@ export function EntityPage({ entity, onBack, onChanged, startEditing }: {
     }
     return [...m.entries()].map(([relId, history]) => {
       const latest = history[history.length - 1];
-      const otherParts = latest.participants.filter((p) => p.entity_id !== ent.id);
+      const parts = latest.participants;
+      const otherParts = parts.filter((p) => p.entity_id !== ent.id);
       const others = otherParts.map((p) => p.title).join(" · ");
       const otherId = otherParts[0]?.entity_id ?? null;
-      return { relId, history, latest, others, otherId };
+      const kind = typeById.get(latest.type_id);
+      // Direction from the KIND (the new model); fall back to the record's roles
+      // for a kind whose flag isn't set yet. §2.3 three row shapes.
+      const directed = kind?.directed ?? isDirectional(latest);
+      const converse = kind?.converse ?? null;
+      let shape: Shape = "outbound";
+      let verb = latest.type_label;
+      if (parts.length > 2) {
+        shape = "group";
+      } else if (directed) {
+        // subject = owns the forward reading (role == label), else whoever holds
+        // a role, else the first participant.
+        const subj = parts.find((p) => p.role && p.role.toLowerCase() === latest.type_label.toLowerCase())
+          ?? parts.find((p) => p.role) ?? parts[0];
+        if (subj?.entity_id !== ent.id) {
+          if (converse) { shape = "inbound-converse"; verb = converse; }
+          else shape = "inbound-noconverse";
+        }
+      }
+      return { relId, history, latest, others, otherId, otherParts, shape, verb, kind };
     });
-  }, [rows, ent.id]);
+  }, [rows, ent.id, typeById]);
+
+  // Inbound rows with no converse group by kind (§2.4): one row per kind, up to
+  // three names then +N. Everything else renders individually.
+  const individualGroups = useMemo(() => groups.filter((g) => g.shape !== "inbound-noconverse"), [groups]);
+  const noConverseByKind = useMemo(() => {
+    const m = new Map<string, { kind: RelationshipType | undefined; typeLabel: string; typeId: string; valence: Valence; entries: typeof groups }>();
+    for (const g of groups) {
+      if (g.shape !== "inbound-noconverse") continue;
+      const key = g.latest.type_id;
+      const bucket = m.get(key) ?? { kind: g.kind, typeLabel: g.latest.type_label, typeId: key, valence: g.latest.valence, entries: [] as typeof groups };
+      bucket.entries.push(g);
+      m.set(key, bucket);
+    }
+    return [...m.values()];
+  }, [groups]);
+
+  // §2.5 the converse upgrade: capture a reverse word for a directed kind that
+  // has none. Writes to the KIND, so every inbound row using it re-renders
+  // verb-first at once (we patch local `types` to reflect it immediately).
+  const [converseFor, setConverseFor] = useState<string | null>(null);
+  const [converseDraft, setConverseDraft] = useState("");
+  async function saveConverse(typeId: string) {
+    const word = converseDraft.trim();
+    if (!word) { setConverseFor(null); return; }
+    try {
+      await updateRelationshipType(typeId, { directed: true, converse: word });
+      setTypes((ts) => ts.map((t) => (t.id === typeId ? { ...t, directed: true, converse: word } : t)));
+      setConverseFor(null); setConverseDraft("");
+    } catch (x) { setErr(String(x)); }
+  }
 
   async function save() {
     setBusy(true);
@@ -324,10 +390,11 @@ export function EntityPage({ entity, onBack, onChanged, startEditing }: {
         {rows && groups.length === 0 && (
           <div className="row"><span className="muted">No connections yet — add one above, or record one from a chapter draft.</span></div>
         )}
-        {groups.map(({ relId, history, latest, others: otherNames, otherId }) => {
+        {/* Outbound · inbound-with-converse · group — each renders verb-first,
+            §2.3. Names carry the mention treatment and navigate. */}
+        {individualGroups.map(({ relId, history, latest, otherParts, verb }) => {
           const isOpen = open === relId;
           const isEditing = editingRel === relId;
-          const side = sideLabel(latest, ent.id);
           const toggle = () => setOpen(isOpen ? null : relId);
           return (
             <div key={relId} style={{ borderBottom: "1px solid var(--line)" }}>
@@ -335,18 +402,16 @@ export function EntityPage({ entity, onBack, onChanged, startEditing }: {
                 onDoubleClick={() => setEditingRel(relId)}>
                 <span className="muted" style={{ width: 10, cursor: "pointer" }} onClick={toggle}><Icon name={isOpen ? "chevron-down" : "chevron"} size={13} /></span>
                 <span className="dot" style={{ background: VALENCE_COLOR[latest.valence] }} />
-                {side.incoming ? (
-                  // self is the object of a one-way link: read it passively (the other is the subject)
-                  <span className="title-serif" style={{ flex: 1, cursor: "pointer" }} onClick={toggle}>
-                    {otherNames} <span className="muted" style={{ fontStyle: "italic" }}>{side.label} ↩</span>
-                  </span>
-                ) : (
-                  <>
-                    <span style={{ color: VALENCE_COLOR[latest.valence], fontWeight: 600, fontSize: 12.5, cursor: "pointer" }}
-                      onClick={toggle}>{side.label}</span>
-                    <span className="title-serif" style={{ flex: 1, cursor: "pointer" }} onClick={toggle}>{otherNames}</span>
-                  </>
-                )}
+                <span style={{ color: VALENCE_COLOR[latest.valence], fontWeight: 600, fontSize: 12.5 }}>{verb}</span>
+                <span style={{ flex: 1 }}>
+                  {otherParts.map((p, i) => (
+                    <span key={p.entity_id}>
+                      {i > 0 && <span className="muted">, </span>}
+                      <span className={onOpenEntity ? "conn-name click" : "conn-name"}
+                        onClick={() => onOpenEntity?.(p.entity_id)}><Mention name={p.title} swatch={swatchFor(p.entity_id)} /></span>
+                    </span>
+                  ))}
+                </span>
                 {history.length > 1 && <ArcSparkline history={history} />}
                 <span className="muted" title="Not tied to a specific chapter — a standing fact, true throughout">{latest.manuscript_order != null ? `ch. ${latest.manuscript_order}` : "no chapter"}</span>
                 <span className="rowact" title="Edit this connection" onClick={() => setEditingRel(isEditing ? null : relId)}
@@ -356,7 +421,7 @@ export function EntityPage({ entity, onBack, onChanged, startEditing }: {
               </div>
 
               {isEditing && (
-                <EditConnection latest={latest} selfId={ent.id} selfName={ent.title} otherId={otherId} others={others} types={types}
+                <EditConnection latest={latest} selfId={ent.id} selfName={ent.title} otherId={otherParts[0]?.entity_id ?? null} others={others} types={types}
                   onChangeType={changeType} onSwap={swapPerson} onApplyDirection={applyDirection}
                   onDone={() => setEditingRel(null)} />
               )}
@@ -374,6 +439,50 @@ export function EntityPage({ entity, onBack, onChanged, startEditing }: {
                       </div>
                     );
                   })}
+                </div>
+              )}
+            </div>
+          );
+        })}
+
+        {/* Inbound, no converse — grouped by kind (§2.4): ↳ names +N  kind, with
+            the §2.5 affordance to give this direction a word. */}
+        {noConverseByKind.map((b) => {
+          const names = b.entries.map((g) => ({ id: g.otherId, title: g.otherParts[0]?.title ?? "?" }));
+          const shown = names.slice(0, 3);
+          const extra = names.length - shown.length;
+          const capturing = converseFor === b.typeId;
+          return (
+            <div key={b.typeId} style={{ borderBottom: "1px solid var(--line)" }}>
+              <div className="row" style={{ borderBottom: "none", alignItems: "baseline" }}>
+                <span style={{ width: 10, color: "var(--faint)" }}>↳</span>
+                <span className="dot" style={{ background: VALENCE_COLOR[b.valence] }} />
+                <span style={{ flex: 1 }}>
+                  {shown.map((n, i) => (
+                    <span key={n.id ?? i}>
+                      {i > 0 && <span className="muted">, </span>}
+                      <span className={onOpenEntity && n.id ? "conn-name click" : "conn-name"}
+                        onClick={() => n.id && onOpenEntity?.(n.id)}><Mention name={n.title} swatch={swatchFor(n.id)} /></span>
+                    </span>
+                  ))}
+                  {extra > 0 && <span className="muted"> +{extra}</span>}{" "}
+                  <span style={{ color: VALENCE_COLOR[b.valence], fontWeight: 600 }}>{b.typeLabel}</span>
+                </span>
+                {!capturing && (
+                  <span className="rowact" style={{ cursor: "pointer", color: "var(--k-action-text, var(--bond))", fontSize: 12 }}
+                    onClick={() => { setConverseFor(b.typeId); setConverseDraft(""); }}>add a word for this direction</span>
+                )}
+              </div>
+              {capturing && (
+                <div style={{ margin: "0 0 10px 24px", padding: "8px 10px", background: "var(--inset)", borderRadius: 8, fontSize: 12.5 }}>
+                  <div className="muted" style={{ marginBottom: 6 }}>If someone <b>{b.typeLabel}</b> {ent.title}, what are they to {ent.title}?</div>
+                  <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                    <input autoFocus value={converseDraft} placeholder={`e.g. is ${b.typeLabel} by`} style={{ width: 200 }}
+                      onChange={(e) => setConverseDraft(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === "Enter") saveConverse(b.typeId); if (e.key === "Escape") setConverseFor(null); }} />
+                    <button className="primary" onClick={() => saveConverse(b.typeId)}>Save</button>
+                    <button onClick={() => setConverseFor(null)}>Cancel</button>
+                  </div>
                 </div>
               )}
             </div>

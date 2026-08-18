@@ -13,23 +13,9 @@
 alter table relationship_types add column if not exists directed boolean not null default false;
 alter table relationship_types add column if not exists converse text;
 
--- 1. Known starter kinds — set by label across every world (confirmed mapping).
---    Directed, with a natural converse:
-update relationship_types set directed = true, converse = 'child of'   where label = 'mother of' and converse is null;
-update relationship_types set directed = true, converse = 'child of'   where label = 'father of' and converse is null;
-update relationship_types set directed = true, converse = 'student of' where label = 'mentor of' and converse is null;
-update relationship_types set directed = true, converse = 'has member' where label = 'member of' and converse is null;
-update relationship_types set directed = true, converse = 'is owed by' where label = 'owes'      and converse is null;
---    Directed, no natural converse:
-update relationship_types set directed = true where label in ('lives in', 'located in', 'works in');
---    Both ways (symmetric) — explicit, though false is already the default:
-update relationship_types set directed = false, converse = null
-  where label in ('family', 'rival', 'allied with', 'enemy of', 'knows about', 'ally');
-
--- 2. User-created kinds: derive direction from existing records. A kind whose
---    records carry a reverse word on the OBJECT side (a participant role that
---    isn't the kind's own label) is directed; lift the most common such word
---    into converse. Never touches the record rows themselves.
+-- 1. Record-derived first: a kind whose connections carry a reverse word on the
+--    OBJECT side (a participant role that isn't the kind's own label) is directed;
+--    lift the most common such word into converse. Never touches the record rows.
 with obj_roles as (
   select rt.id as type_id, rp.role as word, count(*) as n
   from relationship_types rt
@@ -38,8 +24,6 @@ with obj_roles as (
   where rp.role is not null
     and rp.role <> ''
     and lower(rp.role) <> lower(rt.label)
-    and rt.directed = false
-    and rt.converse is null
   group by rt.id, rp.role
 ),
 best as (
@@ -51,3 +35,18 @@ update relationship_types rt
   set directed = true, converse = best.word
   from best
   where best.type_id = rt.id;
+
+-- 2. Known starter kinds override the derivation (case-insensitive; confirmed
+--    mapping). Directed, with a natural converse:
+update relationship_types set directed = true, converse = 'child of'   where lower(label) = 'mother of';
+update relationship_types set directed = true, converse = 'child of'   where lower(label) = 'father of';
+update relationship_types set directed = true, converse = 'student of' where lower(label) = 'mentor of';
+update relationship_types set directed = true, converse = 'has member' where lower(label) = 'member of';
+update relationship_types set directed = true, converse = 'is owed by' where lower(label) = 'owes';
+--    Directed, converse left as whatever a record supplied (usually none):
+update relationship_types set directed = true where lower(label) in ('lives in', 'located in', 'works in');
+
+-- 3. Symmetric kinds are authoritative both-ways — run LAST so no derived junk
+--    (e.g. a stray one-letter role) can leave them directed.
+update relationship_types set directed = false, converse = null
+  where lower(label) in ('family', 'rival', 'allied with', 'enemy of', 'knows about', 'ally');

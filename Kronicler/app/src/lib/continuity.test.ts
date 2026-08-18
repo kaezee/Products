@@ -24,7 +24,7 @@ const row = (p: Partial<StreamRow> & { relationship_id: string }): StreamRow => 
 });
 
 const relType = (id: string, extra: Partial<RelationshipType> = {}): RelationshipType => ({
-  id, world_id: "w", label: id, valence: "bond", color: null, is_ambient: false, is_terminal: false, ...extra,
+  id, world_id: "w", label: id, valence: "bond", color: null, is_ambient: false, is_terminal: false, directed: false, converse: null, ...extra,
 });
 
 const types = [relType("friend"), relType("dead", { is_terminal: true })];

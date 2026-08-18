@@ -35,6 +35,8 @@ export interface RelationshipType {
   color: string | null;
   is_ambient: boolean;
   is_terminal: boolean;
+  directed: boolean;        // false = reads the same both ways; true = one way
+  converse: string | null;  // reverse word for a directed kind (mother of → child of); may be null
 }
 
 export interface Note {

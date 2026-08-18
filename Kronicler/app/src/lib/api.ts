@@ -479,7 +479,7 @@ export async function setChapterStructuredDate(
 export async function getRelationshipTypes(worldId: string): Promise<RelationshipType[]> {
   const { data, error } = await supabase
     .from("relationship_types")
-    .select("id, world_id, label, valence, color, is_ambient, is_terminal")
+    .select("id, world_id, label, valence, color, is_ambient, is_terminal, directed, converse")
     .eq("world_id", worldId)
     .is("deleted_at", null)
     .order("label", { ascending: true });
@@ -495,7 +495,7 @@ export async function createRelationshipType(
   const { data, error } = await supabase
     .from("relationship_types")
     .insert({ world_id: worldId, label, valence })
-    .select("id, world_id, label, valence, color, is_ambient, is_terminal")
+    .select("id, world_id, label, valence, color, is_ambient, is_terminal, directed, converse")
     .single();
   if (error) throw error;
   return data;

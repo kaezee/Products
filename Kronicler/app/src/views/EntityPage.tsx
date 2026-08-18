@@ -131,6 +131,50 @@ function EditConnection({ latest, selfId, selfName, otherId, others, types, onCh
   );
 }
 
+// A bounded chapter picker: a native <select> with 50+ chapters opens an
+// OS popup that spans the whole viewport. This is a self-contained dropdown
+// instead — the list is capped and scrolls inside its own container.
+function ChapterPicker({ chapters, value, onChange }: {
+  chapters: Chapter[];
+  value: string;
+  onChange: (id: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const sorted = useMemo(() => [...chapters].sort((a, b) => a.manuscript_order - b.manuscript_order), [chapters]);
+  const sel = value ? sorted.find((c) => c.id === value) : null;
+  useEffect(() => {
+    if (!open) return;
+    const onDoc = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
+    document.addEventListener("mousedown", onDoc);
+    return () => document.removeEventListener("mousedown", onDoc);
+  }, [open]);
+  return (
+    <div className="rel-search chapter-pick" ref={ref}>
+      <button type="button" className="chapter-pick-trigger" onClick={() => setOpen((o) => !o)}>
+        <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          {sel ? `Ch. ${sel.manuscript_order} · ${sel.title}` : "none"}
+        </span>
+        <Icon name="chevron-down" size={12} />
+      </button>
+      {open && (
+        <div className="typeahead rel-drop chapter-pick-list">
+          <div className={"ta-row" + (value ? "" : " on")} onClick={() => { onChange(""); setOpen(false); }}>
+            <span className="muted">none — a standing fact</span>
+          </div>
+          {sorted.map((c) => (
+            <div key={c.id} className={"ta-row" + (c.id === value ? " on" : "")}
+              onClick={() => { onChange(c.id); setOpen(false); }}>
+              <span className="muted" style={{ fontSize: 11, minWidth: 38, flex: "0 0 auto" }}>Ch. {c.manuscript_order}</span>
+              <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.title}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 const isCanonical = (t: string) => (CANONICAL_ENTITY_TYPES as readonly string[]).includes(t);
 
 const VALENCES: Valence[] = ["bond", "obligation", "neutral", "hostile"];
@@ -792,12 +836,7 @@ function AddConnection({ worldId, selfId, selfTitle, others, types, chapters, sw
         {(chapters ?? []).length > 0 && (
           <label style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
             <span className="rel-lab">From chapter — optional</span>
-            <select className="sel" value={fromChapter} onChange={(e) => setFromChapter(e.target.value)}>
-              <option value="">none</option>
-              {[...(chapters ?? [])].sort((a, b) => a.manuscript_order - b.manuscript_order).map((c) => (
-                <option key={c.id} value={c.id}>Ch. {c.manuscript_order} · {c.title}</option>
-              ))}
-            </select>
+            <ChapterPicker chapters={chapters ?? []} value={fromChapter} onChange={setFromChapter} />
           </label>
         )}
         <span className="spacer" style={{ flex: 1 }} />

@@ -140,7 +140,9 @@ function ChapterPicker({ chapters, value, onChange }: {
   onChange: (id: string) => void;
 }) {
   const [open, setOpen] = useState(false);
+  const [dropUp, setDropUp] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
   const sorted = useMemo(() => [...chapters].sort((a, b) => a.manuscript_order - b.manuscript_order), [chapters]);
   const sel = value ? sorted.find((c) => c.id === value) : null;
   useEffect(() => {
@@ -149,16 +151,25 @@ function ChapterPicker({ chapters, value, onChange }: {
     document.addEventListener("mousedown", onDoc);
     return () => document.removeEventListener("mousedown", onDoc);
   }, [open]);
+  // Open downward by default; flip up only when there isn't room below and there
+  // is more above — so the list never runs off either edge of the viewport.
+  const toggle = () => {
+    if (!open) {
+      const r = triggerRef.current?.getBoundingClientRect();
+      if (r) { const below = window.innerHeight - r.bottom; setDropUp(below < 300 && r.top > below); }
+    }
+    setOpen((o) => !o);
+  };
   return (
     <div className="rel-search chapter-pick" ref={ref}>
-      <button type="button" className="chapter-pick-trigger" onClick={() => setOpen((o) => !o)}>
+      <button ref={triggerRef} type="button" className="chapter-pick-trigger" onClick={toggle}>
         <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
           {sel ? `Ch. ${sel.manuscript_order} · ${sel.title}` : "none"}
         </span>
         <Icon name="chevron-down" size={12} />
       </button>
       {open && (
-        <div className="typeahead rel-drop chapter-pick-list">
+        <div className={"typeahead rel-drop chapter-pick-list" + (dropUp ? " up" : "")}>
           <div className={"ta-row" + (value ? "" : " on")} onClick={() => { onChange(""); setOpen(false); }}>
             <span className="muted">none — a standing fact</span>
           </div>

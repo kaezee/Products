@@ -1413,7 +1413,10 @@ button.chron-more:hover { background: var(--wash); }
 
 /* Add-connection composer (§3): closed by default, an object when open (action
    ring). Two search fields, a mint well, a direction well with Swap, a footer. */
-.rel-composer { padding: 16px 18px; margin-bottom: 12px; display: flex; flex-direction: column; gap: 14px; box-shadow: 0 0 0 1px var(--k-action-container, var(--bondBg)); }
+/* overflow:visible so the field dropdowns (kind/with typeaheads, the chapter
+   picker) can extend past the card edge instead of being clipped by the base
+   .card's overflow:hidden. */
+.rel-composer { padding: 16px 18px; margin-bottom: 12px; display: flex; flex-direction: column; gap: 14px; overflow: visible; box-shadow: 0 0 0 1px var(--k-action-container, var(--bondBg)); }
 .rel-comp-head { font-size: 13px; color: var(--sub); }
 .rel-comp-fields { display: flex; gap: 14px; flex-wrap: wrap; }
 .rel-field2 { display: flex; flex-direction: column; gap: 6px; min-width: 220px; }
@@ -1458,8 +1461,9 @@ button.chron-more:hover { background: var(--wash); }
   padding: 6px 10px; font-size: 12.5px; text-align: left; color: var(--sub);
   background: var(--surface); border: 1px solid var(--line); border-radius: 8px; cursor: pointer; }
 .chapter-pick-trigger:hover { border-color: var(--lineStrong); }
-.chapter-pick-list { top: auto; bottom: calc(100% + 6px); left: 0; width: 320px; max-width: 84vw;
+.chapter-pick-list { top: calc(100% + 6px); left: 0; width: 320px; max-width: 84vw;
   max-height: 280px; overflow-y: auto; overflow-x: hidden; }
+.chapter-pick-list.up { top: auto; bottom: calc(100% + 6px); }
 .chapter-pick-list .ta-row.on { background: var(--bondBg); color: var(--bond); }
 
 /* Selection is a toggle, not a fade — no transition, so the pressed chip/card

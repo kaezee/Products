@@ -293,8 +293,18 @@ export function EntityPage({ entity, onBack, onChanged, startEditing, onOpenEnti
         }
       }
       return { relId, history, latest, others, otherId, otherParts, shape, verb, kind };
-    });
+    }).filter((g) => g.otherParts.length > 0);   // solo (self-only) = an inner beat, handled below
   }, [rows, ent.id, typeById]);
+
+  // Inner arc — beats a character feels about *themselves* (a relationship whose
+  // only participant is self). All inner kinds flatten into one chronological
+  // arc: the character's emotional through-line. Charge rides the same felt
+  // colours as valence (lifts=bond / steady=neutral / weighs=hostile).
+  const innerBeats = useMemo(() => {
+    return (rows ?? [])
+      .filter((r) => !isBelief(r) && r.participants.filter((p) => p.entity_id !== ent.id).length === 0)
+      .sort((a, b) => (a.manuscript_order ?? 1e9) - (b.manuscript_order ?? 1e9) || (a.created_at < b.created_at ? -1 : 1));
+  }, [rows, ent.id]);
 
   // Inbound rows with no converse group by kind (§2.4): one row per kind, up to
   // three names then +N. Everything else renders individually.
@@ -593,6 +603,44 @@ export function EntityPage({ entity, onBack, onChanged, startEditing, onOpenEnti
           );
         })}
       </div>
+
+      {/* Inner arc — the character's emotional through-line, only for beings.
+          Each beat is a felt state (word + charge colour) with its trigger line;
+          a beat that flips the charge from the one before is a turn. */}
+      {familyOf(ent.type) === "being" && (
+        <>
+          <div className="ent-sec-head"><div className="label" style={{ margin: 0 }}>Inner arc</div></div>
+          <div className="card ent-body">
+            {innerBeats.length === 0 ? (
+              <span className="muted">No inner beats yet — mark where {ent.title} feels a shift, and their emotional arc grows here.</span>
+            ) : (
+              <div className="mom-arc" style={{ margin: "0 0 0 6px" }}>
+                {innerBeats.map((h, i) => {
+                  const prev = i > 0 ? innerBeats[i - 1] : null;
+                  const turned = !!prev && prev.valence !== h.valence;
+                  const quote = h.anchor_quote?.trim();
+                  return (
+                    <div key={h.state_id} className={"mom-beat" + (turned ? " turn" : "")}>
+                      <span className="mom-beat-dot" style={{ background: VALENCE_COLOR[h.valence] }} />
+                      <div className="mom-beat-head">
+                        <span style={{ color: VALENCE_COLOR[h.valence], fontWeight: 600 }}>{h.type_label}</span>
+                        {turned
+                          ? <span className="mom-turn" style={{ color: VALENCE_COLOR[h.valence], background: `color-mix(in srgb, ${VALENCE_COLOR[h.valence]} 14%, transparent)` }}>turns</span>
+                          : i === 0 && <span className="mom-first">first felt</span>}
+                        <span className="muted" title="Not tied to a specific chapter"> · {h.manuscript_order != null ? `ch. ${h.manuscript_order}` : "no chapter"}</span>
+                      </div>
+                      {quote
+                        ? <blockquote className="mom-quote" style={{ borderLeftColor: VALENCE_COLOR[h.valence] }}>{quote}</blockquote>
+                        : <div className="mom-noquote">no line — noted, not marked in the prose</div>}
+                      {h.note && <div className="note mom-beat-note">{h.note}</div>}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </>
+      )}
 
       <div className="ent-sec-head"><div className="label" style={{ margin: 0 }}>Appears in</div></div>
       <div className="card ent-body">

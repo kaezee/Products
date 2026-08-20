@@ -33,6 +33,11 @@ const cap = (n: number) => WORDS[n] ?? String(n);
 // links everywhere.
 export function Overview({ worldId, go, refreshKey }: { worldId: string; go: (n: Nav) => void; refreshKey?: number }) {
   const [stream, setStream] = useState<StreamRow[] | null>(null);
+  // A "moment" is a relationship change recorded *in the prose* — the ✳ gutter
+  // marker. The same stream also carries connections minted from the entity/graph
+  // side (anchor_quote null), which are NOT moments. Count only the anchored ones,
+  // so "N moments" matches what the writer actually pinned in a chapter.
+  const moments = useMemo(() => (stream ?? []).filter((s) => s.anchor_quote != null), [stream]);
   const [entities, setEntities] = useState<Entity[]>([]);
   const [entityTypes, setEntityTypes] = useState<EntityType[]>([]);
   const [types, setTypes] = useState<RelationshipType[]>([]);
@@ -142,9 +147,9 @@ export function Overview({ worldId, go, refreshKey }: { worldId: string; go: (n:
   const ckDone = useMemo(() => [
     chapters.some((c) => !c.planned && (c.body || "").trim().length > 0), // wrote a chapter
     entities.length > 0,                                                  // added someone/thing
-    (stream?.length ?? 0) > 0,                                            // recorded a moment
+    moments.length > 0,                                                   // recorded a moment
     chapters.some((c) => c.time_year != null || c.day_num_start != null), // dated a chapter
-  ], [chapters, entities, stream]);
+  ], [chapters, entities, moments]);
   const ckCount = ckDone.filter(Boolean).length;
   useEffect(() => { if (ckCount === 4) localStorage.setItem(`k.checklist.${worldId}`, "1"); }, [ckCount, worldId]);
 
@@ -184,9 +189,9 @@ export function Overview({ worldId, go, refreshKey }: { worldId: string; go: (n:
   // Moments lens (§4) and the hover/tap card's count (§3).
   const momentsByOrder = useMemo(() => {
     const m = new Map<number, number>();
-    for (const s of stream ?? []) if (s.manuscript_order != null) m.set(s.manuscript_order, (m.get(s.manuscript_order) ?? 0) + 1);
+    for (const s of moments) if (s.manuscript_order != null) m.set(s.manuscript_order, (m.get(s.manuscript_order) ?? 0) + 1);
     return m;
-  }, [stream]);
+  }, [moments]);
 
   // Problems — moments that no longer match the prose (§5/§7). Two kinds: a
   // moment recorded in a chapter that's since been blanked or set back to
@@ -198,13 +203,13 @@ export function Overview({ worldId, go, refreshKey }: { worldId: string; go: (n:
     for (const c of chapters) chByOrder.set(c.manuscript_order, c);
     const driftOrders = new Set<number>();
     let count = 0;
-    for (const s of stream ?? []) {
+    for (const s of moments) {
       if (s.manuscript_order == null) continue;
       const ch = chByOrder.get(s.manuscript_order);
       if (ch && (ch.planned || !(ch.body || "").trim())) { driftOrders.add(s.manuscript_order); count++; }
     }
     return { driftOrders, count: count + orphaned.length };
-  }, [stream, chapters, orphaned]);
+  }, [moments, chapters, orphaned]);
 
   // Which metric colours the grid (§4). Length = how much is written; Moments =
   // how much happens (recorded changes). A personal default per world.
@@ -638,11 +643,11 @@ export function Overview({ worldId, go, refreshKey }: { worldId: string; go: (n:
           <div className="ms-grid-head">
             <span className="ms-grid-title">What you've written<Explain term="What you've written">Every chapter, as one cell — shaded by how long it is (or, on the Moments lens, by how much happens in it). Books wrap; the amber ring is where you stopped.</Explain></span>
             <span className="ms-grid-stat">
-              <b>{fmt(stats.written)}</b> chapter{stats.written === 1 ? "" : "s"}{stats.planned > 0 ? ` · ${stats.planned} planned` : ""} · <b>{fmt(stats.words)}</b> words{stream.length > 0 ? <> · <b>{fmt(stream.length)}</b> moment{stream.length === 1 ? "" : "s"}</> : null}
+              <b>{fmt(stats.written)}</b> chapter{stats.written === 1 ? "" : "s"}{stats.planned > 0 ? ` · ${stats.planned} planned` : ""} · <b>{fmt(stats.words)}</b> words{moments.length > 0 ? <> · <b>{fmt(moments.length)}</b> moment{moments.length === 1 ? "" : "s"}</> : null}
             </span>
             {/* Lens toggle (§4) — colour by how much is written, or by how much
                 happens. Only offered once there are moments to show. */}
-            {stream.length > 0 && (
+            {moments.length > 0 && (
               <span className="ms-grid-tools">
                 <span className="ms-lens" role="tablist" aria-label="Colour the grid by">
                   <button role="tab" aria-selected={lens === "length"} className={"ms-lens-btn" + (lens === "length" ? " on" : "")} onClick={() => setLens("length")}>Length</button>

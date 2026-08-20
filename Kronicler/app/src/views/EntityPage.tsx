@@ -9,7 +9,7 @@ import {
 import type { Entity, EntityType, StreamRow, RelationshipType, Valence, Note, Chapter, Band } from "../lib/types";
 import type { EntityChapter } from "../lib/api";
 import { VALENCE_COLOR, VALENCE_LABEL } from "../lib/valence";
-import { CANONICAL_ENTITY_TYPES, CUSTOM_TYPE, buildTypeSwatches } from "../lib/entityTypes";
+import { CANONICAL_ENTITY_TYPES, CUSTOM_TYPE, buildTypeSwatches, familyOf } from "../lib/entityTypes";
 import { isDirectional, suggestInverse } from "../lib/direction";
 import { Mention } from "../components/Mention";
 import { isBelief } from "../lib/knowledge";
@@ -700,6 +700,12 @@ function AddConnection({ worldId, selfId, selfTitle, others, types, chapters, sw
   const kindRef = useRef<HTMLInputElement>(null);
   const withRef = useRef<HTMLInputElement>(null);
 
+  // A moment can point at a place/item/event, not just a person. Those don't
+  // "stand" with you — you *feel* toward them — so the mint well reframes its
+  // valence question. People and factions keep "how do they stand?".
+  const targetEntity = picked.length === 1 ? others.find((o) => o.id === picked[0]) ?? null : null;
+  const towardThing = !!targetEntity && ["place", "object", "moment"].includes(familyOf(targetEntity.type));
+
   const chosenKind = kindId ? types.find((t) => t.id === kindId) ?? null : null;
   const kq = kindQ.trim().toLowerCase();
   const kindMatches = useMemo(() => (kq ? types.filter((t) => t.label.toLowerCase().includes(kq)).slice(0, 6) : []), [types, kq]);
@@ -830,7 +836,7 @@ function AddConnection({ worldId, selfId, selfTitle, others, types, chapters, sw
         <div className="rel-well">
           <div className="muted" style={{ marginBottom: 12 }}><b>“{kindQ.trim()}”</b> is a new kind — set it up once and every future connection reuses it.</div>
           <div className="rel-q">
-            <span className="rel-lab">How do they stand?</span>
+            <span className="rel-lab">{towardThing ? `How does ${selfTitle} feel about it?` : "How do they stand?"}</span>
             <span className="seg rel-standing">
               {VALENCES.map((v) => (
                 <span key={v} className={standing === v ? "on" : ""} onClick={() => setStanding(v)}>
@@ -846,7 +852,11 @@ function AddConnection({ worldId, selfId, selfTitle, others, types, chapters, sw
               <span className={bothWays === false ? "on" : ""} onClick={() => setBothWays(false)}>Different each way</span>
             </span>
           </div>
-          <div className="faint" style={{ fontSize: 11 }}>“rival” reads the same from either side. “mother of” does not.</div>
+          <div className="faint" style={{ fontSize: 11 }}>
+            {towardThing
+              ? "A place or object doesn’t feel back — usually “different each way” (a one-way feeling)."
+              : "“rival” reads the same from either side. “mother of” does not."}
+          </div>
         </div>
       )}
 

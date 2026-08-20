@@ -100,7 +100,7 @@ export function BriefPanel(props: {
           <div className="card">
             {brief.dormant.map((r) => (
               <div className="row" key={r.state_id} style={{ padding: "8px 12px" }}>
-                <span className="chip" style={{ background: "var(--surface)", borderColor: "#e0c89a", color: "var(--obligation)" }}>
+                <span className="chip" style={{ background: "var(--surface)", borderColor: "var(--obligationLine)", color: "var(--obligation)" }}>
                   quiet {chapterOrder - (r.manuscript_order ?? 0)} ch.
                 </span>
                 <span style={{ fontSize: 12.5 }}>{people(r)} · {r.type_label}</span>

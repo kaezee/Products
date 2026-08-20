@@ -38,7 +38,7 @@ function DirectionPicker({ forward, mode, inverse, selfName, otherName, onMode, 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: 12 }}>
       <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
-        <span className="seg" style={{ fontSize: 11 }}>
+        <span className="seg sm">
           <span className={mode === "mutual" ? "on" : ""} onClick={() => onMode("mutual")}>↔ both ways</span>
           <span className={mode === "directed" ? "on" : ""} onClick={() => onMode("directed")}>→ one direction</span>
         </span>
@@ -102,12 +102,12 @@ function EditConnection({ latest, selfId, selfName, otherId, others, types, onCh
   return (
     <div style={{ margin: "0 0 10px 24px", display: "flex", flexDirection: "column", gap: 8, padding: "8px 10px", background: "var(--inset)", borderRadius: 8 }}>
       <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-        <select className="sel" value={latest.type_id} style={{ padding: "4px 8px", fontSize: 12.5 }}
+        <select className="sel sm" value={latest.type_id}
           onChange={(e) => onChangeType(latest.state_id, e.target.value)}>
           {types.map((t) => <option key={t.id} value={t.id}>{t.label}</option>)}
         </select>
         <span className="muted">with</span>
-        <select className="sel" value={otherId ?? ""} style={{ padding: "4px 8px", fontSize: 12.5 }}
+        <select className="sel sm" value={otherId ?? ""}
           onChange={(e) => onSwap(latest.relationship_id, otherId, e.target.value)}>
           {others.map((o) => <option key={o.id} value={o.id}>{o.title}</option>)}
         </select>

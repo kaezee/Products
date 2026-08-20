@@ -338,7 +338,7 @@ export function Library({ worldId, focusEntityId, onLeaf }: { worldId: string; f
               <>
                 <span className="spacer" />
                 <span className="faint" style={{ fontSize: 11 }}>Sort</span>
-                <div className="seg" style={{ fontSize: 11 }}>
+                <div className="seg sm">
                   <span className={sortBy === "az" ? "on" : ""} onClick={() => setSortBy("az")}>A–Z</span>
                   <span className={sortBy === "recent" ? "on" : ""} onClick={() => setSortBy("recent")}>Recent</span>
                 </div>

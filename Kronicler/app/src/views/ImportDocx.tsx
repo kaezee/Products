@@ -227,7 +227,7 @@ export function ImportDocx({ worldId, mode, startOrder, existingTitles, onClose,
             {mode === "chapters" ? (
               <div className="row" style={{ borderBottom: "none", padding: 0, marginBottom: 10, gap: 6 }}>
                 <span className="faint" style={{ fontSize: 11 }}>Split by</span>
-                <div className="seg" style={{ fontSize: 11 }}>
+                <div className="seg sm">
                   <span className={strategy === "smart" ? "on" : ""} onClick={() => switchStrategy("smart")}>Chapter titles</span>
                   <span className={strategy === "headings" ? "on" : ""} onClick={() => switchStrategy("headings")}>Every heading</span>
                 </div>
@@ -238,13 +238,13 @@ export function ImportDocx({ worldId, mode, startOrder, existingTitles, onClose,
             ) : (
               <div className="row" style={{ borderBottom: "none", padding: 0, marginBottom: 10, gap: 6 }}>
                 <span className="faint" style={{ fontSize: 11 }}>Entities from</span>
-                <div className="seg" style={{ fontSize: 11 }}>
+                <div className="seg sm">
                   <span className={strategy === "list" ? "on" : ""} onClick={() => switchStrategy("list")}>List items</span>
                   <span className={strategy === "headings" ? "on" : ""} onClick={() => switchStrategy("headings")}>Headings</span>
                 </div>
                 <span className="spacer" />
                 <span className="faint" style={{ fontSize: 11 }}>set all to</span>
-                <select className="sel" style={{ padding: "3px 8px", fontSize: 12 }} defaultValue=""
+                <select className="sel sm" defaultValue=""
                   onChange={(e) => { if (e.target.value) setTypes(items.map(() => e.target.value)); }}>
                   <option value="">type…</option>
                   {CANONICAL_ENTITY_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
@@ -261,7 +261,7 @@ export function ImportDocx({ worldId, mode, startOrder, existingTitles, onClose,
                     {it.body && <div className="muted" style={{ fontSize: 12, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{it.body.slice(0, 140)}</div>}
                   </div>
                   {mode === "entities" && (
-                    <select className="sel" value={types[i]} style={{ padding: "3px 8px", fontSize: 12 }}
+                    <select className="sel sm" value={types[i]}
                       onChange={(e) => setTypes((t) => t.map((v, j) => (j === i ? e.target.value : v)))}>
                       {[...new Set([...CANONICAL_ENTITY_TYPES, types[i]])].map((t) => <option key={t} value={t}>{t}</option>)}
                     </select>
@@ -309,7 +309,7 @@ export function ImportDocx({ worldId, mode, startOrder, existingTitles, onClose,
                     <span className="title-serif">{c.name}</span>
                     <span className="faint" style={{ fontSize: 11, marginLeft: 8 }}>{c.count}×</span>
                   </div>
-                  <select className="sel" value={c.type} style={{ padding: "3px 8px", fontSize: 12 }}
+                  <select className="sel sm" value={c.type}
                     onChange={(e) => setCast((cs) => cs.map((x, j) => (j === i ? { ...x, type: e.target.value } : x)))}>
                     {CANONICAL_ENTITY_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
                   </select>

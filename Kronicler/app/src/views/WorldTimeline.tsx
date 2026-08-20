@@ -802,7 +802,7 @@ export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) =
                   {sel.size > 0 && (
                     <div className="wt2-sidefile">
                       <span style={{ fontSize: 11.5, fontWeight: 600 }}>{sel.size} selected</span>
-                      <select className="sel" value={bulkSeg} style={{ fontSize: 11, padding: "4px 6px", flex: 1 }}
+                      <select className="sel sm" value={bulkSeg} style={{ flex: 1 }}
                         onChange={(e) => { setBulkSeg(e.target.value); if (e.target.value) addSelectedTo(e.target.value); }}>
                         <option value="">file into…</option>
                         {segments.map((s) => <option key={s.id} value={s.id}>{s.kind} · {s.name}</option>)}
@@ -835,7 +835,7 @@ export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) =
               <button className="primary sm" onClick={requestKnown}>Set</button>
             </div>
             <div className="wt2-sidesub" style={{ margin: "0 0 5px" }}>How chapters are placed</div>
-            <span className="seg" style={{ fontSize: 11 }}>
+            <span className="seg sm">
               <span className={!ms ? "on" : ""} onClick={() => switchMode("story")}>Story time</span>
               <span className={ms ? "on" : ""} onClick={() => switchMode("ms")}>Manuscript</span>
             </span>

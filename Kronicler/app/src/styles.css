@@ -231,6 +231,12 @@ input, textarea, select { font-size: 13px; padding: 9px 11px; border: 1px solid 
 /* ── editor + composer ─────────────────────────────────── */
 textarea { font-family: var(--serif); }
 .sel { padding: 5px 8px; border: none; border-bottom: 2px solid var(--bondLine); border-radius: 0; background: transparent; font-family: var(--serif); font-size: 14px; font-weight: 600; color: var(--bond); cursor: pointer; }
+/* Compact variants — one canonical small size per component, for dense/inline
+   contexts (forms, row controls, badges). Replaces a scatter of hand-set
+   fontSize/padding overrides so a "small seg/sel/chip" looks the same everywhere. */
+.seg.sm { font-size: 11px; }
+.sel.sm { padding: 4px 8px; font-size: 12px; }
+.chip.sm { font-size: 10px; }
 /* Every modal is centred in the viewport with a consistent edge margin (Material/
    Atlassian/Carbon all do this) — never pinned to the top. If a modal is taller
    than the viewport the overlay itself scrolls. `.center` is now the default and

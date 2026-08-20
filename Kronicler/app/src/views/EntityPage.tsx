@@ -111,7 +111,7 @@ function EditConnection({ latest, selfId, selfName, otherId, others, types, onCh
           onChange={(e) => onSwap(latest.relationship_id, otherId, e.target.value)}>
           {others.map((o) => <option key={o.id} value={o.id}>{o.title}</option>)}
         </select>
-        <button style={{ padding: "3px 10px", fontSize: 12 }} onClick={onDone}>Done</button>
+        <button onClick={onDone}>Done</button>
       </div>
       {latest.participants.length === 2 ? (
         <>
@@ -448,7 +448,7 @@ export function EntityPage({ entity, onBack, onChanged, startEditing, onOpenEnti
         <div className="label" style={{ margin: 0 }}>Connections</div>
         <span className="spacer" />
         {!addingConn && others.length > 0 &&
-          <button style={{ padding: "3px 10px", fontSize: 12 }} onClick={() => setAddingConn(true)}>+ Add connection</button>}
+          <button onClick={() => setAddingConn(true)}>+ Add connection</button>}
       </div>
 
       {addingConn && (
@@ -604,7 +604,7 @@ export function EntityPage({ entity, onBack, onChanged, startEditing, onOpenEnti
       <div className="ent-sec-head">
         <div className="label" style={{ margin: 0 }}>Notes</div>
         <span className="spacer" />
-        <button style={{ padding: "3px 10px", fontSize: 12 }} onClick={() => setOpenNote("new")}>+ Note</button>
+        <button onClick={() => setOpenNote("new")}>+ Note</button>
       </div>
       <div className="card ent-body">
         {notes.length === 0

@@ -503,6 +503,15 @@ export function EntityPage({ entity, onBack, onChanged, startEditing, onOpenEnti
                   style={{ cursor: "pointer", color: "var(--faint)", padding: "0 2px", display: "inline-flex" }}><Icon name="close" size={13} /></span>
               </div>
 
+              {/* The current feeling's trigger line, previewed under the row — the
+                  moment behind the headline, without opening the full arc. */}
+              {!isOpen && !isEditing && latest.anchor_quote?.trim() && (
+                <div className="conn-trigger" style={{ borderLeftColor: VALENCE_COLOR[latest.valence] }}
+                  title="The line that set this — open to see the whole arc" onClick={toggle}>
+                  {latest.anchor_quote.trim()}
+                </div>
+              )}
+
               {isEditing && (
                 <EditConnection latest={latest} selfId={ent.id} selfName={ent.title} otherId={otherParts[0]?.entity_id ?? null} others={others} types={types}
                   onChangeType={changeType} onSwap={swapPerson} onApplyDirection={applyDirection}

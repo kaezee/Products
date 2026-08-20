@@ -657,6 +657,9 @@ h2.ed-canvas-title, .ed-canvas-input { margin: 0; }
 .ms-grid { margin: 0 0 18px; padding: 18px 20px 16px; }
 .ms-grid-head { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
 .ms-grid-title { display: inline-flex; align-items: center; gap: 5px; font: 700 11px/1.4 var(--sans); letter-spacing: .09em; text-transform: uppercase; color: var(--muted); }
+/* Moments-lens empty state — reuses the shared .empty-title/.empty-desc so it
+   reads like every other "nothing here yet" surface. */
+.ms-moments-empty { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 0; padding: 34px 20px 30px; }
 .ms-grid-stat { font-size: 12.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
 .ms-grid-stat b { color: var(--sub); font-weight: 600; }
 .ms-grid-tools { margin-left: auto; display: inline-flex; align-items: center; gap: 14px; flex-wrap: wrap; }

@@ -235,6 +235,10 @@ export function Overview({ worldId, go, refreshKey }: { worldId: string; go: (n:
       const strengths = nBands === 1 ? [0.55] : nBands === 3 ? [0.28, 0.52, 0.82] : [0.16, 0.30, 0.45, 0.61, 0.78, 0.92];
       const shadeOf = (c: Chapter) => {
         const v = valueOf(c);
+        // Nothing recorded here reads as nothing — never the band floor. Without
+        // this, a sparse Moments lens (most chapters 0) collapses to one band and
+        // paints every written cell the same, looking as if moments are everywhere.
+        if (v <= 0) return "color-mix(in srgb, var(--k-action-fill) 6%, var(--surface))";
         let below = 0; for (const x of counts) if (x < v) below++;
         const idx = nBands === 1 ? 0 : Math.min(nBands - 1, Math.floor((below / Math.max(1, n)) * nBands));
         return shadeAt(strengths, idx);
@@ -263,6 +267,13 @@ export function Overview({ worldId, go, refreshKey }: { worldId: string; go: (n:
     return { books, byLens, total: ordered.length };
   }, [chapters, bands, momentsByOrder]);
   const activeBand = msGrid.byLens[lens];
+  // How many *written* chapters actually carry a moment — drives the Moments-lens
+  // empty state (moments can all sit on chapters since blanked/planned).
+  const writtenWithMoments = useMemo(
+    () => chapters.filter((c) => !c.planned && (c.body || "").trim() && (momentsByOrder.get(c.manuscript_order) ?? 0) > 0).length,
+    [chapters, momentsByOrder],
+  );
+  const momentsEmpty = lens === "moments" && writtenWithMoments === 0;
 
   // Grid hover/tap card (§3): one popover for the whole grid. Hover a cell to
   // peek; click to pin (so touch works too); the card carries the way in. Same
@@ -640,7 +651,13 @@ export function Overview({ worldId, go, refreshKey }: { worldId: string; go: (n:
               </span>
             )}
           </div>
-          {msGrid.books.map((bk, bi) => (
+          {momentsEmpty && (
+            <div className="ms-moments-empty">
+              <div className="empty-title">No moments marked yet</div>
+              <div className="empty-desc">A moment is a change you record in a chapter — a bond formed, a secret kept, an alliance broken. Mark one from the editor and it lights up here.</div>
+            </div>
+          )}
+          {!momentsEmpty && msGrid.books.map((bk, bi) => (
             <div className="ms-book" key={bi}>
               {msGrid.books.length > 1 && (
                 <div className="ms-book-lab">
@@ -669,7 +686,7 @@ export function Overview({ worldId, go, refreshKey }: { worldId: string; go: (n:
             </div>
           ))}
           {/* Legend along the bottom of the card (§2 mock) */}
-          <div className="ms-legend">
+          {!momentsEmpty && <div className="ms-legend">
             {activeBand.nBands > 1 && (
               <span className="ms-legend-item">
                 <span className="ms-legend-scale">{activeBand.strengths.map((_, i) => <i key={i} style={{ background: activeBand.shadeAt(i) }} />)}</span>
@@ -678,7 +695,7 @@ export function Overview({ worldId, go, refreshKey }: { worldId: string; go: (n:
             )}
             {stats.planned > 0 && <span className="ms-legend-item"><span className="ms-legend-planned" /> planned</span>}
             <span className="ms-legend-item"><span className="ms-legend-here" /> where you stopped</span>
-          </div>
+          </div>}
           {card && createPortal(
             <div
               className="ms-card"

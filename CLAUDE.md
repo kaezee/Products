@@ -38,6 +38,15 @@ accessibility to save lines — those are the necessary code, not the fat.
 - Monorepo: **Kronicler** (React 18 + TypeScript + Vite + Supabase) and **Paisev**.
 - Decisions of record: `Kronicler/ux/DECISIONS.md` — read it before reversing any
   naming / IA / schema call.
+- **Design system is law.** Source of truth: `Kronicler/ux/DESIGN-SYSTEM.md` +
+  the base classes/tokens in `app/src/styles.css`. Read it before any UI change.
+  Draw from the system — use the base `button`/`.primary`, `.card`, `.chip`,
+  `.seg`, the 4 surface tiers, and the colour/space **tokens**. Never restyle a
+  design-system element with inline `padding`/`fontSize`/hex (that's what made
+  buttons render thin and made two views of the same product diverge). Inline
+  `style` is for genuine one-off layout only, never to re-skin a component that
+  already has a class. If the system lacks something, add a class/variant to
+  `styles.css` so the next use inherits it — don't hand-roll it at the call site.
 - DB changes are **additive-only** while a legacy build shares the same Supabase
   project; never rename/drop a column or table the old build reads.
 - Schema words never appear in the UI (e.g. `world_id` stays in code; users see

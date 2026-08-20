@@ -3,7 +3,7 @@ import {
   getEntityStream, getEntityChapters, getEntities, getRelationshipTypes,
   createRelationshipType, updateRelationshipType, appendPairwiseState, appendGroupState, updateEntity, softDeleteEntity, getBands,
   updateStateType, softDeleteRelationship, swapParticipant,
-  relationshipIdForState, setConnectionRoles,
+  relationshipIdForState, setConnectionRoles, appendSelfState,
   getNotes, createNote, updateNote, softDeleteNote,
 } from "../lib/api";
 import type { Entity, EntityType, StreamRow, RelationshipType, Valence, Note, Chapter, Band } from "../lib/types";
@@ -214,6 +214,7 @@ export function EntityPage({ entity, onBack, onChanged, startEditing, onOpenEnti
   const [err, setErr] = useState<string | null>(null);
   const [open, setOpen] = useState<string | null>(null);
   const [addingConn, setAddingConn] = useState(false);
+  const [addingInner, setAddingInner] = useState(false);
   const [editingRel, setEditingRel] = useState<string | null>(null);
 
   // edit state
@@ -609,7 +610,22 @@ export function EntityPage({ entity, onBack, onChanged, startEditing, onOpenEnti
           a beat that flips the charge from the one before is a turn. */}
       {familyOf(ent.type) === "being" && (
         <>
-          <div className="ent-sec-head"><div className="label" style={{ margin: 0 }}>Inner arc</div></div>
+          <div className="ent-sec-head">
+            <div className="label" style={{ margin: 0 }}>Inner arc</div>
+            <span className="spacer" />
+            {!addingInner && <button className="sm" onClick={() => setAddingInner(true)}>+ Inner beat</button>}
+          </div>
+          {addingInner && (
+            <InnerBeatComposer
+              worldId={ent.world_id}
+              selfId={ent.id}
+              selfTitle={ent.title}
+              types={types}
+              chapters={chapters}
+              onClose={() => setAddingInner(false)}
+              onAdded={() => { getRelationshipTypes(ent.world_id).then(setTypes).catch(() => {}); loadConnections(); }}
+            />
+          )}
           <div className="card ent-body">
             {innerBeats.length === 0 ? (
               <span className="muted">No inner beats yet — mark where {ent.title} feels a shift, and their emotional arc grows here.</span>
@@ -756,8 +772,8 @@ function AddConnection({ worldId, selfId, selfTitle, others, types, chapters, sw
 
   const chosenKind = kindId ? types.find((t) => t.id === kindId) ?? null : null;
   const kq = kindQ.trim().toLowerCase();
-  const kindMatches = useMemo(() => (kq ? types.filter((t) => t.label.toLowerCase().includes(kq)).slice(0, 6) : []), [types, kq]);
-  const kindExact = types.find((t) => t.label.toLowerCase() === kq);
+  const kindMatches = useMemo(() => (kq ? types.filter((t) => !t.is_inner && t.label.toLowerCase().includes(kq)).slice(0, 6) : []), [types, kq]);
+  const kindExact = types.find((t) => !t.is_inner && t.label.toLowerCase() === kq);
   const wq = withQ.trim().toLowerCase();
   const entityMatches = useMemo(
     () => (wq ? others.filter((e) => !picked.includes(e.id) && (e.title + " " + e.aliases.join(" ")).toLowerCase().includes(wq)).slice(0, 8) : []),
@@ -931,6 +947,124 @@ function AddConnection({ worldId, selfId, selfTitle, others, types, chapters, sw
         )}
         <span className="spacer" style={{ flex: 1 }} />
         <button className="primary" onClick={commit} disabled={busy || !canAdd}>{busy ? "…" : "Add connection"}</button>
+        <button onClick={onClose}>Cancel</button>
+        {err && <span className="err">{err}</span>}
+      </div>
+    </div>
+  );
+}
+
+// The inner-beat composer: name a feeling (search existing inner words or mint a
+// new one), pick its charge (lifts / steady / weighs → the felt-spectrum colour),
+// optionally tie it to a chapter. Writes a self-state; it joins the inner arc.
+function InnerBeatComposer({ worldId, selfId, selfTitle, types, chapters, onAdded, onClose }: {
+  worldId: string;
+  selfId: string;
+  selfTitle: string;
+  types: RelationshipType[];
+  chapters?: Chapter[];
+  onAdded: () => void;
+  onClose: () => void;
+}) {
+  const [wordQ, setWordQ] = useState("");
+  const [typeId, setTypeId] = useState<string | null>(null);
+  const [minting, setMinting] = useState(false);
+  const [charge, setCharge] = useState<Valence | null>(null);
+  const [fromChapter, setFromChapter] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const CHARGES: { label: string; valence: Valence }[] = [
+    { label: "Lifts", valence: "bond" },
+    { label: "Steady", valence: "neutral" },
+    { label: "Weighs", valence: "hostile" },
+  ];
+  const q = wordQ.trim().toLowerCase();
+  const chosen = typeId ? types.find((t) => t.id === typeId) ?? null : null;
+  const matches = useMemo(() => (q ? types.filter((t) => t.is_inner && t.label.toLowerCase().includes(q)).slice(0, 6) : []), [types, q]);
+  const exact = types.find((t) => t.is_inner && t.label.toLowerCase() === q);
+  const canAdd = !!chosen || (minting && wordQ.trim().length > 0 && charge != null);
+
+  async function commit() {
+    if (!canAdd) return;
+    setBusy(true); setErr(null);
+    try {
+      let tid = chosen?.id ?? null;
+      if (!tid && minting) {
+        const t = await createRelationshipType(worldId, wordQ.trim(), charge ?? "neutral", false, true);
+        tid = t.id;
+      }
+      if (!tid) { setErr("Name the feeling."); setBusy(false); return; }
+      await appendSelfState({ worldId, entityId: selfId, typeId: tid, manuscriptRef: fromChapter || null });
+      onAdded();
+      onClose();
+    } catch (x) { setErr(String(x)); setBusy(false); }
+  }
+
+  return (
+    <div className="card rel-composer">
+      <div className="rel-comp-head">An inner beat for <span className="title-serif">{selfTitle}</span></div>
+      <div className="rel-field2">
+        <span className="rel-lab">What does {selfTitle} feel?</span>
+        <div className="rel-search">
+          {chosen || minting ? (
+            <span className="chip on" style={{ cursor: "pointer" }}
+              onClick={() => { setTypeId(null); setMinting(false); setWordQ(""); setCharge(null); setTimeout(() => inputRef.current?.focus(), 0); }}>
+              {chosen && <span className="dot" style={{ background: VALENCE_COLOR[chosen.valence] }} />}
+              {chosen?.label ?? wordQ.trim()} <Icon name="close" size={12} />
+            </span>
+          ) : (
+            <>
+              <input ref={inputRef} autoFocus className="rel-search-input" value={wordQ}
+                placeholder="a feeling — hopeful, hollow, resolute…"
+                onChange={(e) => { setWordQ(e.target.value); setTypeId(null); }}
+                onKeyDown={(e) => { if (e.key === "Escape") onClose(); }} />
+              {wordQ.trim() && (
+                <div className="typeahead rel-drop">
+                  {matches.map((t) => (
+                    <div key={t.id} className="ta-row" onClick={() => { setTypeId(t.id); setWordQ(t.label); }}>
+                      <span className="dot" style={{ background: VALENCE_COLOR[t.valence] }} />
+                      <span style={{ flex: 1 }}>{t.label}</span>
+                    </div>
+                  ))}
+                  {!exact && (
+                    <div className="ta-row" onClick={() => { setMinting(true); setTypeId(null); }}>
+                      <span style={{ color: "var(--k-action-text, var(--bond))" }}>＋ new feeling “{wordQ.trim()}”</span>
+                    </div>
+                  )}
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      </div>
+
+      {minting && wordQ.trim() && (
+        <div className="rel-well">
+          <div className="rel-q">
+            <span className="rel-lab">How does it sit in {selfTitle}?</span>
+            <span className="seg rel-standing">
+              {CHARGES.map((c) => (
+                <span key={c.valence} className={charge === c.valence ? "on" : ""} onClick={() => setCharge(c.valence)}>
+                  <span className="rel-standing-dot" style={{ background: VALENCE_COLOR[c.valence] }} />{c.label}
+                </span>
+              ))}
+            </span>
+          </div>
+          <div className="faint" style={{ fontSize: 11 }}>Lifts is a rising feeling, weighs a sinking one — it colours the arc.</div>
+        </div>
+      )}
+
+      <div className="rel-actions">
+        {(chapters ?? []).length > 0 && (
+          <label style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+            <span className="rel-lab">From chapter — optional</span>
+            <ChapterPicker chapters={chapters ?? []} value={fromChapter} onChange={setFromChapter} />
+          </label>
+        )}
+        <span className="spacer" style={{ flex: 1 }} />
+        <button className="primary" onClick={commit} disabled={busy || !canAdd}>{busy ? "…" : "Add beat"}</button>
         <button onClick={onClose}>Cancel</button>
         {err && <span className="err">{err}</span>}
       </div>

@@ -479,7 +479,7 @@ export async function setChapterStructuredDate(
 export async function getRelationshipTypes(worldId: string): Promise<RelationshipType[]> {
   const { data, error } = await supabase
     .from("relationship_types")
-    .select("id, world_id, label, valence, color, is_ambient, is_terminal, directed, converse")
+    .select("id, world_id, label, valence, color, is_ambient, is_terminal, directed, converse, is_inner")
     .eq("world_id", worldId)
     .is("deleted_at", null)
     .order("label", { ascending: true });
@@ -492,11 +492,12 @@ export async function createRelationshipType(
   label: string,
   valence: RelationshipType["valence"],
   directed = false,
+  isInner = false,
 ): Promise<RelationshipType> {
   const { data, error } = await supabase
     .from("relationship_types")
-    .insert({ world_id: worldId, label, valence, directed })
-    .select("id, world_id, label, valence, color, is_ambient, is_terminal, directed, converse")
+    .insert({ world_id: worldId, label, valence, directed, is_inner: isInner })
+    .select("id, world_id, label, valence, color, is_ambient, is_terminal, directed, converse, is_inner")
     .single();
   if (error) throw error;
   return data;
@@ -661,6 +662,34 @@ export async function appendGroupState(args: {
   });
   if (error) throw error;
   track({ name: "moment_marked", props: { source: args.source ?? (args.manuscriptRef ? "composer" : "standing"), ...(args.chapterWords != null ? { chapter_words: args.chapterWords } : {}) } });
+  return data as string;
+}
+
+// An inner beat: a felt state a character has about themselves. One self-
+// relationship per character (all beats flatten into one arc); the prose anchor
+// is carried so a beat marked in the editor keeps its trigger line.
+export async function appendSelfState(args: {
+  worldId: string;
+  entityId: string;
+  typeId: string;
+  manuscriptRef?: string | null;
+  note?: string;
+  anchorQuote?: string | null;
+  anchorPrefix?: string | null;
+  anchorSuffix?: string | null;
+}): Promise<string> {
+  const { data, error } = await supabase.rpc("append_self_state", {
+    p_world_id: args.worldId,
+    p_entity_id: args.entityId,
+    p_type_id: args.typeId,
+    p_manuscript_ref: args.manuscriptRef ?? null,
+    p_note: args.note ?? null,
+    p_anchor_quote: args.anchorQuote ?? null,
+    p_anchor_prefix: args.anchorPrefix ?? null,
+    p_anchor_suffix: args.anchorSuffix ?? null,
+  });
+  if (error) throw error;
+  track({ name: "moment_marked", props: { source: "inner" } });
   return data as string;
 }
 

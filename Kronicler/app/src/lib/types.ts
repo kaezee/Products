@@ -37,6 +37,7 @@ export interface RelationshipType {
   is_terminal: boolean;
   directed: boolean;        // false = reads the same both ways; true = one way
   converse: string | null;  // reverse word for a directed kind (mother of → child of); may be null
+  is_inner: boolean;        // true = an inner-beat feeling word (self-only), kept out of the connection picker
 }
 
 export interface Note {

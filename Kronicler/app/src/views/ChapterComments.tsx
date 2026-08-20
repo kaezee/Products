@@ -181,8 +181,8 @@ export function ChapterComments({ worldId, chapterId, chapters, bookIds, body, p
             onChange={(e) => setDraft(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Escape") { setCompose(null); setDraft(""); } if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) save(); }} />
           <div className="ccmt-acts">
-            <button className="primary" style={{ padding: "3px 10px", fontSize: 11 }} onClick={save}>Comment</button>
-            <button style={{ padding: "3px 10px", fontSize: 11 }} onClick={() => { setCompose(null); setDraft(""); }}>Cancel</button>
+            <button className="primary sm" onClick={save}>Comment</button>
+            <button className="sm" onClick={() => { setCompose(null); setDraft(""); }}>Cancel</button>
           </div>
         </div>
       )}

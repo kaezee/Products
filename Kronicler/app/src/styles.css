@@ -66,6 +66,10 @@ button.primary:hover:not(:disabled) { background: var(--k-action-hover); }
 button.primary:active:not(:disabled) { background: var(--k-action-active); }
 button:focus-visible { outline: 2px solid var(--k-action-fill); outline-offset: 2px; }
 button:disabled { opacity: 0.45; cursor: default; }
+/* Compact button — secondary/row/toolbar actions. One canonical small size
+   (the system's 5/11 rhythm, shared with .chip) so these stop being hand-sized
+   into a dozen slightly different thin paddings. Composes with .primary/.ghost. */
+button.sm { padding: 5px 11px; font-size: 12px; border-radius: 7px; }
 input, textarea, select { font-size: 13px; padding: 9px 11px; border: 1px solid var(--line); border-radius: 8px; background: var(--inset); color: var(--ink); }
 
 /* ── shell — fills the viewport as one app surface ─────────── */

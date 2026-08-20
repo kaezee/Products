@@ -747,7 +747,7 @@ export function BookCanvas(props: {
                     )}
                     <div className="ed-panel-lab">In this chapter {visible.length > 0 && <span className="ed-panel-count">{visible.length}</span>}</div>
                     {unlinked.length > 1 && (
-                      <button style={{ padding: "3px 9px", fontSize: 11, marginBottom: 8 }} onClick={() => linkAll(unlinked.map((e) => e.id))}
+                      <button className="sm" style={{ marginBottom: 8 }} onClick={() => linkAll(unlinked.map((e) => e.id))}
                         title="Add all detected characters to this chapter">Add all {unlinked.length}</button>
                     )}
                     {visible.length === 0 && <span className="muted">No known names mentioned yet.</span>}
@@ -758,7 +758,7 @@ export function BookCanvas(props: {
                           <span style={{ flex: 1, fontSize: 13 }}>{e.title}</span>
                           {linked
                             ? <span className="muted" style={{ fontSize: 11 }}>in chapter</span>
-                            : <button style={{ padding: "3px 8px", fontSize: 11 }} onClick={() => link(e.id)} title="Add to this chapter">Add</button>}
+                            : <button className="sm" onClick={() => link(e.id)} title="Add to this chapter">Add</button>}
                           <span title="Not this — hide the suggestion" onClick={() => setDismissed((d) => new Set(d).add(e.id))}
                             style={{ cursor: "pointer", color: "var(--faint)", display: "inline-flex" }}><Icon name="close" size={13} /></span>
                         </div>
@@ -806,7 +806,7 @@ export function BookCanvas(props: {
               {versions.map((v) => (
                 <div className="row" key={v.id} style={{ padding: "9px 0", gap: 8, borderColor: "var(--line)" }}>
                   <span className="muted" style={{ fontSize: 12, flex: 1 }}>{new Date(v.created_at).toLocaleString()}</span>
-                  <button style={{ padding: "3px 10px", fontSize: 11 }} onClick={() => restore(v)}>restore</button>
+                  <button className="sm" onClick={() => restore(v)}>restore</button>
                 </div>
               ))}
             </div>

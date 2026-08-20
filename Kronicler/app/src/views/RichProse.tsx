@@ -692,7 +692,7 @@ export function RichProse({ value, entities, onChange, onSelectText, onActive, o
           )}
           {onOpenEntity && (
             <div style={{ marginTop: 10 }}>
-              <button style={{ padding: "4px 10px", fontSize: 12 }}
+              <button className="sm"
                 onClick={() => { const id = peek.entity.id; setPeek(null); onOpenEntity(id); }}>Open page →</button>
             </div>
           )}

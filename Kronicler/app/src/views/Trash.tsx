@@ -152,7 +152,7 @@ export function Trash({ worldId, onWorldsChanged }: { worldId: string; onWorldsC
                 <span className="title-serif" style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{e.title}</span>
                 <span className="faint trash-when">{countdownLabel(e.deleted_at)}</span>
                 {purgeBtn("entity", e.id, e.title)}
-                <button style={{ padding: "3px 10px", fontSize: 12 }} onClick={() => undoEntity(e.id)}>Restore</button>
+                <button className="sm" onClick={() => undoEntity(e.id)}>Restore</button>
               </div>
             ))}
           </div>
@@ -168,7 +168,7 @@ export function Trash({ worldId, onWorldsChanged }: { worldId: string; onWorldsC
                 <span className="title-serif" style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.title}</span>
                 <span className="faint trash-when">{countdownLabel(c.deleted_at)}</span>
                 {purgeBtn("chapter", c.id, c.title)}
-                <button style={{ padding: "3px 10px", fontSize: 12 }} onClick={() => undoChapter(c.id)}>Restore</button>
+                <button className="sm" onClick={() => undoChapter(c.id)}>Restore</button>
               </div>
             ))}
           </div>
@@ -184,7 +184,7 @@ export function Trash({ worldId, onWorldsChanged }: { worldId: string; onWorldsC
                 <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{preview(n.body)}</span>
                 <span className="faint trash-when">{countdownLabel(n.deleted_at)}</span>
                 {purgeBtn("note", n.id, preview(n.body))}
-                <button style={{ padding: "3px 10px", fontSize: 12 }} onClick={() => undoNote(n.id)}>Restore</button>
+                <button className="sm" onClick={() => undoNote(n.id)}>Restore</button>
               </div>
             ))}
           </div>
@@ -200,7 +200,7 @@ export function Trash({ worldId, onWorldsChanged }: { worldId: string; onWorldsC
                 <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{preview(c.body)}</span>
                 <span className="faint trash-when">{countdownLabel(c.deleted_at)}</span>
                 {purgeBtn("comment", c.id, preview(c.body))}
-                <button style={{ padding: "3px 10px", fontSize: 12 }} onClick={() => undoComment(c.id)}>Restore</button>
+                <button className="sm" onClick={() => undoComment(c.id)}>Restore</button>
               </div>
             ))}
           </div>
@@ -216,7 +216,7 @@ export function Trash({ worldId, onWorldsChanged }: { worldId: string; onWorldsC
                 <span className="title-serif" style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{w.name}</span>
                 <span className="faint trash-when">{countdownLabel(w.deleted_at)}</span>
                 {purgeBtn("world", w.id, w.name)}
-                <button style={{ padding: "3px 10px", fontSize: 12 }} onClick={() => undoWorld(w.id)}>Restore</button>
+                <button className="sm" onClick={() => undoWorld(w.id)}>Restore</button>
               </div>
             ))}
           </div>

@@ -832,7 +832,7 @@ export function WorldTimeline({ worldId, go }: { worldId: string; go: (n: Nav) =
               <input value={ktStart} onChange={(e) => setKtStart(e.target.value)} style={{ width: 68, fontSize: 12 }} aria-label="known start year" />
               <span className="muted">→</span>
               <input value={ktEnd} onChange={(e) => setKtEnd(e.target.value)} style={{ width: 68, fontSize: 12 }} aria-label="known end year" />
-              <button className="primary" style={{ padding: "6px 12px" }} onClick={requestKnown}>Set</button>
+              <button className="primary sm" onClick={requestKnown}>Set</button>
             </div>
             <div className="wt2-sidesub" style={{ margin: "0 0 5px" }}>How chapters are placed</div>
             <span className="seg" style={{ fontSize: 11 }}>

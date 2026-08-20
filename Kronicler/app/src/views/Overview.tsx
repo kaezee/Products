@@ -727,8 +727,8 @@ export function Overview({ worldId, go, refreshKey }: { worldId: string; go: (n:
                         ? <>{d.entities.length === 2 ? "Two" : d.entities.length} {typeWord(d.entities[0], d.entities.length)} are called <Mention name={d.entities[0].title} swatch={swatchOf(d.entities[0].id)} />. Same {typeWord(d.entities[0], 1)}, or {d.entities.length === 2 ? "two" : "separate"}?</>
                         : <><Mention name={d.entities[0].title} swatch={swatchOf(d.entities[0].id)} /> is a {typeWord(d.entities[0], 1)} of its own, and also an alias of <Mention name={d.entities[1].title} swatch={swatchOf(d.entities[1].id)} />. Same thing, or two?</>}
                     </span>
-                    <button className="ghost" style={{ fontSize: 11.5, padding: "3px 8px" }} onClick={() => go({ scope: "library", entityId: d.entities[0].id })}>Merge</button>
-                    <button className="ghost" style={{ fontSize: 11.5, padding: "3px 8px" }} onClick={() => keepBoth(d.key)}>Keep both</button>
+                    <button className="ghost sm" onClick={() => go({ scope: "library", entityId: d.entities[0].id })}>Merge</button>
+                    <button className="ghost sm" onClick={() => keepBoth(d.key)}>Keep both</button>
                   </div>
                 ))}
                 {ironyShow.map((c) => (

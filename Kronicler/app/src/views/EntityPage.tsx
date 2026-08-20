@@ -510,15 +510,27 @@ export function EntityPage({ entity, onBack, onChanged, startEditing, onOpenEnti
               )}
 
               {isOpen && (
-                <div style={{ margin: "0 0 10px 42px", borderLeft: "2px solid var(--line)", paddingLeft: 14 }}>
-                  {history.map((h) => {
+                <div className="mom-arc">
+                  {history.map((h, i) => {
+                    const prev = i > 0 ? history[i - 1] : null;
+                    const turned = !!prev && prev.valence !== h.valence;   // the hinge — the feeling flips
                     const concealed = h.known_by?.concealed_from?.length ?? 0;
+                    const quote = h.anchor_quote?.trim();
                     return (
-                      <div key={h.state_id} style={{ marginBottom: 6, fontSize: 12.5 }}>
-                        <span style={{ color: VALENCE_COLOR[h.valence], fontWeight: 600 }}>{h.type_label}</span>
-                        <span className="muted" title="Not tied to a specific chapter"> · {h.manuscript_order != null ? `ch. ${h.manuscript_order}` : "no chapter"}</span>
-                        {concealed > 0 && <span style={{ color: "var(--hostile)", fontSize: 11 }}> · secret ×{concealed}</span>}
-                        {h.note && <span className="note"> — {h.note}</span>}
+                      <div key={h.state_id} className={"mom-beat" + (turned ? " turn" : "")}>
+                        <span className="mom-beat-dot" style={{ background: VALENCE_COLOR[h.valence] }} />
+                        <div className="mom-beat-head">
+                          <span style={{ color: VALENCE_COLOR[h.valence], fontWeight: 600 }}>{h.type_label}</span>
+                          {turned
+                            ? <span className="mom-turn" style={{ color: VALENCE_COLOR[h.valence], background: `color-mix(in srgb, ${VALENCE_COLOR[h.valence]} 14%, transparent)` }}>turns</span>
+                            : i === 0 && <span className="mom-first">first felt</span>}
+                          <span className="muted" title="Not tied to a specific chapter"> · {h.manuscript_order != null ? `ch. ${h.manuscript_order}` : "no chapter"}</span>
+                          {concealed > 0 && <span className="mom-secret"> · secret ×{concealed}</span>}
+                        </div>
+                        {quote
+                          ? <blockquote className="mom-quote" style={{ borderLeftColor: VALENCE_COLOR[h.valence] }}>{quote}</blockquote>
+                          : <div className="mom-noquote">no line — declared, not marked in the prose</div>}
+                        {h.note && <div className="note mom-beat-note">{h.note}</div>}
                       </div>
                     );
                   })}

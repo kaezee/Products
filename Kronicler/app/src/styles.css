@@ -639,6 +639,14 @@ h2.ed-canvas-title, .ed-canvas-input { margin: 0; }
 .cmp-opt { flex: 1; min-width: 210px; display: flex; flex-direction: column; align-items: flex-start; gap: 4px; padding: 12px 14px; border: 1.5px solid var(--line); border-radius: 12px; background: var(--surface); cursor: pointer; text-align: left; transition: border-color .12s, background .12s; }
 .cmp-opt:hover { border-color: var(--lineStrong); }
 .cmp-opt.on { border-color: var(--bond); background: var(--inset); }
+/* Who-knows-this: collapsed by default (plain truth is the common case), the
+   belief/concealment machinery revealed only when a moment is secret. */
+.cmp-know { margin-top: 14px; }
+.cmp-know-toggle { display: flex; align-items: center; gap: 7px; width: 100%; padding: 8px 0; background: none; border: none; cursor: pointer; font-size: 12.5px; color: var(--sub); }
+.cmp-know-toggle:hover:not(:disabled) { background: none; }
+.cmp-know-toggle > span:nth-of-type(1) { font-weight: 600; }
+.cmp-know-body { display: flex; flex-direction: column; gap: 10px; padding: 4px 0 2px; }
+.cmp-know-chips { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
 .cmp-opt-h { display: inline-flex; align-items: center; gap: 7px; font-weight: 600; font-size: 14px; color: var(--ink); }
 .cmp-opt-d { font-size: 12px; color: var(--muted); }
 /* ── Manuscript grid (Overview redesign §2) — one cell per chapter, shaded by

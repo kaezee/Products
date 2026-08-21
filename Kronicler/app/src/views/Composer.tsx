@@ -1,17 +1,68 @@
 import { useMemo, useRef, useState } from "react";
-import { appendPairwiseState, createRelationshipType, setStateKnownBy, setStateAnchor } from "../lib/api";
+import { appendPairwiseState, appendSelfState, createRelationshipType, setStateKnownBy, setStateAnchor } from "../lib/api";
 import type { Anchor } from "../lib/anchor";
 import type { Entity, RelationshipType, Valence } from "../lib/types";
-import { VALENCE_COLOR } from "../lib/valence";
+import { VALENCE_COLOR, VALENCE_LABEL } from "../lib/valence";
+import { familyOf } from "../lib/entityTypes";
 import { Icon } from "../components/icons";
 import { shortName } from "../lib/names";
 
-const VALENCES: Valence[] = ["bond", "hostile", "obligation", "neutral"];
+// Relational standings (mint), in felt-spectrum order; inner charge is a
+// three-stop reading of the same colours (a rising / flat / sinking feeling).
+const VALENCES: Valence[] = ["bond", "obligation", "neutral", "hostile"];
+const CHARGES: { label: string; valence: Valence }[] = [
+  { label: "Lifts", valence: "bond" },
+  { label: "Steady", valence: "neutral" },
+  { label: "Weighs", valence: "hostile" },
+];
 
-// The state composer (§8): sentence-shaped, not form-shaped. [A] [did what] [B],
-// with the selected prose as the note, knowledge default = everyone, exceptions
-// opt-in only. Rendered as a modal in phase 3; inline-anchored positioning is a
-// design-phase refinement.
+// A single-select entity picker: a chip once chosen, a type-to-search over the
+// whole world otherwise. Same treatment as the entity-page composer.
+function EntityPick({ entities, valueId, onPick, placeholder, autoFocus }: {
+  entities: Entity[];
+  valueId: string;
+  onPick: (id: string) => void;
+  placeholder: string;
+  autoFocus?: boolean;
+}) {
+  const [q, setQ] = useState("");
+  const chosen = valueId ? entities.find((e) => e.id === valueId) ?? null : null;
+  const ql = q.trim().toLowerCase();
+  const matches = useMemo(
+    () => (ql ? entities.filter((e) => (e.title + " " + e.aliases.join(" ")).toLowerCase().includes(ql)).slice(0, 8) : []),
+    [entities, ql],
+  );
+  return (
+    <div className="rel-search">
+      {chosen ? (
+        <span className="chip on" style={{ cursor: "pointer" }} onClick={() => onPick("")}>
+          {chosen.title} <Icon name="close" size={12} />
+        </span>
+      ) : (
+        <>
+          <input className="rel-search-input" value={q} autoFocus={autoFocus} placeholder={placeholder}
+            style={{ width: "100%" }} onChange={(e) => setQ(e.target.value)} />
+          {ql && (
+            <div className="typeahead rel-drop">
+              {matches.map((e) => (
+                <div key={e.id} className="ta-row" onClick={() => { onPick(e.id); setQ(""); }}>
+                  <span className="title-serif" style={{ flex: 1, fontSize: 14 }}>{e.title}</span>
+                  <span style={{ fontSize: 11, color: "var(--faint)" }}>{e.type}</span>
+                </div>
+              ))}
+              {matches.length === 0 && <div className="ta-row"><span className="muted">no match</span></div>}
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+// Record a moment (§8): a moment is a change recorded in the prose. It can be
+// BETWEEN two things (person↔person, or a person → a place/object), or INSIDE
+// one character (an inner beat). Sentence-shaped, drawing from the same vocab as
+// the entity-page composer; the selected prose is the note and the anchor.
 export function Composer(props: {
   worldId: string;
   chapterId: string;
@@ -29,184 +80,240 @@ export function Composer(props: {
   const { worldId, chapterId, chapterOrder, chapterTitle, entities, types, castIds, note, anchor, onClose, onAppended, onTypesChanged } = props;
 
   const ordered = useMemo(() => {
-    // cast first, then everyone else — you usually mark the people on the page
     const inCast = entities.filter((e) => castIds.includes(e.id));
     const rest = entities.filter((e) => !castIds.includes(e.id));
     return [...inCast, ...rest];
   }, [entities, castIds]);
 
-  const [a, setA] = useState(ordered[0]?.id ?? "");
-  const [b, setB] = useState(ordered[1]?.id ?? "");
-  const [typeQuery, setTypeQuery] = useState("");
-  const [typeId, setTypeId] = useState<string | null>(null);
-  const [mintValence, setMintValence] = useState<Valence>("neutral");
-  const [concealed, setConcealed] = useState<string[]>([]);
+  const [mode, setMode] = useState<"between" | "inside">("between");
+  const [subject, setSubject] = useState(ordered[0]?.id ?? "");
+  const [object, setObject] = useState(ordered[1]?.id ?? "");
+  const [kindQuery, setKindQuery] = useState("");
+  const [kindId, setKindId] = useState<string | null>(null);
+  const [minting, setMinting] = useState(false);
+  const [mintCharge, setMintCharge] = useState<Valence | null>(null);
+  const [showKnow, setShowKnow] = useState(false);
   const [intent, setIntent] = useState<"truth" | "belief">("truth");
+  const [concealed, setConcealed] = useState<string[]>([]);
   const [believers, setBelievers] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [added, setAdded] = useState(0);
-  const typeRef = useRef<HTMLInputElement>(null);
+  const kindRef = useRef<HTMLInputElement>(null);
 
-  const q = typeQuery.trim().toLowerCase();
-  const matches = types.filter((t) => t.label.toLowerCase().includes(q)).slice(0, 5);
-  const exact = types.find((t) => t.label.toLowerCase() === q);
-  const chosenType = typeId ? types.find((t) => t.id === typeId) ?? null : exact ?? null;
-  const canMint = !chosenType && q.length > 0;
+  const inside = mode === "inside";
+  const q = kindQuery.trim().toLowerCase();
+  const kindMatches = useMemo(
+    () => (q ? types.filter((t) => !!t.is_inner === inside && t.label.toLowerCase().includes(q)).slice(0, 6) : []),
+    [types, q, inside],
+  );
+  const kindExact = types.find((t) => !!t.is_inner === inside && t.label.toLowerCase() === q);
+  const chosenKind = kindId ? types.find((t) => t.id === kindId) ?? null : kindExact ?? null;
+  const canMint = !chosenKind && q.length > 0;
+
+  const subjEnt = subject ? entities.find((e) => e.id === subject) ?? null : null;
+  const objEnt = object ? entities.find((e) => e.id === object) ?? null : null;
+  const towardThing = !inside && !!objEnt && ["place", "object", "moment"].includes(familyOf(objEnt.type));
+  const subjName = subjEnt ? shortName(subjEnt.title) : "they";
+
+  const mintReady = !minting || (q.length > 0 && mintCharge != null);
+  const canRecord =
+    !!subject &&
+    (inside || (!!object && object !== subject)) &&
+    (chosenKind != null || canMint) &&
+    mintReady &&
+    !(showKnow && intent === "belief" && believers.length === 0);
 
   async function commit() {
-    if (!a || !b || a === b) { setErr("Pick two different entities."); return; }
-    setBusy(true);
-    setErr(null);
+    if (!canRecord) { setErr(inside ? "Pick who and what they feel." : "Pick two, and what happens."); return; }
+    setBusy(true); setErr(null);
     try {
-      let tid = chosenType?.id ?? null;
+      let tid = chosenKind?.id ?? null;
       if (!tid && canMint) {
-        const t = await createRelationshipType(worldId, typeQuery.trim(), mintValence);
-        tid = t.id;
-        onTypesChanged();
+        const t = await createRelationshipType(worldId, kindQuery.trim(), mintCharge ?? "neutral", false, inside);
+        tid = t.id; onTypesChanged();
       }
-      if (!tid) { setErr("Choose or name a relationship type."); setBusy(false); return; }
-      if (intent === "belief" && believers.length === 0) { setErr("Pick who holds this belief."); setBusy(false); return; }
-      const stateId = await appendPairwiseState({
-        worldId,
-        entityA: a,
-        entityB: b,
-        typeId: tid,
-        manuscriptRef: chapterId,
-        note,
-        concealedFrom: intent === "truth" ? concealed : [],
-      });
-      if (intent === "belief") await setStateKnownBy(stateId, { believed_by: believers });
-      // §(b): anchor the moment to the marked prose (all beats in this session
-      // share the one selection). Best-effort — a failed anchor never blocks the moment.
-      if (anchor) { try { await setStateAnchor(stateId, anchor); } catch { /* leaves anchor null; still a valid moment */ } }
+      if (!tid) { setErr("Choose or name a kind."); setBusy(false); return; }
+
+      const useBelief = showKnow && intent === "belief";
+      let stateId: string;
+      if (inside) {
+        stateId = await appendSelfState({ worldId, entityId: subject, typeId: tid, manuscriptRef: chapterId, note });
+        if (useBelief) await setStateKnownBy(stateId, { believed_by: believers });
+        else if (showKnow && concealed.length > 0) await setStateKnownBy(stateId, { concealed_from: concealed });
+      } else {
+        stateId = await appendPairwiseState({
+          worldId, entityA: subject, entityB: object, typeId: tid, manuscriptRef: chapterId, note,
+          concealedFrom: showKnow && !useBelief ? concealed : [],
+        });
+        if (useBelief) await setStateKnownBy(stateId, { believed_by: believers });
+      }
+      // anchor to the marked prose — best-effort; a failed anchor never blocks it.
+      if (anchor) { try { await setStateAnchor(stateId, anchor); } catch { /* still a valid moment */ } }
+
       onAppended();
-      // rapid entry: keep the composer open for the next beat in this scene
       setAdded((n) => n + 1);
-      setTypeQuery(""); setTypeId(null); setConcealed([]); setBelievers([]); setBusy(false);
-      typeRef.current?.focus();
-    } catch (x) {
-      setErr(String(x));
-      setBusy(false);
-    }
+      // rapid entry: keep who/mode, clear the beat itself for the next one
+      setKindQuery(""); setKindId(null); setMinting(false); setMintCharge(null);
+      setConcealed([]); setBelievers([]); setBusy(false);
+      kindRef.current?.focus();
+    } catch (x) { setErr(String(x)); setBusy(false); }
   }
 
-  const entOptions = (exclude: string) =>
-    ordered.filter((e) => e.id !== exclude).map((e) => <option key={e.id} value={e.id}>{e.title}</option>);
+  const knowSummary = intent === "belief"
+    ? (believers.length ? `a belief of ${believers.length}` : "a belief")
+    : (concealed.length ? `hidden from ${concealed.length}` : "everyone + the reader");
+  const concealCandidates = entities.filter((e) => e.type === "Character" && e.id !== subject && e.id !== object);
+  const characters = entities.filter((e) => e.type === "Character");
 
-  const concealCandidates = entities.filter((e) => e.type === "Character" && e.id !== a && e.id !== b);
+  const kindChip = chosenKind || (minting && q);
+  const chargeSet = inside ? CHARGES : VALENCES.map((v) => ({ label: VALENCE_LABEL[v], valence: v }));
+  const mintQuestion = inside
+    ? `How does it sit in ${subjName}?`
+    : towardThing ? `How does ${subjName} feel about it?` : "How do they stand?";
 
   return (
     <div className="overlay" onClick={onClose}>
-      <div className="composer" onClick={(e) => e.stopPropagation()}>
-        <div className="row" style={{ borderBottom: "none", padding: 0, marginBottom: 4 }}>
+      <div className="composer" style={{ width: "32rem" }} onClick={(e) => e.stopPropagation()}>
+        <div className="row" style={{ borderBottom: "none", padding: 0, marginBottom: 2 }}>
           <span className="label" style={{ margin: 0 }}>Record a moment</span>
           <span className="spacer" />
           <span style={{ cursor: "pointer", color: "var(--muted)" }} onClick={onClose}><Icon name="close" size={15} /></span>
         </div>
-        <p className="muted" style={{ margin: "0 0 10px", fontSize: 12 }}>
-          What happens between two characters here? It joins their relationship history, filed under
-          {" "}<span style={{ color: "var(--ink)", fontWeight: 600 }}><Icon name="book" size={12} /> ch. {String(chapterOrder).padStart(2, "0")} — {chapterTitle}</span>.
+        <p className="muted" style={{ margin: "0 0 12px", fontSize: 12 }}>
+          Filed under <span style={{ color: "var(--ink)", fontWeight: 600 }}><Icon name="book" size={12} /> ch. {String(chapterOrder).padStart(2, "0")} · {chapterTitle}</span>
         </p>
 
-        {/* the sentence (§8): [who] [did what] [to/with whom], with a quiet label
-            under each part so the structure reads at a glance. */}
-        <div className="cmp-sentence">
-          <label className="cmp-part">
-            <select value={a} onChange={(e) => setA(e.target.value)} className="sel">{entOptions(b)}</select>
-            <span className="cmp-part-lab">who</span>
-          </label>
-          <label className="cmp-part">
-            <div style={{ position: "relative" }}>
-              <input
-                ref={typeRef}
-                autoFocus
-                value={chosenType ? chosenType.label : typeQuery}
-                onChange={(e) => { setTypeQuery(e.target.value); setTypeId(null); }}
-                onKeyDown={(e) => { if (e.key === "Enter" && (chosenType || canMint) && a && b && a !== b) commit(); if (e.key === "Escape") onClose(); }}
-                placeholder="did what… (e.g. betrayed)"
-                style={{ width: 200, borderColor: chosenType ? VALENCE_COLOR[chosenType.valence] : undefined }}
-              />
-              {q.length > 0 && !typeId && (
-                <div className="typeahead">
-                  {matches.map((t) => (
-                    <div key={t.id} className="ta-row" onClick={() => { setTypeId(t.id); setTypeQuery(""); }}>
-                      <span className="dot" style={{ background: VALENCE_COLOR[t.valence] }} />{t.label}
-                    </div>
-                  ))}
-                  {canMint && (
-                    <div className="ta-row" style={{ flexDirection: "column", alignItems: "flex-start", gap: 6 }}>
-                      <span className="muted">mint “{typeQuery.trim()}” as a new type — pick a standing:</span>
-                      <span style={{ display: "flex", gap: 6 }}>
-                        {VALENCES.map((v) => (
-                          <span key={v} title={v} onClick={() => setMintValence(v)}
-                            style={{ width: 16, height: 16, borderRadius: "50%", background: VALENCE_COLOR[v], cursor: "pointer",
-                              outline: mintValence === v ? "2px solid var(--ink)" : "none", outlineOffset: 1 }} />
-                        ))}
-                      </span>
+        {/* mode: between two (or toward a thing) vs inside one character */}
+        <span className="seg sm" style={{ marginBottom: 16 }}>
+          <span className={!inside ? "on" : ""} onClick={() => setMode("between")}>↔ Between · toward</span>
+          <span className={inside ? "on" : ""} onClick={() => { setMode("inside"); setKindId(null); setKindQuery(""); setMinting(false); }}>◐ Inside one character</span>
+        </span>
+
+        {/* who · feels·does */}
+        <div className="rel-comp-fields">
+          <div className="rel-field2" style={{ flex: 1 }}>
+            <span className="rel-lab">Who</span>
+            <EntityPick entities={ordered} valueId={subject} onPick={setSubject} placeholder="who…" />
+          </div>
+          <div className="rel-field2" style={{ flex: 1 }}>
+            <span className="rel-lab">{inside ? "Feels" : "Feels · does"}</span>
+            <div className="rel-search">
+              {kindChip ? (
+                <span className="chip on" style={{ cursor: "pointer" }}
+                  onClick={() => { setKindId(null); setMinting(false); setKindQuery(""); setMintCharge(null); setTimeout(() => kindRef.current?.focus(), 0); }}>
+                  {chosenKind && <span className="dot" style={{ background: VALENCE_COLOR[chosenKind.valence] }} />}
+                  {chosenKind?.label ?? kindQuery.trim()} <Icon name="close" size={12} />
+                </span>
+              ) : (
+                <>
+                  <input ref={kindRef} autoFocus className="rel-search-input" value={kindQuery} style={{ width: "100%" }}
+                    placeholder={inside ? "a feeling — hopeful, hollow…" : "did what… e.g. betrayed"}
+                    onChange={(e) => { setKindQuery(e.target.value); setKindId(null); }}
+                    onKeyDown={(e) => { if (e.key === "Enter" && canRecord) commit(); if (e.key === "Escape") onClose(); }} />
+                  {q.length > 0 && (
+                    <div className="typeahead rel-drop">
+                      {kindMatches.map((t) => (
+                        <div key={t.id} className="ta-row" onClick={() => { setKindId(t.id); setKindQuery(t.label); }}>
+                          <span className="dot" style={{ background: VALENCE_COLOR[t.valence] }} />
+                          <span style={{ flex: 1 }}>{t.label}</span>
+                        </div>
+                      ))}
+                      {canMint && (
+                        <div className="ta-row" onClick={() => { setMinting(true); setKindId(null); }}>
+                          <span style={{ color: "var(--k-action-text, var(--bond))" }}>＋ {inside ? "new feeling" : "new kind"} “{kindQuery.trim()}”</span>
+                        </div>
+                      )}
                     </div>
                   )}
-                </div>
+                </>
               )}
             </div>
-            <span className="cmp-part-lab">did what</span>
-          </label>
-          <label className="cmp-part">
-            <select value={b} onChange={(e) => setB(e.target.value)} className="sel">{entOptions(a)}</select>
-            <span className="cmp-part-lab">to / with whom</span>
-          </label>
-        </div>
-
-        {/* truth vs belief — two option cards, each with an icon and what it means,
-            so the choice reads at a glance instead of as a cramped toggle. */}
-        <div className="cmp-choice">
-          <button type="button" className={"cmp-opt" + (intent === "truth" ? " on" : "")} onClick={() => setIntent("truth")}>
-            <span className="cmp-opt-h"><Icon name="check" size={16} /> The truth</span>
-            <span className="cmp-opt-d">What actually happens in the story.</span>
-          </button>
-          <button type="button" className={"cmp-opt" + (intent === "belief" ? " on" : "")} onClick={() => setIntent("belief")}>
-            <span className="cmp-opt-h"><Icon name="drama" size={16} /> A belief</span>
-            <span className="cmp-opt-d">What someone thinks is true — even if it’s wrong.</span>
-          </button>
-        </div>
-
-        {/* knowledge: for truth, conceal from exceptions; for belief, name who holds it */}
-        {intent === "truth" ? (
-          <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap", marginBottom: 12 }}>
-            <span className="muted">known by everyone + the reader</span>
-            {concealCandidates.map((e) => (
-              <span key={e.id}
-                className={"chip" + (concealed.includes(e.id) ? " on" : "")}
-                onClick={() => setConcealed((c) => c.includes(e.id) ? c.filter((x) => x !== e.id) : [...c, e.id])}>
-                {concealed.includes(e.id) ? "" : "…except "}{shortName(e.title)}
-              </span>
-            ))}
           </div>
-        ) : (
-          <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap", marginBottom: 12 }}>
-            <span className="muted">believed by</span>
-            {entities.filter((e) => e.type === "Character").map((e) => (
-              <span key={e.id}
-                className={"chip" + (believers.includes(e.id) ? " on" : "")}
-                onClick={() => setBelievers((c) => c.includes(e.id) ? c.filter((x) => x !== e.id) : [...c, e.id])}>
-                {believers.includes(e.id) ? <><Icon name="drama" size={11} /> </> : ""}{shortName(e.title)}
-              </span>
-            ))}
+        </div>
+
+        {/* toward · with (between mode only) */}
+        {!inside && (
+          <div className="rel-field2" style={{ marginTop: 14 }}>
+            <span className="rel-lab">Toward · with</span>
+            <EntityPick entities={ordered.filter((e) => e.id !== subject)} valueId={object} onPick={setObject}
+              placeholder="search your world — anyone, anywhere, anything…" />
           </div>
         )}
 
-        <p className="note" style={{ borderLeft: "2px solid var(--line)", paddingLeft: 10, margin: "0 0 12px" }}>
-          "{note.length > 160 ? note.slice(0, 160) + "…" : note}"
-        </p>
+        {/* mint well — set the new kind's charge/standing once */}
+        {minting && q.length > 0 && (
+          <div className="rel-well" style={{ marginTop: 14 }}>
+            <div className="rel-q">
+              <span className="rel-lab">{mintQuestion}</span>
+              <span className="seg rel-standing">
+                {chargeSet.map((c) => (
+                  <span key={c.valence} className={mintCharge === c.valence ? "on" : ""} onClick={() => setMintCharge(c.valence)}>
+                    <span className="rel-standing-dot" style={{ background: VALENCE_COLOR[c.valence] }} />{c.label}
+                  </span>
+                ))}
+              </span>
+            </div>
+            <div className="faint" style={{ fontSize: 11 }}>
+              {inside ? "Lifts is a rising feeling, weighs a sinking one — it colours the arc."
+                : "Sets the colour, and reads across every future use of this word."}
+            </div>
+          </div>
+        )}
 
-        {err && <p className="err">{err}</p>}
-        <div className="row" style={{ borderBottom: "none", padding: 0, gap: 10 }}>
-          <button className="primary" onClick={commit} disabled={busy}>
-            {busy ? "…" : "Record moment"}
+        {/* the trigger line */}
+        {note.trim() && (
+          <blockquote className="mom-quote" style={{ borderLeftColor: chosenKind ? VALENCE_COLOR[chosenKind.valence] : "var(--line)", margin: "14px 0 0" }}>
+            {note.length > 200 ? note.slice(0, 200) + "…" : note}
+          </blockquote>
+        )}
+
+        {/* who knows this — collapsed by default (the common case is plain truth) */}
+        <div className="cmp-know">
+          <button type="button" className="cmp-know-toggle" onClick={() => setShowKnow((s) => !s)}>
+            <Icon name={showKnow ? "chevron-down" : "chevron"} size={13} />
+            <span>Who knows this?</span>
+            <span className="muted">{knowSummary}</span>
           </button>
+          {showKnow && (
+            <div className="cmp-know-body">
+              <span className="seg sm">
+                <span className={intent === "truth" ? "on" : ""} onClick={() => setIntent("truth")}>The truth</span>
+                <span className={intent === "belief" ? "on" : ""} onClick={() => setIntent("belief")}>A belief</span>
+              </span>
+              {intent === "truth" ? (
+                <div className="cmp-know-chips">
+                  <span className="muted" style={{ fontSize: 12 }}>known by everyone — except</span>
+                  {concealCandidates.map((e) => (
+                    <span key={e.id} className={"chip" + (concealed.includes(e.id) ? " on" : "")}
+                      onClick={() => setConcealed((c) => c.includes(e.id) ? c.filter((x) => x !== e.id) : [...c, e.id])}>
+                      {shortName(e.title)}
+                    </span>
+                  ))}
+                  {concealCandidates.length === 0 && <span className="faint" style={{ fontSize: 11 }}>no one to hide it from yet</span>}
+                </div>
+              ) : (
+                <div className="cmp-know-chips">
+                  <span className="muted" style={{ fontSize: 12 }}>believed by</span>
+                  {characters.map((e) => (
+                    <span key={e.id} className={"chip" + (believers.includes(e.id) ? " on" : "")}
+                      onClick={() => setBelievers((c) => c.includes(e.id) ? c.filter((x) => x !== e.id) : [...c, e.id])}>
+                      {shortName(e.title)}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {err && <p className="err" style={{ marginTop: 10 }}>{err}</p>}
+        <div className="rel-actions" style={{ marginTop: 14 }}>
+          <button className="primary" onClick={commit} disabled={busy || !canRecord}>{busy ? "…" : "Record moment"}</button>
           <button onClick={onClose}>Done{added > 0 ? ` (${added})` : ""}</button>
-          <span className="muted">
-            {added > 0 ? `✓ ${added} recorded — keep going.  ` : ""}Enter to record · nothing is ever overwritten
+          <span className="spacer" style={{ flex: 1 }} />
+          <span className="faint" style={{ fontSize: 11 }}>
+            {added > 0 ? `✓ ${added} recorded  ·  ` : ""}Enter to record · nothing is overwritten
           </span>
         </div>
       </div>
